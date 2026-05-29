@@ -14,17 +14,66 @@
 /// final class ProductDetail extends AppRoute {
 ///   const ProductDetail(this.id);
 ///   final String id;
+///
+///   @override
+///   List<Object?> get props => [id];
 /// }
 /// ```
 ///
-/// `GateRoute` itself imposes no requirements beyond being constructible.
-/// You are responsible for value equality on your route types — either
-/// override `==`/`hashCode`, use `package:equatable`, or declare your
-/// variants with `const` constructors and immutable fields. Two routes
-/// that compare equal are treated as the same logical destination for
-/// URL-restoration purposes, but page identity in the navigator is
-/// tracked independently (so duplicate routes on the stack are fine).
+/// ## Equality
+///
+/// `GateRoute` provides default value equality based on [props]. Two
+/// routes are equal when they have the same runtime type and equal
+/// [props]. For variants with no fields, the default `props` (an empty
+/// list) is sufficient — `Home() == Home()` works out of the box.
+///
+/// For variants with fields, override [props]:
+///
+/// ```dart
+/// final class ProductDetail extends AppRoute {
+///   const ProductDetail(this.id);
+///   final String id;
+///
+///   @override
+///   List<Object?> get props => [id];
+/// }
+/// ```
+///
+/// `props` comparison is per-element using `==`. For collection fields
+/// (lists, maps, sets), prefer canonical/const values or override `==`
+/// directly with deep-equality logic — `props: [tags]` on a mutable list
+/// compares by identity, which is rarely what you want.
+///
+/// Subclasses are free to override `==`/`hashCode` directly if they
+/// want different equality semantics; their override wins over the
+/// default.
 abstract class GateRoute {
   /// Const constructor so subclasses can be `const`.
   const GateRoute();
+
+  /// Fields that participate in value equality. Override in variants
+  /// that carry data. Defaults to const [] (only runtime type matters).
+  List<Object?> get props => const [];
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! GateRoute || other.runtimeType != runtimeType) return false;
+    final mine = props;
+    final theirs = other.props;
+    if (mine.length != theirs.length) return false;
+    for (var i = 0; i < mine.length; i++) {
+      if (mine[i] != theirs[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hashAll([runtimeType, ...props]);
+
+  @override
+  String toString() {
+    if (props.isEmpty) return runtimeType.toString();
+    return '$runtimeType(${props.join(', ')})';
+  }
 }

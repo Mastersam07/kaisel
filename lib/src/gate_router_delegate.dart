@@ -92,19 +92,25 @@ class GateRouterDelegate<R extends GateRoute>
   void _onDidRemovePage(Page<Object?> page) {
     // Navigator pages can be removed for two reasons:
     //   1. The user (system back, in-app pop button) initiated the pop.
-    //      In this case the entry is still in our state; we sync.
+    //      In this case the entry is still in our state; we sync it.
     //   2. We initiated the removal by mutating the router state, and
     //      Navigator is just animating out a page that's no longer in
-    //      our pages list. In this case the entry is already gone; no-op.
+    //      our pages list. The entry is already gone; onPageRemoved
+    //      no-ops on unknown ids.
+    //
+    // Guards do NOT run on this path — by the time we hear from the
+    // navigator, the pop has already animated. State-driven redirects
+    // (auth, etc.) should listen to your app state and call router.set
+    // or router.replace, not be implemented as pop-time guards.
     final key = page.key;
     if (key is! ValueKey<int>) return;
-    router.removeById(key.value);
+    router.onPageRemoved(key.value);
   }
 
   @override
-  Future<void> setNewRoutePath(List<R> configuration) async {
-    if (configuration.isEmpty) return;
-    router.set(configuration);
+  Future<void> setNewRoutePath(List<R> configuration) {
+    if (configuration.isEmpty) return Future<void>.value();
+    return router.applyFromInformation(configuration);
   }
 
   // popRoute is supplied by PopNavigatorRouterDelegateMixin. The default

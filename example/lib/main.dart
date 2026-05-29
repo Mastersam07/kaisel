@@ -1,141 +1,315 @@
 import 'package:flutter/material.dart';
 import 'package:gate/gate.dart';
 
-// 1. Declare the route type as a sealed class.
-//    Variants are typed; their fields are real fields, not strings.
+// ─────────────────────────────────────────────────────────────────────
+// 1. Routes — sealed type with default props-based equality (no manual
+//    == / hashCode anywhere).
+// ─────────────────────────────────────────────────────────────────────
+
 sealed class AppRoute extends GateRoute {
   const AppRoute();
 }
 
-final class Home extends AppRoute {
-  const Home();
-  @override
-  bool operator ==(Object other) => other is Home;
-  @override
-  int get hashCode => 0;
+final class Splash extends AppRoute {
+  const Splash();
 }
 
-final class ProductList extends AppRoute {
-  const ProductList({this.category});
-  final String? category;
-
-  @override
-  bool operator ==(Object other) =>
-      other is ProductList && other.category == category;
-  @override
-  int get hashCode => category.hashCode;
+final class Login extends AppRoute {
+  const Login();
 }
 
-final class ProductDetail extends AppRoute {
+/// Marker mixin for routes that require an authenticated user. Used by
+/// the auth guard to decide whether to redirect to Login.
+mixin RequiresAuth on AppRoute {}
+
+/// The main app shell — bottom-nav with Home/Discover/Profile tabs.
+final class MainShell extends AppRoute with RequiresAuth {
+  const MainShell();
+}
+
+// Routes that can appear in any branch of the shell:
+final class HomeRoot extends AppRoute with RequiresAuth {
+  const HomeRoot();
+}
+
+final class DiscoverRoot extends AppRoute with RequiresAuth {
+  const DiscoverRoot();
+}
+
+final class ProfileRoot extends AppRoute with RequiresAuth {
+  const ProfileRoot();
+}
+
+final class ProductDetail extends AppRoute with RequiresAuth {
   const ProductDetail(this.id);
   final String id;
 
   @override
-  bool operator ==(Object other) =>
-      other is ProductDetail && other.id == id;
-  @override
-  int get hashCode => id.hashCode;
+  List<Object?> get props => [id];
 }
 
-final class Cart extends AppRoute {
-  const Cart();
-  @override
-  bool operator ==(Object other) => other is Cart;
-  @override
-  int get hashCode => 2;
+final class Settings extends AppRoute with RequiresAuth {
+  const Settings();
 }
 
-// 2. A codec — only needed if you want URLs (web, deep links).
-//    Plain mobile apps can skip this and not register a parser.
+// ─────────────────────────────────────────────────────────────────────
+// 2. Auth state — a simple ValueNotifier so the guard can read current
+//    state and so screens can react to login/logout.
+// ─────────────────────────────────────────────────────────────────────
+
+class AuthState extends ValueNotifier<bool> {
+  AuthState() : super(false);
+  void logIn() => value = true;
+  void logOut() => value = false;
+}
+
+final auth = AuthState();
+
+// ─────────────────────────────────────────────────────────────────────
+// 3. Guards — pure-function transforms over (current, proposed).
+// ─────────────────────────────────────────────────────────────────────
+
+GateGuard<AppRoute> authGuard(AuthState auth) {
+  return (current, proposed) {
+    final needsAuth = proposed.any((r) => r is RequiresAuth);
+    if (needsAuth && !auth.value) {
+      return const [Login()];
+    }
+    return proposed;
+  };
+}
+
+GateGuard<AppRoute> splashRedirectGuard(AuthState auth) {
+  // Once auth state is known (we model it as "any push past splash"),
+  // bounce Splash out of the way. Demonstrates a state-based guard that
+  // doesn't need to refuse, just nudge the destination.
+  return (current, proposed) {
+    if (proposed.length == 1 && proposed.single is Splash) {
+      return [auth.value ? const MainShell() : const Login()];
+    }
+    return proposed;
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// 4. URL codec — opt-in. Comment out the parser registration to run
+//    mobile-only without URLs.
+// ─────────────────────────────────────────────────────────────────────
+
 class AppCodec implements GateCodec<AppRoute> {
   const AppCodec();
 
   @override
   Uri encode(AppRoute route) => switch (route) {
-        Home() => Uri(path: '/'),
-        ProductList(:final category) => Uri(
-            path: '/products',
-            queryParameters: {
-              'category': ?category,
-            },
-          ),
+        Splash() => Uri(path: '/'),
+        Login() => Uri(path: '/login'),
+        MainShell() => Uri(path: '/app'),
+        HomeRoot() => Uri(path: '/app/home'),
+        DiscoverRoot() => Uri(path: '/app/discover'),
+        ProfileRoot() => Uri(path: '/app/profile'),
         ProductDetail(:final id) => Uri(path: '/products/$id'),
-        Cart() => Uri(path: '/cart'),
+        Settings() => Uri(path: '/settings'),
+        RequiresAuth() => Uri(path: '/login')
       };
 
   @override
   AppRoute? decode(Uri uri) {
-    final segments = uri.pathSegments;
-    return switch (segments) {
-      [] || [''] => const Home(),
-      ['products'] => ProductList(category: uri.queryParameters['category']),
+    return switch (uri.pathSegments) {
+      [] || [''] => const Splash(),
+      ['login'] => const Login(),
+      ['app'] => const MainShell(),
+      ['app', 'home'] => const HomeRoot(),
+      ['app', 'discover'] => const DiscoverRoot(),
+      ['app', 'profile'] => const ProfileRoot(),
       ['products', final id] => ProductDetail(id),
-      ['cart'] => const Cart(),
+      ['settings'] => const Settings(),
       _ => null,
     };
   }
 }
 
-// 3. Wire it up.
+// ─────────────────────────────────────────────────────────────────────
+// 5. Wire it up.
+// ─────────────────────────────────────────────────────────────────────
+
+final router = GateRouter<AppRoute>(
+  initial: const Splash(),
+  guards: [splashRedirectGuard(auth), authGuard(auth)],
+);
+
 void main() {
-  final router = GateRouter<AppRoute>(initial: const Home());
+  // Listen for logout — bounce to login from anywhere.
+  auth.addListener(() {
+    if (!auth.value) {
+      router.set(const [Login()]);
+    }
+  });
 
   runApp(
     MaterialApp.router(
-      title: 'Gate example',
+      title: 'Gate v0.2 example',
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.indigo),
       routerDelegate: GateRouterDelegate<AppRoute>(
         router: router,
-        // 4. Pattern-matched page resolution. The compiler enforces
-        //    exhaustiveness over AppRoute — add a variant and this
-        //    switch becomes a compile error.
-        builder: (context, route) => switch (route) {
-          Home() => HomeScreen(router: router),
-          ProductList(:final category) =>
-            ProductListScreen(router: router, category: category),
-          ProductDetail(:final id) =>
-            ProductDetailScreen(router: router, id: id),
-          Cart() => CartScreen(router: router),
-        },
+        builder: _buildPage,
       ),
       routeInformationParser: GateRouteInformationParser<AppRoute>(
         codec: const AppCodec(),
-        fallback: const Home(),
+        fallback: const Splash(),
       ),
     ),
   );
 }
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.router});
-  final GateRouter<AppRoute> router;
+// One pattern-matched page builder shared by the root router and every
+// branch in the shell. Add a variant → this becomes a compile error.
+Widget _buildPage(BuildContext context, AppRoute route) => switch (route) {
+      Splash() => const _SplashScreen(),
+      Login()=> const _LoginScreen(),
+      MainShell() => const _MainShellScreen(),
+      HomeRoot() => const _HomeScreen(),
+      DiscoverRoot() => const _DiscoverScreen(),
+      ProfileRoot() => const _ProfileScreen(),
+      ProductDetail(:final id) => _ProductDetailScreen(id: id),
+      Settings() => const _SettingsScreen(),
+      RequiresAuth() => const _LoginScreen()
+    };
 
+// ─────────────────────────────────────────────────────────────────────
+// 6. Screens.
+// ─────────────────────────────────────────────────────────────────────
+
+class _SplashScreen extends StatefulWidget {
+  const _SplashScreen();
+  @override
+  State<_SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<_SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Nudge the splash forward; the guard will redirect to login or
+    // main shell depending on auth state.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      router.replace(const Splash());
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: CircularProgressIndicator()));
+}
+
+class _LoginScreen extends StatelessWidget {
+  const _LoginScreen();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Sign in')),
+      body: Center(
+        child: FilledButton(
+          onPressed: () {
+            auth.logIn();
+            router.set(const [MainShell()]);
+          },
+          child: const Text('Log in'),
+        ),
+      ),
+    );
+  }
+}
+
+class _MainShellScreen extends StatelessWidget {
+  const _MainShellScreen();
+  @override
+  Widget build(BuildContext context) {
+    return GateShell<AppRoute>(
+      branchInitials: const [HomeRoot(), DiscoverRoot(), ProfileRoot()],
+      pageBuilder: _buildPage,
+      chromeBuilder: (context, active, branchContent, switchBranch) {
+        return Scaffold(
+          body: branchContent,
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: active,
+            onDestinationSelected: switchBranch,
+            destinations: const [
+              NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
+              NavigationDestination(
+                  icon: Icon(Icons.explore), label: 'Discover'),
+              NavigationDestination(
+                  icon: Icon(Icons.person), label: 'Profile'),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _HomeScreen extends StatelessWidget {
+  const _HomeScreen();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Home')),
+      body: ListView(
+        children: [
+          for (final id in ['sku-1', 'sku-2', 'sku-42'])
+            ListTile(
+              title: Text('Product $id'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context
+                  .branchRouter<AppRoute>()
+                  .push(ProductDetail(id)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DiscoverScreen extends StatelessWidget {
+  const _DiscoverScreen();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Discover')),
+      body: Center(
+        child: FilledButton(
+          onPressed: () => context
+              .branchRouter<AppRoute>()
+              .push(const ProductDetail('discovery-pick')),
+          child: const Text('Featured product'),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileScreen extends StatelessWidget {
+  const _ProfileScreen();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Profile')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             FilledButton(
-              onPressed: () => router.push(const ProductList()),
-              child: const Text('Browse all products'),
-            ),
-            const SizedBox(height: 12),
-            FilledButton.tonal(
-              onPressed: () =>
-                  router.push(const ProductList(category: 'shoes')),
-              child: const Text('Browse shoes'),
+              onPressed: () => context
+                  .branchRouter<AppRoute>()
+                  .push(const Settings()),
+              child: const Text('Settings'),
             ),
             const SizedBox(height: 12),
             TextButton(
-              onPressed: () => router.set(const [
-                Home(),
-                ProductList(category: 'shoes'),
-                ProductDetail('sku-42'),
-              ]),
-              child: const Text('Jump directly into a deep stack'),
+              onPressed: () {
+                // Logout — the auth listener bounces us to login.
+                auth.logOut();
+              },
+              child: const Text('Log out'),
             ),
           ],
         ),
@@ -144,46 +318,8 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class ProductListScreen extends StatelessWidget {
-  const ProductListScreen({
-    super.key,
-    required this.router,
-    required this.category,
-  });
-  final GateRouter<AppRoute> router;
-  final String? category;
-
-  @override
-  Widget build(BuildContext context) {
-    final title = category == null ? 'All products' : 'Products: $category';
-    final ids = ['sku-1', 'sku-2', 'sku-42', 'sku-99'];
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: ListView(
-        children: [
-          for (final id in ids)
-            ListTile(
-              title: Text('Product $id'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => router.push(ProductDetail(id)),
-            ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => router.push(const Cart()),
-        child: const Icon(Icons.shopping_cart),
-      ),
-    );
-  }
-}
-
-class ProductDetailScreen extends StatelessWidget {
-  const ProductDetailScreen({
-    super.key,
-    required this.router,
-    required this.id,
-  });
-  final GateRouter<AppRoute> router;
+class _ProductDetailScreen extends StatelessWidget {
+  const _ProductDetailScreen({required this.id});
   final String id;
 
   @override
@@ -197,15 +333,10 @@ class ProductDetailScreen extends StatelessWidget {
             Text('Detail page for $id',
                 style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => router.push(const Cart()),
-              child: const Text('Add to cart and view cart'),
-            ),
-            const SizedBox(height: 8),
             TextButton(
               onPressed: () =>
-                  router.popUntil((r) => r is Home),
-              child: const Text('Back to home (popUntil)'),
+                  context.shellRouter<AppRoute>().switchTo(2),
+              child: const Text('Jump to Profile tab'),
             ),
           ],
         ),
@@ -214,27 +345,13 @@ class ProductDetailScreen extends StatelessWidget {
   }
 }
 
-class CartScreen extends StatelessWidget {
-  const CartScreen({super.key, required this.router});
-  final GateRouter<AppRoute> router;
-
+class _SettingsScreen extends StatelessWidget {
+  const _SettingsScreen();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Cart')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Your cart is full of imaginary things.'),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => router.set(const [Home()]),
-              child: const Text('Checkout (reset stack to home)'),
-            ),
-          ],
-        ),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
+      body: const Center(child: Text('Nothing to see here.')),
     );
   }
 }
