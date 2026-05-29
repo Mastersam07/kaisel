@@ -1,7 +1,7 @@
 name: gate
 description: A Dart 3-native Flutter router built on sealed routes, pattern matching, and a stack-as-state model. No string paths, no codegen.
-version: 0.2.0
-repository: https://github.com/mastersam07/gate
+version: 0.3.0
+repository: https://github.com/your-org/gate
 
 environment:
   sdk: ^3.5.0

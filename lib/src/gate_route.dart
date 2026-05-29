@@ -77,3 +77,36 @@ abstract class GateRoute {
     return '$runtimeType(${props.join(', ')})';
   }
 }
+
+/// Marker interface for routes that present a modal sub-flow returning
+/// a value of type [T].
+///
+/// Implement this **alongside** your sealed route hierarchy — a modal
+/// route is still part of `AppRoute`, but also carries the result type
+/// for `await router.run<T>(...)`:
+///
+/// ```dart
+/// sealed class AppRoute extends GateRoute {
+///   const AppRoute();
+/// }
+///
+/// final class ConfirmPurchase extends AppRoute
+///     implements GateModalRoute<bool> {
+///   const ConfirmPurchase(this.productId);
+///   final String productId;
+///
+///   @override
+///   List<Object?> get props => [productId];
+/// }
+///
+/// // Elsewhere:
+/// final bool? confirmed = await router.run(ConfirmPurchase('sku-42'));
+/// ```
+///
+/// Inside the flow's screens, call `context.completeFlow<bool>(true)`
+/// (or `false`, or `null` to cancel) to resolve the awaited future and
+/// dismiss the modal.
+abstract class GateModalRoute<T> extends GateRoute {
+  /// Const constructor so subclasses can be `const`.
+  const GateModalRoute();
+}

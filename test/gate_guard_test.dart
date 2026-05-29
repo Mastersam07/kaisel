@@ -115,8 +115,7 @@ void main() {
   });
 
   group('ShellRouter', () {
-    test('starts on initialBranch with each branch at its initial route',
-        () {
+    test('starts on initialBranch with each branch at its initial route', () {
       final shell = ShellRouter<_R>(
         branchInitials: const [_Home(), _Login()],
         initialBranch: 1,
@@ -158,8 +157,10 @@ void main() {
 
       await shell.branches[0].push(const _Protected());
       expect(notifications, 1);
-      expect(shell.branches[0].stack,
-          [const _Home(), const _Protected()]);
+      expect(
+        shell.branches[0].stack,
+        [const _Home(), const _Protected()],
+      );
     });
 
     test('branches are independent — pushing in one does not affect others',
@@ -168,8 +169,10 @@ void main() {
         branchInitials: const [_Home(), _Login()],
       );
       await shell.branches[0].push(const _Protected());
-      expect(shell.branches[0].stack,
-          [const _Home(), const _Protected()]);
+      expect(
+        shell.branches[0].stack,
+        [const _Home(), const _Protected()],
+      );
       expect(shell.branches[1].stack, [const _Login()]);
     });
   });

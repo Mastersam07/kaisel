@@ -86,6 +86,11 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier {
   final List<GateGuard<R>> _guards;
   Future<void> _pending = Future<void>.value();
 
+  // Modal flow state. At most one flow is active at a time in v0.3.
+  GateRouter<R>? _flowRouter;
+  GateModalRoute<Object?>? _flowRoute;
+  Completer<Object?>? _flowCompleter;
+
   /// The current stack as a read-only list of routes.
   List<R> get stack => List<R>.unmodifiable(_entries.map((e) => e.route));
 
@@ -98,13 +103,21 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier {
   /// Whether a [pop] would actually remove a route.
   bool get canPop => _entries.length > 1;
 
+  /// Whether a modal flow is currently active.
+  bool get hasActiveFlow => _flowRouter != null;
+
+  /// The active modal flow's defining route, or null.
+  GateModalRoute<Object?>? get activeFlowRoute => _flowRoute;
+
+  /// The sub-router driving the active modal flow's screens, or null.
+  GateRouter<R>? get activeFlowRouter => _flowRouter;
+
   /// Internal view used by the delegate to key pages.
   @internal
   List<GateStackEntry<R>> get entries => List.unmodifiable(_entries);
 
   /// Push a route onto the top of the stack. Runs through guards.
-  Future<void> push(R route) =>
-      _enqueue(() => _navigate([...stack, route]));
+  Future<void> push(R route) => _enqueue(() => _navigate([...stack, route]));
 
   /// Pop the top route. Returns `false` if the stack has only one route
   /// (we never pop to empty). Runs through guards.
@@ -144,8 +157,7 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier {
 
   /// Pop routes until [predicate] returns true for the top route, or
   /// only one route remains on the stack. Runs through guards.
-  Future<void> popUntil(bool Function(R route) predicate) =>
-      _enqueue(() {
+  Future<void> popUntil(bool Function(R route) predicate) => _enqueue(() {
         final next = [...stack];
         while (next.length > 1 && !predicate(next.last)) {
           next.removeLast();
@@ -174,6 +186,89 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier {
   @internal
   Future<void> applyFromInformation(List<R> stack) =>
       _enqueue(() => _navigate(stack));
+
+  /// Present [flow] as a modal sub-flow and await its result.
+  ///
+  /// Creates an internal [GateRouter] for the flow's own stack. The
+  /// flow's screens are rendered on top of the main stack by the
+  /// delegate's `modalBuilder` (you must supply one — without it,
+  /// flows have nowhere to be rendered).
+  ///
+  /// Resolves with the value passed to [completeFlow], or `null` if the
+  /// flow is dismissed without an explicit completion (e.g. by tapping
+  /// outside the modal, system back at the flow root, or [dismissFlow]).
+  ///
+  /// Throws [StateError] if a flow is already active — v0.3 does not
+  /// support nested flows.
+  ///
+  /// Guards on the main router are **not** rerun when starting a flow
+  /// (a flow is its own transient state, not a navigation on the main
+  /// stack). The sub-router has no guards by default; pass [flowGuards]
+  /// if you need them.
+  Future<T?> run<T>(
+    GateModalRoute<T> flow, {
+    List<GateGuard<R>> flowGuards = const [],
+  }) async {
+    if (_flowRouter != null) {
+      throw StateError(
+        'A modal flow is already active. Complete it before starting another.',
+      );
+    }
+    if (flow is! R) {
+      throw ArgumentError(
+        '${flow.runtimeType} must extend or implement $R to run as a flow.',
+      );
+    }
+    final completer = Completer<Object?>();
+    _flowCompleter = completer;
+    _flowRoute = flow as GateModalRoute<Object?>;
+    _flowRouter = GateRouter<R>(initial: flow as R, guards: flowGuards);
+    _flowRouter!.addListener(notifyListeners);
+    notifyListeners();
+
+    try {
+      final result = await completer.future;
+      return result as T?;
+    } finally {
+      _flowRouter?.removeListener(notifyListeners);
+      _flowRouter?.dispose();
+      _flowRouter = null;
+      _flowRoute = null;
+      _flowCompleter = null;
+      notifyListeners();
+    }
+  }
+
+  /// Resolve the active modal flow with [value]. No-op if no flow is
+  /// active.
+  ///
+  /// The type parameter is for caller clarity — `completeFlow<bool>(true)`
+  /// reads better than `completeFlow(true)` — but the runtime check
+  /// happens at the `await router.run<T>(...)` cast boundary.
+  void completeFlow<T>(T? value) {
+    final completer = _flowCompleter;
+    if (completer == null || completer.isCompleted) return;
+    completer.complete(value);
+  }
+
+  /// Dismiss the active modal flow with `null`. No-op if no flow is
+  /// active. Equivalent to `completeFlow<Null>(null)`.
+  void dismissFlow() => completeFlow<Null>(null);
+
+  @override
+  void dispose() {
+    // Resolve any in-flight flow so its awaiter doesn't hang.
+    final completer = _flowCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete(null);
+    }
+    _flowRouter?.removeListener(notifyListeners);
+    _flowRouter?.dispose();
+    _flowRouter = null;
+    _flowRoute = null;
+    _flowCompleter = null;
+    super.dispose();
+  }
 
   Future<T> _enqueue<T>(Future<T> Function() task) {
     final next = _pending.then((_) => task());

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'gate_guard.dart';
+import 'gate_inner_navigator.dart';
 import 'gate_route.dart';
 import 'gate_router.dart';
 import 'gate_router_delegate.dart';
+import 'gate_scope.dart';
 
 /// A multi-branch navigation state container.
 ///
@@ -11,17 +13,21 @@ import 'gate_router_delegate.dart';
 /// active branch index. Each branch has its own stack and lifecycle.
 /// Branches share the route type [R]; you constrain "what's valid on
 /// which tab" through your pattern-matched [GatePageBuilder] and your
-/// own discipline. (Per-branch typed routes are a v0.3 concern.)
+/// own discipline. (Per-branch typed routes are a v0.4 concern.)
 class ShellRouter<R extends GateRoute> extends ChangeNotifier {
   /// Create a shell with one router per [branchInitials].
   ShellRouter({
     required List<R> branchInitials,
     int initialBranch = 0,
     List<GateGuard<R>> guards = const [],
-  })  : assert(branchInitials.isNotEmpty,
-            'A shell must have at least one branch.'),
-        assert(initialBranch >= 0 && initialBranch < branchInitials.length,
-            'initialBranch out of range'),
+  })  : assert(
+          branchInitials.isNotEmpty,
+          'A shell must have at least one branch.',
+        ),
+        assert(
+          initialBranch >= 0 && initialBranch < branchInitials.length,
+          'initialBranch out of range',
+        ),
         _branches = [
           for (final initial in branchInitials)
             GateRouter<R>(initial: initial, guards: guards),
@@ -92,35 +98,10 @@ typedef GateBranchScope = Widget Function(
 /// bottom-nav app with per-tab back stacks and scoped state.
 ///
 /// Place a `GateShell` in your top-level builder as the screen for the
-/// "main app" route variant:
-///
-/// ```dart
-/// builder: (context, route) => switch (route) {
-///   MainShell() => GateShell<AppRoute>(
-///     branchInitials: const [HomeRoot(), DiscoverRoot(), ProfileRoot()],
-///     pageBuilder: (context, route) => switch (route) {
-///       HomeRoot() => const HomeScreen(),
-///       DiscoverRoot() => const DiscoverScreen(),
-///       ProfileRoot() => const ProfileScreen(),
-///       ProductDetail(:final id) => ProductDetailScreen(id: id),
-///       // ...all variants reachable from any branch...
-///     },
-///     chromeBuilder: (context, index, child, switchBranch) => Scaffold(
-///       body: child,
-///       bottomNavigationBar: NavigationBar(
-///         selectedIndex: index,
-///         onDestinationSelected: switchBranch,
-///         destinations: const [...],
-///       ),
-///     ),
-///   ),
-///   Login() => const LoginScreen(),
-/// },
-/// ```
-///
-/// Inside any branch screen, get the branch's router via
-/// `context.branchRouter<AppRoute>()` and the shell router via
-/// `context.shellRouter<AppRoute>()`.
+/// "main app" route variant. Inside any branch screen, get the branch's
+/// router via `context.router<AppRoute>()` (which resolves to the
+/// active branch's router when inside a shell) and the shell router
+/// via `context.shellRouter<AppRoute>()`.
 class GateShell<R extends GateRoute> extends StatefulWidget {
   /// Create a shell with [branchInitials.length] branches.
   const GateShell({
@@ -234,7 +215,7 @@ class _GateShellState<R extends GateRoute> extends State<GateShell<R>> {
 
   Widget _buildBranch(BuildContext context, int index) {
     final router = _shell.branches[index];
-    Widget content = _BranchNavigator<R>(
+    Widget content = GateInnerNavigator<R>(
       router: router,
       navigatorKey: _navKeys[index],
       pageBuilder: widget.pageBuilder,
@@ -244,86 +225,18 @@ class _GateShellState<R extends GateRoute> extends State<GateShell<R>> {
     if (scope != null) {
       content = scope(context, index, content);
     }
-    return content;
-  }
-}
-
-class _BranchNavigator<R extends GateRoute> extends StatefulWidget {
-  const _BranchNavigator({
-    required this.router,
-    required this.navigatorKey,
-    required this.pageBuilder,
-    required this.pageWrapper,
-  });
-
-  final GateRouter<R> router;
-  final GlobalKey<NavigatorState> navigatorKey;
-  final GatePageBuilder<R> pageBuilder;
-  final GatePageWrapper<R>? pageWrapper;
-
-  @override
-  State<_BranchNavigator<R>> createState() => _BranchNavigatorState<R>();
-}
-
-class _BranchNavigatorState<R extends GateRoute>
-    extends State<_BranchNavigator<R>> {
-  @override
-  void initState() {
-    super.initState();
-    widget.router.addListener(_onChange);
-  }
-
-  void _onChange() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void didUpdateWidget(_BranchNavigator<R> oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.router, widget.router)) {
-      oldWidget.router.removeListener(_onChange);
-      widget.router.addListener(_onChange);
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.router.removeListener(_onChange);
-    super.dispose();
-  }
-
-  Page<Object?> _wrap(BuildContext context, R route, LocalKey key) {
-    final wrapper = widget.pageWrapper;
-    final child = Builder(
-      builder: (innerContext) => widget.pageBuilder(innerContext, route),
-    );
-    if (wrapper != null) return wrapper(route, child, key);
-    return MaterialPage<Object?>(key: key, child: child);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Navigator(
-      key: widget.navigatorKey,
-      pages: [
-        for (final entry in widget.router.entries)
-          _wrap(context, entry.route, ValueKey<int>(entry.id)),
-      ],
-      onDidRemovePage: (page) {
-        final key = page.key;
-        if (key is ValueKey<int>) {
-          widget.router.onPageRemoved(key.value);
-        }
-      },
-    );
+    // Each branch installs its own RouterScope so context.router<R>()
+    // inside a branch screen resolves to that branch's router.
+    return RouterScope<R>(router: router, child: content);
   }
 }
 
 /// Inherited widget exposing the [ShellRouter] to descendants.
 ///
-/// Look up via [ShellScope.of] or, more conveniently, the
-/// `context.shellRouter<R>()` and `context.branchRouter<R>()`
-/// extensions.
+/// For most navigation, prefer `context.router<R>()` (which resolves to
+/// the active branch's router inside a shell). Use this when you
+/// specifically need to switch branches programmatically:
+/// `context.shellRouter<R>().switchTo(2)`.
 class ShellScope<R extends GateRoute> extends InheritedWidget {
   /// Create a scope around [child] exposing [shellRouter].
   const ShellScope({
@@ -360,10 +273,17 @@ class ShellScope<R extends GateRoute> extends InheritedWidget {
 }
 
 /// Convenience accessors for shell-scoped routers.
-extension GateBuildContextX on BuildContext {
+///
+/// Prefer `context.router<R>()` for in-branch pushes (it resolves to
+/// the branch router when inside a shell). These accessors are for the
+/// shell-specific operations.
+extension GateShellBuildContextX on BuildContext {
   /// The router for the currently active branch in the enclosing
-  /// [GateShell]. Use this in screens that need to push within their
-  /// own tab.
+  /// [GateShell]. Equivalent to `context.router<R>()` when inside a
+  /// shell.
+  ///
+  /// Kept for v0.2 source compatibility; new code should use
+  /// `context.router<R>()`.
   GateRouter<R> branchRouter<R extends GateRoute>() =>
       ShellScope.of<R>(this).shellRouter.current;
 
