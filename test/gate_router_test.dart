@@ -47,8 +47,7 @@ void main() {
       expect(notifications, 2);
     });
 
-    test('pop removes the top and notifies; returns false on root',
-        () async {
+    test('pop removes the top and notifies; returns false on root', () async {
       final r = GateRouter<_R>(initial: const _A());
       await r.push(const _B('x'));
       var notifications = 0;
@@ -107,7 +106,7 @@ void main() {
     });
 
     test('fromStack rejects empty', () {
-      expect(GateRouter<_R>.fromStack, throwsArgumentError);
+      expect(() => GateRouter<_R>.fromStack(const []), throwsArgumentError);
     });
 
     test('duplicate equal routes coexist on the stack', () async {
@@ -151,8 +150,7 @@ void main() {
       expect(notifications, 0);
     });
 
-    test('rapid pops without awaiting unwind the stack one-per-call',
-        () async {
+    test('rapid pops without awaiting unwind the stack one-per-call', () async {
       // Each pop's target is computed at task-run time, not at call time,
       // so two pops from a 3-deep stack pop two routes, not one.
       final r = GateRouter<_R>(initial: const _A());

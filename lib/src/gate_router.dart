@@ -230,12 +230,14 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier {
       final result = await completer.future;
       return result as T?;
     } finally {
-      _flowRouter?.removeListener(notifyListeners);
-      _flowRouter?.dispose();
-      _flowRouter = null;
-      _flowRoute = null;
-      _flowCompleter = null;
-      notifyListeners();
+      if (identical(_flowCompleter, completer)) {
+        _flowRouter?.removeListener(notifyListeners);
+        _flowRouter?.dispose();
+        _flowRouter = null;
+        _flowRoute = null;
+        _flowCompleter = null;
+        notifyListeners();
+      }
     }
   }
 
