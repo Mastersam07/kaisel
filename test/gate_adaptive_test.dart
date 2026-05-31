@@ -72,17 +72,21 @@ class _AbsorbedMasterDetail extends StatelessWidget {
 Widget _wrapApp(GateRouterDelegate<_AppRoute> delegate) {
   return MaterialApp.router(
     routerDelegate: delegate,
-    routeInformationParser: _NullParser(),
+    routeInformationParser: _CurrentStackParser(delegate.router),
   );
 }
 
-class _NullParser extends RouteInformationParser<GateConfig<_AppRoute>> {
+class _CurrentStackParser
+    extends RouteInformationParser<GateConfig<_AppRoute>> {
+  _CurrentStackParser(this.router);
+
+  final GateRouter<_AppRoute> router;
+
   @override
   Future<GateConfig<_AppRoute>> parseRouteInformation(
     RouteInformation routeInformation,
-  ) async {
-    return GateConfig(mainStack: const [_Home()]);
-  }
+  ) async =>
+      GateConfig<_AppRoute>(mainStack: router.stack);
 }
 
 void main() {
