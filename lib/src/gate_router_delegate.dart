@@ -1,5 +1,6 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
 import 'gate_adaptive.dart';
 import 'gate_config.dart';
@@ -180,29 +181,38 @@ class GateRouterDelegate<R extends GateRoute>
 
   GateNestedHandle? get _activeNested => _nested.isEmpty ? null : _nested.last;
 
-  /// Notify our listeners, deferring to after the current frame if
-  /// we're called from inside a build/layout/paint callback.
+  /// Notify our listeners on the next microtask, never
+  /// synchronously.
   ///
   /// The Router widget that owns this delegate listens to us and
-  /// synchronously calls `setState` in response. When a nested
-  /// router's State.didChangeDependencies fires during build and
-  /// triggers `registerNested`, a direct `notifyListeners()` would
-  /// reach that listener mid-build and throw "setState called during
-  /// build". Deferring sidesteps that without losing the update: the
-  /// post-frame callback fires before the next frame, and the URL bar
-  /// catches up one tick later.
+  /// synchronously calls `setState` in response. Any synchronous
+  /// `notifyListeners` from a path that might be reached during a
+  /// build (a nested host's didChangeDependencies during initial
+  /// mount, a guard completing inside a build, a router push from
+  /// initState, etc.) would reach the Router mid-build and throw
+  /// "setState called during build".
+  ///
+  /// Earlier versions of this method gated on
+  /// `SchedulerBinding.schedulerPhase`, but that check is
+  /// insufficient: the initial widget tree attach happens via
+  /// `WidgetsBinding.scheduleAttachRootWidget` → `Timer.run`,
+  /// which fires outside any frame. The scheduler phase is `idle`
+  /// during that timer's execution, but the `BuildOwner` is
+  /// actively building widgets, so a synchronous notification
+  /// still triggers the assertion.
+  ///
+  /// Deferring via `scheduleMicrotask` sidesteps the problem
+  /// uniformly: microtasks drain as soon as the current
+  /// synchronous block (including `BuildOwner.buildScope`)
+  /// finishes. There's no observable difference for normal
+  /// operation, since `setState` only marks the Router dirty for
+  /// the next frame either way; the one-microtask delay before
+  /// that happens is invisible.
   void _safeNotifyListeners() {
     if (_isDisposed) return;
-    final phase = SchedulerBinding.instance.schedulerPhase;
-    final inFrame = phase == SchedulerPhase.persistentCallbacks ||
-        phase == SchedulerPhase.midFrameMicrotasks;
-    if (inFrame) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_isDisposed) notifyListeners();
-      });
-    } else {
-      notifyListeners();
-    }
+    scheduleMicrotask(() {
+      if (!_isDisposed) notifyListeners();
+    });
   }
 
   @override
