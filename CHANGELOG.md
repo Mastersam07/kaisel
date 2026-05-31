@@ -66,6 +66,15 @@ at a time.
 - Direction-aware and shared-element transitions. Requires a
   breaking change to `GatePageWrapper`'s signature.
 
+### Example app
+
+A second entry point demonstrates the adaptive pipeline:
+`example/lib/main_adaptive.dart`. A book catalogue with master-detail
+behaviour at wide widths; the route stack stays the same while the
+rendering switches between absorbed and stacked layouts as you
+resize. Run with `flutter run -t lib/main_adaptive.dart` from the
+example directory. See `example/README.md`.
+
 ---
 
 ## 0.9.0: Adaptive layouts inside shells and modules

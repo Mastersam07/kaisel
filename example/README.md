@@ -1,17 +1,31 @@
-# gate_example
+# gate example
 
-A new Flutter project.
+Two entry points, each demonstrating a slice of the library.
 
-## Getting Started
+## `lib/main.dart`
 
-This project is a starting point for a Flutter application.
+The main example: bottom-nav `GateBranchedShell` with per-tab typed
+routes, modal flows (`router.run<T>(...)`), modules
+(`GateModuleMount`), and URL deep-linking via codec.
 
-A few resources to get you started if this is your first Flutter project:
+```sh
+flutter run
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## `lib/main_adaptive.dart`
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Adaptive layouts (v0.8+). A book catalogue with master-detail
+behaviour at wide widths: detail absorbs list into a side-by-side
+layout. The route stack stays the same regardless of width; only
+the rendering changes.
+
+```sh
+flutter run -t lib/main_adaptive.dart
+```
+
+Resize the window past ~700px to see the layout flip between
+master-detail and stacked. Selecting a different book at wide
+widths does not trigger a Navigator slide (page identity is
+preserved via the lowest-absorbed entry's id). The Reviews button
+inside the detail pushes a normal stacked page on top regardless
+of width.

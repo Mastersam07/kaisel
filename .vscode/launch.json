@@ -5,24 +5,34 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "example",
-            "cwd": "example",
-            "request": "launch",
-            "type": "dart"
-        },
-        {
-            "name": "example (profile mode)",
+            "name": "[MOBILE] example",
             "cwd": "example",
             "request": "launch",
             "type": "dart",
-            "flutterMode": "profile"
+            "args": [
+                "--target=lib/main.dart",
+                "--device-id=63D5D2F7-1483-4A33-997C-534B6C8C4871"
+            ],
         },
         {
-            "name": "example (release mode)",
+            "name": "[MOBILE ADAPTIVE] example",
             "cwd": "example",
             "request": "launch",
             "type": "dart",
-            "flutterMode": "release"
+            "args": [
+                "--target=lib/main_adaptive.dart",
+                "--device-id=63D5D2F7-1483-4A33-997C-534B6C8C4871"
+            ],
+        },
+        {
+            "name": "[ADAPTIVE] example",
+            "cwd": "example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_adaptive.dart",
+                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+            ],
         }
     ]
 }
