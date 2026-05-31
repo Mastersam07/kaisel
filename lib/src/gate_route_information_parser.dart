@@ -8,24 +8,26 @@ import 'gate_stack_codec.dart';
 /// Parses incoming route information (URLs, deep links, restored state)
 /// into a [GateConfig] for the delegate to apply.
 ///
-/// In v0.5 the configuration type became [GateConfig] so URLs can carry
-/// branched-shell state in addition to the main stack. Migration paths:
+/// In v0.5+ the configuration type is [GateConfig] so URLs can carry
+/// nested-router state (a branched shell's branch+stack, or a mounted
+/// module's stack) in addition to the main stack. Migration paths:
 ///
 /// * **Stack-only URLs** (the v0.4 default): wrap your existing
 ///   [GateStackCodec] via `GateRouteInformationParser.fromStackCodec`.
-/// * **Shell URLs**: write a [GateConfigCodec] that returns
-///   [GateConfig] with a non-null `shellState` for paths that address
-///   into the shell. The default constructor takes one of these.
+/// * **Nested URLs**: write a [GateConfigCodec] that returns
+///   [GateConfig] with a non-null `nestedState` (a [GateShellConfig]
+///   or [GateModuleConfig]) for paths that address into the nested
+///   router. The default constructor takes one of these.
 /// * **Single-route URLs** (legacy [GateCodec]): use `.single`. The
 ///   parser internally wraps it in [GateSingleStackCodec] then
 ///   [StackToConfigCodec].
 class GateRouteInformationParser<R extends GateRoute>
     extends RouteInformationParser<GateConfig<R>> {
   /// Create a parser backed by a [GateConfigCodec], which can address
-  /// state inside a branched shell.
+  /// state inside a nested router (branched shell or module mount).
   ///
   /// On an unrecognised URL the parser yields a [GateConfig] with
-  /// `mainStack: fallback` and no shell state.
+  /// `mainStack: fallback` and no nested state.
   GateRouteInformationParser({
     required GateConfigCodec<R> codec,
     required List<R> fallback,

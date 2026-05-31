@@ -55,18 +55,12 @@ typedef GateModalBuilder = Widget Function(
 ///
 /// Installs a [RouterScope] at the root of its widget tree so
 /// `context.router<R>()` resolves correctly anywhere in the app, and a
-/// [GateShellHostScope] so a mounted [GateBranchedShell] can register
-/// itself for URL capture/restore.
-///
-/// In v0.5 the configuration type became [GateConfig], so URLs can
-/// describe state inside a branched shell. Stack-only callers should
-/// keep using [GateStackCodec] and wire it via
-/// `GateRouteInformationParser.fromStackCodec` — no other migration
-/// is needed.
+/// [GateNestedHostScope] so a mounted [GateBranchedShell] or
+/// [GateModuleMount] can register itself for URL capture/restore.
 class GateRouterDelegate<R extends GateRoute>
     extends RouterDelegate<GateConfig<R>>
     with ChangeNotifier, PopNavigatorRouterDelegateMixin<GateConfig<R>>
-    implements GateShellHost {
+    implements GateNestedHost {
   /// Create a delegate driving [router].
   ///
   /// [builder] resolves a route to a widget — use pattern matching here
@@ -108,61 +102,80 @@ class GateRouterDelegate<R extends GateRoute>
       GlobalKey<NavigatorState>(debugLabel: 'gate-flow');
 
   //
-  // A mounted GateBranchedShell registers itself as the URL-addressable
-  // shell. If a URL with shell state arrives before any shell mounts
-  // (cold start at a deep link), the state is queued in _pendingShell
-  // and applied when the shell registers.
+  // A mounted nested router (branched shell or module mount) registers
+  // itself here. The host treats the most recently registered handle
+  // as active — its config rides the URL. If a URL with nested state
+  // arrives before a matching handle registers (cold-start deep link),
+  // the state is queued in _pendingNested and applied when a handle
+  // whose configType matches the pending config's runtime type
+  // registers.
 
-  GateShellRestoreHandle? _shell;
-  GateShellConfig? _pendingShell;
+  final List<GateNestedHandle> _nested = <GateNestedHandle>[];
+  GateNestedConfig? _pendingNested;
+
+  GateNestedHandle? get _activeNested => _nested.isEmpty ? null : _nested.last;
 
   @override
-  void registerShell(GateShellRestoreHandle shell) {
-    if (identical(_shell, shell)) return;
-    _shell?.removeListener(notifyListeners);
-    _shell = shell;
-    // Forward branch / activeBranch changes to ourselves so the URL
-    // updates as the user navigates inside the shell.
-    shell.addListener(notifyListeners);
-    final pending = _pendingShell;
-    if (pending != null) {
-      _pendingShell = null;
-      // Fire-and-forget — guards in branch routers handle errors;
-      // surfacing a Future here would force every callsite to be
-      // async.
-      shell.restoreFromConfig(pending);
+  void registerNested(GateNestedHandle handle) {
+    // De-duplicate by identity; re-registering moves the handle to
+    // the top of the stack (becomes active).
+    final existing = _nested.indexWhere((h) => identical(h, handle));
+    if (existing >= 0 && existing == _nested.length - 1) {
+      return;
     }
-    // A newly-registered shell may already have non-default state
-    // (e.g. apps that pre-seed branch stacks). Notify so the URL bar
-    // reflects it.
+    if (existing >= 0) {
+      _nested.removeAt(existing);
+    } else {
+      handle.addListener(notifyListeners);
+    }
+    _nested.add(handle);
+
+    final pending = _pendingNested;
+    if (pending != null && handle.configType == pending.runtimeType) {
+      _pendingNested = null;
+      handle.restoreFromConfig(pending);
+    }
     notifyListeners();
   }
 
   @override
-  void unregisterShell(GateShellRestoreHandle shell) {
-    if (!identical(_shell, shell)) return;
-    _shell!.removeListener(notifyListeners);
-    _shell = null;
+  void unregisterNested(GateNestedHandle handle) {
+    final index = _nested.indexWhere((h) => identical(h, handle));
+    if (index < 0) return;
+    _nested.removeAt(index);
+    handle.removeListener(notifyListeners);
     notifyListeners();
   }
 
   @override
   GateConfig<R> get currentConfiguration => GateConfig<R>(
         mainStack: router.stack,
-        shellState: _shell?.captureConfig(),
+        nestedState: _activeNested?.captureConfig(),
       );
 
   @override
   Future<void> setNewRoutePath(GateConfig<R> configuration) async {
     if (configuration.mainStack.isEmpty) return;
     await router.applyFromInformation(configuration.mainStack);
-    final shellState = configuration.shellState;
-    if (shellState == null) return;
-    final shell = _shell;
-    if (shell case final shell?) {
-      await shell.restoreFromConfig(shellState);
+    final nestedState = configuration.nestedState;
+    if (nestedState == null) return;
+
+    // Find a registered handle whose configType matches the incoming
+    // config's runtime type. Prefer the most recently registered (the
+    // active one) — that's the handle riding the URL.
+    GateNestedHandle? match;
+    for (var i = _nested.length - 1; i >= 0; i--) {
+      if (_nested[i].configType == nestedState.runtimeType) {
+        match = _nested[i];
+        break;
+      }
+    }
+    if (match != null) {
+      await match.restoreFromConfig(nestedState);
     } else {
-      _pendingShell = shellState;
+      // No matching handle yet (cold-start deep link into a nested
+      // router that hasn't mounted). Queue for when one registers.
+      _pendingNested = nestedState;
     }
   }
 
@@ -209,9 +222,9 @@ class GateRouterDelegate<R extends GateRoute>
     }
 
     content = RouterScope<R>(router: router, child: content);
-    // Install the shell-host scope so a descendant GateBranchedShell
-    // can register itself for URL capture/restore.
-    return GateShellHostScope(host: this, child: content);
+    // Install the host scope so descendant nested routers (branched
+    // shells and module mounts) can register for URL capture/restore.
+    return GateNestedHostScope(host: this, child: content);
   }
 
   Page<Object?> _wrap(BuildContext context, R route, LocalKey key) {
@@ -219,7 +232,7 @@ class GateRouterDelegate<R extends GateRoute>
       builder: (innerContext) => builder(innerContext, route),
     );
     final wrapper = pageWrapper;
-    if (wrapper != null) {
+    if (wrapper case final wrapper?) {
       return wrapper(route, child, key);
     }
     return MaterialPage<Object?>(key: key, child: child);
@@ -236,38 +249,42 @@ class GateRouterDelegate<R extends GateRoute>
   @override
   void dispose() {
     router.removeListener(notifyListeners);
-    _shell?.removeListener(notifyListeners);
+    for (final handle in _nested) {
+      handle.removeListener(notifyListeners);
+    }
+    _nested.clear();
     super.dispose();
   }
 }
 
-/// Inherited widget that exposes a [GateShellHost] (the delegate) to
-/// descendants. A mounted [GateBranchedShell] looks this up to register
-/// itself for URL capture/restore.
+/// Inherited widget that exposes a [GateNestedHost] (the delegate) to
+/// descendants. A mounted [GateBranchedShell] or [GateModuleMount]
+/// looks this up to register itself for URL capture/restore.
 ///
 /// Not exported from `package:gate/gate.dart` — typical apps don't
 /// need to reference it.
-class GateShellHostScope extends InheritedWidget {
+class GateNestedHostScope extends InheritedWidget {
   /// Create a scope around [child] exposing [host].
-  const GateShellHostScope({
+  const GateNestedHostScope({
     super.key,
     required this.host,
     required super.child,
   });
 
   /// The host (typically the [GateRouterDelegate]).
-  final GateShellHost host;
+  final GateNestedHost host;
 
-  /// Look up the nearest host, or `null` if none is mounted (e.g. unit
-  /// tests that mount a shell outside a delegate).
-  static GateShellHost? maybeOf(BuildContext context) {
+  /// Look up the nearest host, or `null` if none is mounted (e.g.
+  /// unit tests that mount a nested router outside a delegate).
+  static GateNestedHost? maybeOf(BuildContext context) {
     final scope =
-        context.dependOnInheritedWidgetOfExactType<GateShellHostScope>();
+        context.dependOnInheritedWidgetOfExactType<GateNestedHostScope>();
     return scope?.host;
   }
 
   @override
-  bool updateShouldNotify(GateShellHostScope old) => !identical(old.host, host);
+  bool updateShouldNotify(GateNestedHostScope old) =>
+      !identical(old.host, host);
 }
 
 /// Renders the main content with a modal flow overlaid on top.

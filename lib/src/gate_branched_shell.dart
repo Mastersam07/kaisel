@@ -33,8 +33,7 @@ import 'gate_scope.dart';
 /// (can-pop and pop on the active branch for back handling); typed
 /// pushes happen on the user's own typed router references, or via
 /// `context.router<BranchR>()` inside a branch screen.
-class BranchedShellRouter extends ChangeNotifier
-    implements GateShellRestoreHandle {
+class BranchedShellRouter extends ChangeNotifier implements GateNestedHandle {
   /// Create a shell aggregating [branches]. Each entry is typically a
   /// `GateRouter<BranchR>` for some sealed `BranchR`.
   BranchedShellRouter({
@@ -87,7 +86,12 @@ class BranchedShellRouter extends ChangeNotifier
 
   // Capture/restore is the bridge between the shell's runtime state
   // and the URL. captureConfig describes what's currently visible;
-  // restoreFromConfig replays a captured snapshot.
+  // restoreFromConfig replays a captured snapshot. The host filters
+  // by configType before calling, but a defensive `is` check inside
+  // restoreFromConfig protects against direct misuse.
+
+  @override
+  Type get configType => GateShellConfig;
 
   @override
   GateShellConfig captureConfig() {
@@ -98,7 +102,8 @@ class BranchedShellRouter extends ChangeNotifier
   }
 
   @override
-  Future<void> restoreFromConfig(GateShellConfig config) async {
+  Future<void> restoreFromConfig(GateNestedConfig config) async {
+    if (config is! GateShellConfig) return;
     if (config.activeBranch < 0 || config.activeBranch >= _branches.length) {
       throw RangeError.range(
         config.activeBranch,
@@ -285,7 +290,7 @@ class _GateBranchedShellState extends State<GateBranchedShell> {
     widget.shell.addListener(_onChange);
   }
 
-  GateShellHost? _host;
+  GateNestedHost? _host;
 
   void _onChange() {
     if (mounted) setState(() {});
@@ -294,11 +299,11 @@ class _GateBranchedShellState extends State<GateBranchedShell> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final host = GateShellHostScope.maybeOf(context);
+    final host = GateNestedHostScope.maybeOf(context);
     if (!identical(host, _host)) {
-      _host?.unregisterShell(widget.shell);
+      _host?.unregisterNested(widget.shell);
       _host = host;
-      _host?.registerShell(widget.shell);
+      _host?.registerNested(widget.shell);
     }
   }
 
@@ -308,14 +313,14 @@ class _GateBranchedShellState extends State<GateBranchedShell> {
     if (!identical(oldWidget.shell, widget.shell)) {
       oldWidget.shell.removeListener(_onChange);
       widget.shell.addListener(_onChange);
-      _host?.unregisterShell(oldWidget.shell);
-      _host?.registerShell(widget.shell);
+      _host?.unregisterNested(oldWidget.shell);
+      _host?.registerNested(widget.shell);
     }
   }
 
   @override
   void dispose() {
-    _host?.unregisterShell(widget.shell);
+    _host?.unregisterNested(widget.shell);
     widget.shell.removeListener(_onChange);
     super.dispose();
   }

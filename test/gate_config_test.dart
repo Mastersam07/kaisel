@@ -59,14 +59,14 @@ void main() {
     test('equality is value-based', () {
       final a = GateConfig<_Top>(
         mainStack: const [_Shell()],
-        shellState: GateShellConfig(
+        nestedState: GateShellConfig(
           activeBranch: 0,
           activeBranchStack: [const _HomeRoot(), const _Product('x')],
         ),
       );
       final b = GateConfig<_Top>(
         mainStack: const [_Shell()],
-        shellState: GateShellConfig(
+        nestedState: GateShellConfig(
           activeBranch: 0,
           activeBranchStack: [const _HomeRoot(), const _Product('x')],
         ),
@@ -79,7 +79,7 @@ void main() {
       final a = GateConfig<_Top>(mainStack: const [_Shell()]);
       final b = GateConfig<_Top>(
         mainStack: const [_Shell()],
-        shellState: GateShellConfig(
+        nestedState: GateShellConfig(
           activeBranch: 1,
           activeBranchStack: const [_HomeRoot()],
         ),
@@ -142,7 +142,7 @@ void main() {
       final decoded = adapter.decode(Uri(path: '/settings'));
       expect(decoded, isNotNull);
       expect(decoded!.mainStack, const [_Shell(), _Settings()]);
-      expect(decoded.shellState, isNull);
+      expect(decoded.nestedState, isNull);
 
       final encoded = adapter.encode(decoded);
       expect(encoded.path, '/settings');
@@ -153,7 +153,7 @@ void main() {
       final encoded = adapter.encode(
         GateConfig<_Top>(
           mainStack: const [_Shell()],
-          shellState: GateShellConfig(
+          nestedState: GateShellConfig(
             activeBranch: 0,
             activeBranchStack: [const _HomeRoot(), const _Product('x')],
           ),

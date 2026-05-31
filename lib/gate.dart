@@ -8,9 +8,16 @@ export 'src/gate_branched_shell.dart'
         GateBranchedShellContextX;
 export 'src/gate_codec.dart';
 export 'src/gate_config.dart'
-    show GateConfig, GateConfigCodec, GateShellConfig, StackToConfigCodec;
+    show
+        GateConfig,
+        GateConfigCodec,
+        GateModuleConfig,
+        GateNestedConfig,
+        GateShellConfig,
+        StackToConfigCodec;
 export 'src/gate_guard.dart';
 export 'src/gate_inner_navigator.dart';
+export 'src/gate_module.dart' show GateModuleMount, RouteModule;
 export 'src/gate_route.dart';
 export 'src/gate_route_information_parser.dart';
 export 'src/gate_router.dart' show GateNavigator, GateRouter;

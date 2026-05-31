@@ -1,5 +1,138 @@
 # Changelog
 
+## 0.6.0 — Composable `RouteModule`s + unified nested-router state
+
+One headline feature, one structural cleanup. **Breaking changes
+from v0.5** — the configuration's nested-state field changed shape.
+
+### Added
+
+- **`RouteModule<R>`** — a `const`-friendly base class that
+  packages a feature's routes into a reusable unit. A module
+  declares its own sealed subtype `R`, its `initialStack`, a
+  `buildPage(context, route)` resolver, optional `guards`, and an
+  optional `pageWrapper`. Pattern-matches the same way the host's
+  main router does, with the same compile-time exhaustiveness.
+
+  ```dart
+  sealed class CheckoutRoute extends GateRoute { const CheckoutRoute(); }
+  final class CheckoutCart extends CheckoutRoute { const CheckoutCart(); }
+  final class CheckoutShipping extends CheckoutRoute {
+    const CheckoutShipping();
+  }
+
+  class CheckoutModule extends RouteModule<CheckoutRoute> {
+    const CheckoutModule();
+
+    @override
+    List<CheckoutRoute> get initialStack => const [CheckoutCart()];
+
+    @override
+    Widget buildPage(BuildContext context, CheckoutRoute route) =>
+        switch (route) {
+          CheckoutCart() => const CheckoutCartScreen(),
+          CheckoutShipping() => const CheckoutShippingScreen(),
+        };
+  }
+  ```
+
+- **`GateModuleMount<R>`** — the widget that mounts a `RouteModule`.
+  Creates the module's typed `GateRouter<R>` internally, owns its
+  lifecycle, installs a `RouterScope<R>` so descendants find the
+  module's router via `context.router<R>()`. The host's main router
+  is still reachable via `context.router<AppRoute>()` — same
+  lookup-by-exact-type semantics as `GateBranch`.
+
+  ```dart
+  Widget _buildMainPage(BuildContext context, AppRoute route) =>
+      switch (route) {
+        CheckoutMount() => const GateModuleMount<CheckoutRoute>(
+            module: CheckoutModule(),
+          ),
+        // ... other top-level routes
+      };
+  ```
+
+- **`GateModuleConfig`** — captures a mounted module's internal
+  stack so the URL can include it. Sibling to `GateShellConfig`
+  under the new sealed `GateNestedConfig` base type.
+
+### Changed (breaking)
+
+- **`GateConfig.shellState` is gone. `GateConfig.nestedState` takes
+  its place.** The configuration now carries a single sealed
+  `GateNestedConfig?` — either a `GateShellConfig` or a
+  `GateModuleConfig`. The "at most one nested kind on top of the
+  main stack" property is enforced by the type system, not a
+  runtime assertion. Pattern-match in your codec:
+
+  ```dart
+  // before (v0.5)
+  Uri encode(GateConfig<AppRoute> config) {
+    final shell = config.shellState;
+    return shell != null
+        ? _encodeShell(shell)
+        : _encodeFlat(config.mainStack.last);
+  }
+
+  // after (v0.6)
+  Uri encode(GateConfig<AppRoute> config) =>
+      switch ((config.mainStack.last, config.nestedState)) {
+        (MainShell(), final GateShellConfig shell)   => _encodeShell(shell),
+        (CheckoutMount(), final GateModuleConfig m)  => _encodeCheckout(m),
+        (Splash(), _)                                 => Uri(path: '/'),
+        // ...
+      };
+  ```
+
+  Codecs need a one-pass migration; rename `shellState` →
+  `nestedState` and dispatch by config kind in `encode`. `decode`
+  changes are mechanical (`shellState:` → `nestedState:`).
+
+- **Host machinery unified.** The internal interfaces
+  `GateShellHost` + `GateShellRestoreHandle` + `GateShellHostScope`
+  collapse to `GateNestedHost` + `GateNestedHandle` +
+  `GateNestedHostScope`. The delegate now keeps a single LIFO list
+  of registered handles — the most recently registered is the
+  active one — instead of a dedicated slot per nested kind. These
+  types weren't exported from `package:gate/gate.dart`, so the
+  rename is only visible to authors building custom nested routers.
+
+- **Handles declare their config kind via `Type get configType`.**
+  The delegate uses it to match pending state (from a cold-start
+  deep link) to the right registered handle.
+
+### Why the cleanup
+
+The two-slot model (`shellState`, `moduleState`) was an additive
+choice that preserved v0.5 source compatibility. With no users in
+the wild yet, that compatibility wasn't worth the structural cost:
+two parallel host interfaces, two parallel scope widgets, a runtime
+assertion duplicating what the type system can express. The sealed
+`GateNestedConfig` says "at most one nested router rides the URL"
+at the type level, which is what we mean.
+
+### Why modules
+
+The v0.5 article framed Dart 3-native routing as enabling
+"feature-team plug-and-play": a feature ships with its own sealed
+subtype, its own pageBuilder, its own guards, and the host composes
+it. v0.5 didn't have that yet — every route had to live in the
+host's `AppRoute`. v0.6 closes that gap. A payments SDK, a KYC
+flow, an embedded checkout — all can ship as a `RouteModule` the
+host mounts at a top-level route, with deep-linkable URLs.
+
+### Deferred to 0.7+
+
+- Adaptive layout policies (master-detail responsive)
+- Direction-aware and shared-element transitions
+- Nested modal flows (relaxing the v0.3 "one flow at a time"
+  constraint)
+- A composition helper for prefix-based module URL routing
+  (currently the host's codec assembles module URLs by hand)
+
+---
+
 ## 0.5.0 — Per-branch URLs reaching into shell stacks
 
 One headline feature, one breaking change (with a one-line migration).

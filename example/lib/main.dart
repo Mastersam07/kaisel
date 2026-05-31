@@ -33,6 +33,13 @@ final class Settings extends AppRoute implements RequiresAuth {
   const Settings();
 }
 
+// v0.6: a top-level marker route that mounts the Checkout module.
+// The module owns its internal routes (CheckoutCart, CheckoutShipping,
+// CheckoutConfirm) under its own sealed type — see CheckoutRoute below.
+final class CheckoutMount extends AppRoute implements RequiresAuth {
+  const CheckoutMount();
+}
+
 // Modal flow routes — still AppRoute, because flows run on the main
 // router and overlay the entire app (including the shell chrome).
 final class ConfirmAddToCart extends AppRoute
@@ -95,9 +102,46 @@ final class ProfileRoot extends ProfileRoute {
   const ProfileRoot();
 }
 
-// ─────────────────────────────────────────────────────────────────────
+// The Checkout module — a self-contained routing unit.
+//
+// In v0.6, a RouteModule packages a sealed subtype, an initial stack,
+// a page builder, optional guards, and an optional page wrapper. The
+// module is `const`-instantiable and would normally ship from a
+// separate package (e.g. a payments SDK) without the host knowing
+// about its internal routes.
+
+sealed class CheckoutRoute extends GateRoute {
+  const CheckoutRoute();
+}
+
+final class CheckoutCart extends CheckoutRoute {
+  const CheckoutCart();
+}
+
+final class CheckoutShipping extends CheckoutRoute {
+  const CheckoutShipping();
+}
+
+final class CheckoutConfirm extends CheckoutRoute {
+  const CheckoutConfirm();
+}
+
+class CheckoutModule extends RouteModule<CheckoutRoute> {
+  const CheckoutModule();
+
+  @override
+  List<CheckoutRoute> get initialStack => const [CheckoutCart()];
+
+  @override
+  Widget buildPage(BuildContext context, CheckoutRoute route) =>
+      switch (route) {
+        CheckoutCart() => const _CheckoutCartScreen(),
+        CheckoutShipping() => const _CheckoutShippingScreen(),
+        CheckoutConfirm() => const _CheckoutConfirmScreen(),
+      };
+}
+
 // 2. Auth state
-// ─────────────────────────────────────────────────────────────────────
 
 class AuthState extends ValueNotifier<bool> {
   AuthState() : super(false);
@@ -107,11 +151,9 @@ class AuthState extends ValueNotifier<bool> {
 
 final auth = AuthState();
 
-// ─────────────────────────────────────────────────────────────────────
 // 3. Guards (main router only; once you're past MainShell the user is
 //    authenticated for the rest of the session, so branch routers
 //    don't need their own auth guards in this example).
-// ─────────────────────────────────────────────────────────────────────
 
 GateGuard<AppRoute> authGuard(AuthState auth) {
   return (current, proposed) {
@@ -130,7 +172,6 @@ GateGuard<AppRoute> splashRedirectGuard(AuthState auth) {
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────
 // 4. URL codec — v0.5 GateConfigCodec, with shell URLs.
 //
 // v0.5's configuration carries both the main stack and (when a shell
@@ -145,7 +186,6 @@ GateGuard<AppRoute> splashRedirectGuard(AuthState auth) {
 //   /discover/items/y    → MainShell, Discover tab with FeedItem(y)
 //   /profile             → MainShell, Profile tab
 //   /settings            → MainShell, Settings on top
-// ─────────────────────────────────────────────────────────────────────
 
 class AppCodec implements GateConfigCodec<AppRoute> {
   const AppCodec();
@@ -165,25 +205,33 @@ class AppCodec implements GateConfigCodec<AppRoute> {
       return encode(
         GateConfig(
           mainStack: base.isEmpty ? const [Splash()] : base,
-          shellState: config.shellState,
+          nestedState: config.nestedState,
         ),
       );
     }
-    return switch (top) {
-      Splash() => Uri(path: '/'),
-      Login() => Uri(path: '/login'),
-      Settings() => Uri(path: '/settings'),
-      MainShell() => _encodeShell(config.shellState),
-      // Modal routes were handled above; an exhaustiveness placeholder.
-      ConfirmAddToCart() || ConfirmAddToCartReview() => Uri(path: '/'),
+    // Pattern-match on (top, nestedState) so the codec is a single
+    // exhaustive switch. The sealed GateNestedConfig lets each
+    // top-route declare which nested config kind belongs to it; a
+    // shell config under a CheckoutMount, or a module config under
+    // MainShell, would be a configuration error caught by the
+    // wildcard arm.
+    return switch ((top, config.nestedState)) {
+      (Splash(), _) => Uri(path: '/'),
+      (Login(), _) => Uri(path: '/login'),
+      (Settings(), _) => Uri(path: '/settings'),
+      (MainShell(), final GateShellConfig shell) => _encodeShell(shell),
+      (MainShell(), _) => Uri(path: '/home'),
+      (CheckoutMount(), final GateModuleConfig module) => _encodeCheckout(
+        module,
+      ),
+      (CheckoutMount(), _) => Uri(path: '/checkout'),
+      (ConfirmAddToCart() || ConfirmAddToCartReview(), _) => Uri(path: '/'),
     };
   }
 
-  Uri _encodeShell(GateShellConfig? shell) {
-    if (shell == null) return Uri(path: '/home');
+  Uri _encodeShell(GateShellConfig shell) {
     final prefix = _branchPrefixes[shell.activeBranch];
     final stack = shell.activeBranchStack;
-    // The branch root encodes to /{prefix}; deeper routes append.
     if (stack.length == 1) return Uri(path: '/$prefix');
     return switch (shell.activeBranch) {
       0 => switch (stack) {
@@ -200,6 +248,19 @@ class AppCodec implements GateConfigCodec<AppRoute> {
       },
       2 => Uri(path: '/profile'),
       _ => Uri(path: '/home'),
+    };
+  }
+
+  // Encode the checkout module's stack at the /checkout prefix.
+  // The module's routes are type-erased to GateRoute when they ride
+  // nestedState; pattern match still works because the runtime types
+  // are concrete (CheckoutCart, CheckoutShipping, CheckoutConfirm).
+  Uri _encodeCheckout(GateModuleConfig module) {
+    return switch (module.stack.last) {
+      CheckoutCart() => Uri(path: '/checkout'),
+      CheckoutShipping() => Uri(path: '/checkout/shipping'),
+      CheckoutConfirm() => Uri(path: '/checkout/confirm'),
+      _ => Uri(path: '/checkout'),
     };
   }
 
@@ -220,6 +281,20 @@ class AppCodec implements GateConfigCodec<AppRoute> {
         FeedItem(id),
       ]),
       ['profile'] => _shellAt(2, const [ProfileRoot()]),
+      // Checkout module URLs. The mainStack lands at CheckoutMount;
+      // the nestedState carries the module's own stack. A deep link
+      // to /checkout/confirm restores the full stack [Cart, Shipping,
+      // Confirm] so back unwinds through the flow.
+      ['checkout'] => _moduleAt(const [CheckoutCart()]),
+      ['checkout', 'shipping'] => _moduleAt(const [
+        CheckoutCart(),
+        CheckoutShipping(),
+      ]),
+      ['checkout', 'confirm'] => _moduleAt(const [
+        CheckoutCart(),
+        CheckoutShipping(),
+        CheckoutConfirm(),
+      ]),
       _ => null,
     };
   }
@@ -227,19 +302,22 @@ class AppCodec implements GateConfigCodec<AppRoute> {
   GateConfig<AppRoute> _shellAt(int branch, List<GateRoute> stack) =>
       GateConfig(
         mainStack: const [MainShell()],
-        shellState: GateShellConfig(
+        nestedState: GateShellConfig(
           activeBranch: branch,
           activeBranchStack: stack,
         ),
       );
+
+  GateConfig<AppRoute> _moduleAt(List<GateRoute> stack) => GateConfig(
+    mainStack: const [CheckoutMount()],
+    nestedState: GateModuleConfig(stack: stack),
+  );
 }
 
-// ─────────────────────────────────────────────────────────────────────
 // 5. Wire it up.
 //
 // The main router is global. Branch routers are created in
 // _MainShellScreen's State so they're tied to the shell's lifecycle.
-// ─────────────────────────────────────────────────────────────────────
 
 final router = GateRouter<AppRoute>(
   initial: const Splash(),
@@ -276,6 +354,9 @@ Widget _buildMainPage(BuildContext context, AppRoute route) => switch (route) {
   Login() => const _LoginScreen(),
   MainShell() => const _MainShellScreen(),
   Settings() => const _SettingsScreen(),
+  CheckoutMount() => const GateModuleMount<CheckoutRoute>(
+    module: CheckoutModule(),
+  ),
   ConfirmAddToCart(:final productId) => _ConfirmAddToCartScreen(
     productId: productId,
   ),
@@ -306,9 +387,7 @@ Widget _buildModal(
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────
 // 6. Screens
-// ─────────────────────────────────────────────────────────────────────
 
 class _SplashScreen extends StatefulWidget {
   const _SplashScreen();
@@ -497,6 +576,14 @@ class _ProfileScreen extends StatelessWidget {
               child: const Text('Settings'),
             ),
             const SizedBox(height: 12),
+            FilledButton.tonal(
+              // v0.6: pushing CheckoutMount on the main stack mounts
+              // the Checkout module. URL becomes /checkout.
+              onPressed: () =>
+                  context.router<AppRoute>().push(const CheckoutMount()),
+              child: const Text('Start checkout'),
+            ),
+            const SizedBox(height: 12),
             TextButton(
               onPressed: () => context.branchedShell().switchTo(0),
               child: const Text('Go to Home tab'),
@@ -661,6 +748,101 @@ class _ConfirmAddToCartReviewScreen extends StatelessWidget {
                   child: const Text('Confirm'),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Checkout module screens (typed to CheckoutRoute)
+//
+// These screens live inside the Checkout module's typed router.
+// `context.router<CheckoutRoute>()` resolves to the module's router;
+// `context.router<AppRoute>()` resolves to the host's main router —
+// same lookup-by-exact-type semantics as branched shells.
+
+class _CheckoutCartScreen extends StatelessWidget {
+  const _CheckoutCartScreen();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Cart')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('1 item in your cart'),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: () => context.router<CheckoutRoute>().push(
+                const CheckoutShipping(),
+              ),
+              child: const Text('Continue to shipping'),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              // Exit the module entirely — pops CheckoutMount off the
+              // main stack.
+              onPressed: () => context.router<AppRoute>().pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CheckoutShippingScreen extends StatelessWidget {
+  const _CheckoutShippingScreen();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Shipping')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Standard shipping selected'),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: () =>
+                  context.router<CheckoutRoute>().push(const CheckoutConfirm()),
+              child: const Text('Review order'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CheckoutConfirmScreen extends StatelessWidget {
+  const _CheckoutConfirmScreen();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Confirm')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Place order?'),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: () {
+                // Complete: pop the whole module off the main stack
+                // and surface a confirmation. In a real SDK the
+                // module would expose a completion callback or
+                // return a Future to the host.
+                context.router<AppRoute>().pop();
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Order placed.')));
+              },
+              child: const Text('Place order'),
             ),
           ],
         ),

@@ -7,9 +7,10 @@ import 'gate_stack_codec.dart';
 ///
 /// The Flutter `Router` widget asks the delegate for a configuration
 /// (to update the browser URL) and hands one back when a URL changes
-/// (to restore in-app state). Through v0.4 that configuration was just
-/// the main router's stack (`List<R>`). v0.5 enriches it so the URL
-/// can address state inside a branched shell, too:
+/// (to restore in-app state). The configuration describes the main
+/// router's stack plus an optional nested-router state — whichever
+/// nested router (shell or module) is currently on top of the main
+/// stack.
 ///
 /// ```dart
 /// // URL  →  GateConfig
@@ -17,34 +18,42 @@ import 'gate_stack_codec.dart';
 /// //   ↓
 /// //   GateConfig(
 /// //     mainStack: [MainShell()],
-/// //     shellState: GateShellConfig(
+/// //     nestedState: GateShellConfig(
 /// //       activeBranch: 0,
 /// //       activeBranchStack: [HomeRoot(), ProductDetail('sku-42')],
 /// //     ),
 /// //   )
+/// //
+/// //   /checkout/confirm
+/// //   ↓
+/// //   GateConfig(
+/// //     mainStack: [CheckoutMount()],
+/// //     nestedState: GateModuleConfig(
+/// //       stack: [CheckoutCart(), CheckoutShipping(), CheckoutConfirm()],
+/// //     ),
+/// //   )
 /// ```
 ///
-/// The shell state describes only the **active** branch's stack;
-/// inactive branches keep whatever in-memory state they already had.
-/// Switching to Discover and back to Home preserves Home's stack
-/// (and surfaces back through the URL on the next capture).
+/// Only one nested router can be on top of the main stack at a time,
+/// so `nestedState` is a sealed [GateNestedConfig] — at most one
+/// kind, statically enforced.
 @immutable
 class GateConfig<R extends GateRoute> {
-  /// Create a configuration with a main stack and optional shell
-  /// state.
+  /// Create a configuration with a main stack and optional nested
+  /// state (shell or module).
   GateConfig({
     required List<R> mainStack,
-    this.shellState,
+    this.nestedState,
   })  : assert(mainStack.isNotEmpty, 'mainStack must not be empty'),
         mainStack = List<R>.unmodifiable(mainStack);
 
   /// The main router's stack — the outer navigation history.
   final List<R> mainStack;
 
-  /// State of the currently-mounted shell, if any. `null` if no
-  /// shell is on the main stack (or if the codec didn't bother to
-  /// describe it).
-  final GateShellConfig? shellState;
+  /// State of the currently-mounted nested router (shell or module),
+  /// if any. `null` when no nested router is on top, or when the
+  /// codec didn't bother to describe it.
+  final GateNestedConfig? nestedState;
 
   /// Convenience for migration: a config with just a stack.
   factory GateConfig.stackOnly(List<R> stack) =>
@@ -55,15 +64,35 @@ class GateConfig<R extends GateRoute> {
     if (identical(this, other)) return true;
     if (other is! GateConfig<R>) return false;
     return _listEquals(mainStack, other.mainStack) &&
-        shellState == other.shellState;
+        nestedState == other.nestedState;
   }
 
   @override
-  int get hashCode => Object.hash(Object.hashAll(mainStack), shellState);
+  int get hashCode => Object.hash(Object.hashAll(mainStack), nestedState);
 
   @override
   String toString() => 'GateConfig(mainStack: $mainStack, '
-      'shellState: $shellState)';
+      'nestedState: $nestedState)';
+}
+
+/// State of a nested router (shell, module, future kinds) at the
+/// moment a URL is captured. Sealed so [GateConfig.nestedState] can
+/// carry at most one kind, statically.
+///
+/// Pattern-match in your codec:
+///
+/// ```dart
+/// Uri encode(GateConfig<AppRoute> config) {
+///   return switch ((config.mainStack.last, config.nestedState)) {
+///     (MainShell(), final GateShellConfig shell)   => _encodeShell(shell),
+///     (CheckoutMount(), final GateModuleConfig m)  => _encodeCheckout(m),
+///     // ...
+///   };
+/// }
+/// ```
+sealed class GateNestedConfig {
+  /// Const constructor so subclasses can be `const`.
+  const GateNestedConfig();
 }
 
 /// Configuration for a [BranchedShellRouter]. Describes which branch
@@ -76,7 +105,7 @@ class GateConfig<R extends GateRoute> {
 /// Encoding inactive branches into URLs would make every tab switch
 /// either a deep-link to all branches or destroy non-active history.
 @immutable
-class GateShellConfig {
+class GateShellConfig extends GateNestedConfig {
   /// Create a shell configuration.
   GateShellConfig({
     required this.activeBranch,
@@ -113,14 +142,50 @@ class GateShellConfig {
       'activeBranchStack: $activeBranchStack)';
 }
 
+/// Configuration for a mounted [RouteModule].
+///
+/// A module is a self-contained routing unit — its own sealed
+/// subtype, its own initial stack, its own page builder. Unlike a
+/// shell (which aggregates multiple parallel branches), a module is
+/// a single nested router rendered as a normal page.
+///
+/// `GateModuleConfig` captures the module's internal stack so a URL
+/// like `/checkout/confirm` can be encoded as
+/// `mainStack: [CheckoutMount]` plus `nestedState: GateModuleConfig(
+/// stack: [Cart, Shipping, Confirm])` and round-trip on deep link.
+@immutable
+class GateModuleConfig extends GateNestedConfig {
+  /// Create a module configuration.
+  GateModuleConfig({required List<GateRoute> stack})
+      : assert(stack.isNotEmpty, 'module stack must not be empty'),
+        stack = List<GateRoute>.unmodifiable(stack);
+
+  /// The module's internal stack. Type-erased to [GateRoute]; the
+  /// concrete [RouteModule] knows the real subtype.
+  final List<GateRoute> stack;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! GateModuleConfig) return false;
+    return _listEquals(stack, other.stack);
+  }
+
+  @override
+  int get hashCode => Object.hashAll(stack);
+
+  @override
+  String toString() => 'GateModuleConfig(stack: $stack)';
+}
+
 /// Maps URLs to and from a full [GateConfig].
 ///
 /// Supersedes [GateStackCodec] when you want URLs to address state
-/// inside a branched shell. A `GateConfigCodec` returns / accepts the
-/// outer configuration; the codec decides how to flatten the shell
-/// state into the URL path (and back).
+/// inside a nested router (shell or module). A `GateConfigCodec`
+/// returns / accepts the outer configuration; the codec decides how
+/// to flatten the nested state into the URL path (and back).
 ///
-/// If you don't need shell URLs, keep your existing [GateStackCodec]
+/// If you don't need nested URLs, keep your existing [GateStackCodec]
 /// and pass it via [GateRouteInformationParser.fromStackCodec].
 ///
 /// ```dart
@@ -129,49 +194,16 @@ class GateShellConfig {
 ///
 ///   @override
 ///   Uri encode(GateConfig<AppRoute> config) {
-///     final shell = config.shellState;
-///     if (shell != null && config.mainStack.last is MainShell) {
-///       return _encodeShell(shell);
-///     }
-///     return switch (config.mainStack.last) {
-///       Splash() => Uri(path: '/'),
-///       Login()  => Uri(path: '/login'),
-///       Settings() => Uri(path: '/settings'),
+///     return switch ((config.mainStack.last, config.nestedState)) {
+///       (Splash(), _)   => Uri(path: '/'),
+///       (Login(), _)    => Uri(path: '/login'),
+///       (Settings(), _) => Uri(path: '/settings'),
+///       (MainShell(), final GateShellConfig shell) => _encodeShell(shell),
+///       (CheckoutMount(), final GateModuleConfig m) => _encodeCheckout(m),
 ///       _ => Uri(path: '/'),
 ///     };
 ///   }
-///
-///   Uri _encodeShell(GateShellConfig shell) => switch (shell.activeBranch) {
-///         0 => switch (shell.activeBranchStack) {
-///               [HomeRoot()] => Uri(path: '/home'),
-///               [HomeRoot(), ProductDetail(:final id)] =>
-///                 Uri(path: '/home/products/$id'),
-///               _ => Uri(path: '/home'),
-///             },
-///         1 => Uri(path: '/discover'),
-///         2 => Uri(path: '/profile'),
-///         _ => Uri(path: '/'),
-///       };
-///
-///   @override
-///   GateConfig<AppRoute>? decode(Uri uri) => switch (uri.pathSegments) {
-///         [] || [''] => GateConfig(mainStack: const [Splash()]),
-///         ['home'] => GateConfig(
-///               mainStack: const [MainShell()],
-///               shellState: GateShellConfig(
-///                 activeBranch: 0,
-///                 activeBranchStack: const [HomeRoot()],
-///               ),
-///             ),
-///         ['home', 'products', final id] => GateConfig(
-///               mainStack: const [MainShell()],
-///               shellState: GateShellConfig(
-///                 activeBranch: 0,
-///                 activeBranchStack: [const HomeRoot(), ProductDetail(id)],
-///               ),
-///             ),
-///         _ => null,
-///       };
+///   // ... decode
 /// }
 /// ```
 abstract class GateConfigCodec<R extends GateRoute> {
@@ -189,11 +221,11 @@ abstract class GateConfigCodec<R extends GateRoute> {
 /// Adapter so a v0.4 [GateStackCodec] (stack-only URLs) works wherever
 /// a [GateConfigCodec] is required.
 ///
-/// Useful for migrating apps that don't need shell URLs yet — wrap
+/// Useful for migrating apps that don't need nested URLs yet — wrap
 /// the existing stack codec instead of rewriting it.
 class StackToConfigCodec<R extends GateRoute> implements GateConfigCodec<R> {
   /// Wrap [stackCodec]. The resulting config codec ignores
-  /// [GateConfig.shellState] entirely; shell state never round-trips
+  /// [GateConfig.nestedState] entirely; nested state never round-trips
   /// through the URL.
   const StackToConfigCodec(this.stackCodec);
 
@@ -210,44 +242,60 @@ class StackToConfigCodec<R extends GateRoute> implements GateConfigCodec<R> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// Shell-host machinery
+// Nested-router host machinery
 //
-// The delegate is the host. A mounted [GateBranchedShell] registers
-// itself with the host as the active "restore handle"; the host calls
-// captureConfig when Flutter asks for currentConfiguration, and
-// restoreFromConfig when a URL change arrives that includes shell
-// state.
+// The delegate is the host. A mounted nested router (a branched shell
+// or a module mount) registers itself with the host as a "nested
+// handle"; the host captures and restores the topmost registered
+// handle's config when the URL bar asks.
 //
-// These interfaces are public so the delegate and the shell can talk
-// across files, but they're not exported from `package:gate/gate.dart`
-// — typical apps never name them.
-// ─────────────────────────────────────────────────────────────────────
+// These interfaces are public so the delegate and the nested router
+// implementations can talk across files, but they're not exported
+// from `package:gate/gate.dart` — typical apps never name them.
 
-/// Non-generic handle a [GateBranchedShell] exposes to the surrounding
-/// [GateRouterDelegate] so the URL can describe the shell's state.
-abstract class GateShellRestoreHandle implements Listenable {
-  /// Capture the shell's current state for inclusion in the URL.
-  GateShellConfig captureConfig();
+/// Non-generic handle a nested router (branched shell or module
+/// mount) exposes to the surrounding [GateRouterDelegate] so the URL
+/// can describe the nested router's state.
+abstract class GateNestedHandle implements Listenable {
+  /// The runtime type of [GateNestedConfig] this handle produces and
+  /// accepts. Used by the host to match a decoded URL configuration
+  /// to the right registered handle.
+  ///
+  /// Shell handles return `GateShellConfig`; module handles return
+  /// `GateModuleConfig`.
+  Type get configType;
 
-  /// Apply a shell state from a URL decode. The active branch is
-  /// switched and its stack replaced; inactive branches are left alone.
-  Future<void> restoreFromConfig(GateShellConfig config);
+  /// Capture the handle's current state for inclusion in the URL.
+  GateNestedConfig captureConfig();
+
+  /// Apply a captured config. Implementations should silently ignore
+  /// configs whose runtime type doesn't match [configType] — the host
+  /// filters before calling, but a defensive check costs nothing.
+  Future<void> restoreFromConfig(GateNestedConfig config);
 }
 
-/// Interface implemented by [GateRouterDelegate] so a mounted shell
-/// can register itself as the URL-addressable shell.
-abstract class GateShellHost {
-  /// Register [shell] as the active shell for URL capture/restore.
-  /// If a configuration was decoded before any shell was registered,
-  /// the host applies it now.
-  void registerShell(GateShellRestoreHandle shell);
+/// Interface implemented by [GateRouterDelegate] so a mounted nested
+/// router (shell or module) can register itself as the URL-addressable
+/// nested handle.
+///
+/// Multiple handles may register at once (e.g., a shell mounted under
+/// a module that's currently on top). The host treats the most
+/// recently registered handle as the **active** one — its config
+/// rides the URL.
+abstract class GateNestedHost {
+  /// Register [handle] as a nested-router source. Becomes the active
+  /// handle (most recent wins).
+  ///
+  /// If a configuration was decoded before any matching handle was
+  /// registered (cold-start deep link), the host applies it as soon
+  /// as a handle whose [GateNestedHandle.configType] matches the
+  /// pending config's runtime type registers.
+  void registerNested(GateNestedHandle handle);
 
-  /// Unregister [shell]. No-op if [shell] isn't the registered one.
-  void unregisterShell(GateShellRestoreHandle shell);
+  /// Unregister [handle]. The next-most-recently-registered handle
+  /// becomes active again (if any).
+  void unregisterNested(GateNestedHandle handle);
 }
-
-// ─── helpers ─────────────────────────────────────────────────────────
 
 bool _listEquals(List<Object?> a, List<Object?> b) {
   if (identical(a, b)) return true;

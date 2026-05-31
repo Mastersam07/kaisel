@@ -121,7 +121,7 @@ void main() {
         RouteInformation(uri: Uri.parse('/settings')),
       );
       expect(result.mainStack, const [_Home(), _Settings()]);
-      expect(result.shellState, isNull);
+      expect(result.nestedState, isNull);
     });
 
     test('stack constructor falls back on unrecognised URLs', () async {
@@ -133,7 +133,7 @@ void main() {
         RouteInformation(uri: Uri.parse('/nope')),
       );
       expect(result.mainStack, const [_Home()]);
-      expect(result.shellState, isNull);
+      expect(result.nestedState, isNull);
     });
 
     test('.single constructor wraps a legacy codec', () async {
@@ -145,7 +145,7 @@ void main() {
         RouteInformation(uri: Uri.parse('/settings')),
       );
       expect(result.mainStack, const [_Settings()]);
-      expect(result.shellState, isNull);
+      expect(result.nestedState, isNull);
     });
 
     test('restoreRouteInformation encodes the configuration', () {
