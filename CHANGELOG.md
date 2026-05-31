@@ -1,5 +1,73 @@
 # Changelog
 
+## 0.10.0: Nested modal flows
+
+v0.3 introduced `router.run<T>(...)` for typed modal sub-flows but
+restricted to one flow at a time. A second `run` call threw a
+`StateError`. v0.10 reshapes the API around a stack of flows: nested
+runs push onto the stack, completions pop LIFO, and the delegate
+renders one modal layer per active flow. A payment flow can itself
+`run` an "add card" sub-flow; an auth flow can open a "verify
+identity" sub-flow.
+
+### API
+
+- **`GateActiveFlow<R>`**: a read-only view of one entry in the
+  active flow stack. Exposes the flow's defining route and its
+  sub-router. The completer is private so callers can't bypass the
+  LIFO completion discipline.
+
+- **`GateRouter.activeFlows`**: returns `List<GateActiveFlow<R>>`,
+  ordered oldest-first (bottom of the modal stack to topmost). The
+  delegate renders one overlay layer per entry. The last entry is
+  the flow that `completeFlow` and `dismissFlow` resolve.
+
+- **`GateRouter.hasActiveFlow`**: convenience for
+  `activeFlows.isNotEmpty`. Unchanged from v0.3.
+
+- **`GateRouter.run<T>`**: no longer throws when a flow is active.
+  Appends to the stack.
+
+- **`GateRouter.completeFlow<T>(value)`** and **`dismissFlow()`**:
+  resolve the topmost flow. Only the topmost can be completed via
+  this API. To unwind multiple flows, complete the topmost, await
+  it, then complete the next.
+
+- **Removed**: the v0.3 `activeFlowRoute` and `activeFlowRouter`
+  singleton accessors. Use `activeFlows.last.route` and
+  `activeFlows.last.router` (or `lastOrNull` for a null-safe form).
+
+### Delegate
+
+`GateRouterDelegate.build` renders one modal overlay layer per
+active flow. Each layer has its own `GateInnerNavigator` (with a
+stable per-flow `GlobalKey`), its own `RouterScope<R>`, its own
+`FlowScope`, and its own `PopScope`. The topmost layer ends up
+deepest in the widget tree, so its `PopScope` sees Android back
+gestures first.
+
+The private `_ModalOverlay` widget that v0.3 used for the single-
+flow case has been removed; its responsibilities are inlined into a
+`_buildFlowLayer` method on the delegate.
+
+`GateRouter.dispose` resolves every pending flow with `null`.
+
+### Pop semantics with nested flows
+
+Each flow layer's `PopScope` works the same as the v0.3 single-flow
+case: `canPop: false` (the layer intercepts back), and the handler
+pops within the flow if possible, else dismisses the flow. With
+nested flows, the topmost layer's PopScope handles back first; when
+it dismisses, the layer below resumes control. Pop unwinds one flow
+at a time.
+
+### Still deferred to future versions
+
+- Direction-aware and shared-element transitions. Requires a
+  breaking change to `GatePageWrapper`'s signature.
+
+---
+
 ## 0.9.0: Adaptive layouts inside shells and modules
 
 The v0.8 release shipped adaptive layouts at the main `GateRouterDelegate`,

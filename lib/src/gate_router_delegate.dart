@@ -153,8 +153,16 @@ class GateRouterDelegate<R extends GateRoute>
   @override
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-  final GlobalKey<NavigatorState> _flowNavigatorKey =
-      GlobalKey<NavigatorState>(debugLabel: 'gate-flow');
+  /// Stable [GlobalKey]s for each active modal flow's inner Navigator.
+  /// Indexed parallel to `router.activeFlows`. Grown lazily in [build]
+  /// as flows are pushed and shrunk as they're completed (in LIFO
+  /// order, matching the flow completion discipline).
+  ///
+  /// A single shared key wouldn't survive nested flows; reusing one
+  /// across two simultaneous Navigators is one of Flutter's standard
+  /// "two widgets have the same GlobalKey" assertions.
+  final List<GlobalKey<NavigatorState>> _flowNavigatorKeys =
+      <GlobalKey<NavigatorState>>[];
 
   //
   // A mounted nested router (branched shell or module mount) registers
@@ -318,25 +326,32 @@ class GateRouterDelegate<R extends GateRoute>
 
     Widget content = mainNavigator;
 
-    final flowRoute = router.activeFlowRoute;
-    final flowRouter = router.activeFlowRouter;
-    if (flowRoute != null && flowRouter != null) {
-      if (modalBuilder == null) {
-        throw FlutterError(
-          'A modal flow is active but no modalBuilder was provided to '
-          'GateRouterDelegate. Pass modalBuilder: (context, route, child) '
-          '=> ... when using router.run<T>(...).',
-        );
-      }
-      content = _ModalOverlay<R>(
-        mainContent: mainNavigator,
-        flowRouter: flowRouter,
-        flowRoute: flowRoute,
-        flowNavigatorKey: _flowNavigatorKey,
-        pageBuilder: _effectiveSimpleBuilder,
-        pageWrapper: pageWrapper,
-        modalBuilder: modalBuilder!,
-        onComplete: (value) => router.completeFlow<Object>(value),
+    final activeFlows = router.activeFlows;
+    if (activeFlows.isNotEmpty && modalBuilder == null) {
+      throw FlutterError(
+        'A modal flow is active but no modalBuilder was provided to '
+        'GateRouterDelegate. Pass modalBuilder: (context, route, child) '
+        '=> ... when using router.run<T>(...).',
+      );
+    }
+
+    while (_flowNavigatorKeys.length < activeFlows.length) {
+      _flowNavigatorKeys.add(
+        GlobalKey<NavigatorState>(
+          debugLabel: 'gate-flow-${_flowNavigatorKeys.length}',
+        ),
+      );
+    }
+    while (_flowNavigatorKeys.length > activeFlows.length) {
+      _flowNavigatorKeys.removeLast();
+    }
+
+    for (var i = 0; i < activeFlows.length; i++) {
+      content = _buildFlowLayer(
+        context: context,
+        inner: content,
+        flow: activeFlows[i],
+        flowNavigatorKey: _flowNavigatorKeys[i],
       );
     }
 
@@ -344,6 +359,42 @@ class GateRouterDelegate<R extends GateRoute>
     // Install the host scope so descendant nested routers (branched
     // shells and module mounts) can register for URL capture/restore.
     return GateNestedHostScope(host: this, child: content);
+  }
+
+  Widget _buildFlowLayer({
+    required BuildContext context,
+    required Widget inner,
+    required GateActiveFlow<R> flow,
+    required GlobalKey<NavigatorState> flowNavigatorKey,
+  }) {
+    final flowNavigator = GateInnerNavigator<R>(
+      router: flow.router,
+      navigatorKey: flowNavigatorKey,
+      pageBuilder: _effectiveSimpleBuilder,
+      pageWrapper: pageWrapper,
+    );
+
+    final flowWithScopes = RouterScope<R>(
+      router: flow.router,
+      child: FlowScope(
+        onComplete: (value) => router.completeFlow<Object>(value),
+        child: PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            if (flow.router.canPop) {
+              flow.router.pop();
+            } else {
+              router.completeFlow<Object>(null);
+            }
+          },
+          child: flowNavigator,
+        ),
+      ),
+    );
+
+    final flowUi = modalBuilder!(context, flow.route, flowWithScopes);
+    return Stack(children: [inner, flowUi]);
   }
 
   List<Page<Object?>> _simpleMainPages(
@@ -451,66 +502,4 @@ class GateNestedHostScope extends InheritedWidget {
   @override
   bool updateShouldNotify(GateNestedHostScope old) =>
       !identical(old.host, host);
-}
-
-/// Renders the main content with a modal flow overlaid on top.
-///
-/// Handles back-button routing: if the flow's stack has depth, back
-/// pops within the flow; at flow root, back dismisses the flow.
-class _ModalOverlay<R extends GateRoute> extends StatelessWidget {
-  const _ModalOverlay({
-    required this.mainContent,
-    required this.flowRouter,
-    required this.flowRoute,
-    required this.flowNavigatorKey,
-    required this.pageBuilder,
-    required this.pageWrapper,
-    required this.modalBuilder,
-    required this.onComplete,
-  });
-
-  final Widget mainContent;
-  final GateRouter<R> flowRouter;
-  final GateModalRoute<Object?> flowRoute;
-  final GlobalKey<NavigatorState> flowNavigatorKey;
-  final GatePageBuilder<R> pageBuilder;
-  final GatePageWrapper<R>? pageWrapper;
-  final GateModalBuilder modalBuilder;
-
-  /// Called when the flow should be resolved. `null` = dismissed,
-  /// any other value = explicit completion.
-  final void Function(Object? value) onComplete;
-
-  @override
-  Widget build(BuildContext context) {
-    final flowNavigator = GateInnerNavigator<R>(
-      router: flowRouter,
-      navigatorKey: flowNavigatorKey,
-      pageBuilder: pageBuilder,
-      pageWrapper: pageWrapper,
-    );
-
-    final flowWithScopes = RouterScope<R>(
-      router: flowRouter,
-      child: FlowScope(
-        onComplete: onComplete,
-        child: PopScope(
-          canPop: false,
-          onPopInvokedWithResult: (didPop, _) {
-            if (didPop) return;
-            if (flowRouter.canPop) {
-              flowRouter.pop();
-            } else {
-              onComplete(null);
-            }
-          },
-          child: flowNavigator,
-        ),
-      ),
-    );
-
-    final flowUi = modalBuilder(context, flowRoute, flowWithScopes);
-
-    return Stack(children: [mainContent, flowUi]);
-  }
 }

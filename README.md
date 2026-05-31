@@ -40,7 +40,7 @@ Dart 3 has had the type machinery to do better since 2023: sealed classes, exhau
 
 The architectural posture, in one line: **the route stack is a `List<R>`, navigation is list manipulation, the URL is an optional codec on top, guards are pure functions in a pipeline, modal flows are sub-routers with typed result completers, and features ship as composable `RouteModule`s mounted at marker routes.**
 
-## What you get in v0.9
+## What you get in v0.10
 
 - **Typed route stack** as `List<R>` over your sealed class.
 - **Default value equality** via `props`. No manual `==`/`hashCode`. No codegen.
@@ -50,19 +50,18 @@ The architectural posture, in one line: **the route stack is a `List<R>`, naviga
 - **URL-addressable shell *and* module state**: a URL like `/home/products/sku-42` deep-links into a branch stack; `/checkout/confirm` deep-links into a module's stack. Inactive branches keep their in-memory state across tab switches; modules keep theirs until unmounted.
 - **Module URL composition** (since v0.7). Modules ship their own `ModuleStackCodec`; the host composes URL routing via `ConfigCodecWithModules` without duplicating each module's URL structure in its main codec. The host's main codec stays module-agnostic.
 - **Adaptive layouts** (since v0.8, extended in v0.9). At the main delegate via `GateRouterDelegate.adaptive`, inside shell branches via `GateBranch.adaptive` and `GateShell.adaptive`, and inside modules via `RouteModule.buildAdaptivePage` + `isAdaptive`. A detail route can return `GateAbsorbingPage` to collapse master+detail into a single rendered page (master-detail without changing the stack model). Page identity is keyed on the lowest absorbed entry so selecting a different detail doesn't trigger a Navigator transition.
-- **Modal sub-flows with typed results**: `await router.run<T>(SomeFlow())` returns `Future<T?>`. The flow has its own internal stack; screens call `context.completeFlow<T>(value)` to resolve the awaiter.
+- **Modal sub-flows with typed results**: `await router.run<T>(SomeFlow())` returns `Future<T?>`. The flow has its own internal stack; screens call `context.completeFlow<T>(value)` to resolve the awaiter. **Flows can nest** (new in v0.10): each nested flow gets its own sub-router and modal layer, and completions unwind LIFO.
 - **`GateConfigCodec<R>`**: the v0.5+ codec interface, parameterised by `GateConfig<R>` (main stack + optional shell *or* module state). A `StackToConfigCodec` adapter wraps v0.4 codecs unchanged.
 - **Unified `context.router<R>()`**: resolves to the flow router inside a modal, the branch router inside a branched shell, the module router inside a mount, the main router elsewhere.
 - **Pattern-matched page resolution** with compile-time exhaustiveness checking.
 - **Identity-preserving stack diff**: pushing one route doesn't rebuild others.
 - **Pure-Dart unit tests** for navigation state (no widget tree needed).
 
-## Deliberately not in v0.9
+## Deliberately not in v0.10
 
 Coming in future versions:
 
 - Direction-aware and shared-element transitions. Requires a breaking change to `GatePageWrapper`'s signature.
-- Nested modal flows (relaxing the v0.3 "one flow at a time" constraint).
 
 ## Usage
 
@@ -258,6 +257,16 @@ GateRouterDelegate<AppRoute>(
 Inside the flow's screens, push within the flow via `context.router<AppRoute>().push(...)` (which resolves to the flow's sub-router) and resolve the awaiter via `context.completeFlow<int>(qty)` or `context.dismissFlow()`.
 
 Run modal flows on the **main** router. Branch routers don't have a delegate to render the overlay.
+
+**Nested flows** (since v0.10): a flow can itself call `router.run<T>(...)` to launch another flow on top of it. Each nested flow gets its own sub-router and its own modal overlay layer. `context.completeFlow<T>(value)` from inside any flow resolves the topmost one. To unwind multiple layers, complete the topmost, await it, then complete the next. `router.activeFlows` exposes the full stack if you need to inspect or render based on depth.
+
+```dart
+// Inside an outer flow's screen:
+final verified = await router.run<bool>(VerifyIdentityFlow());
+if (verified == true) {
+  context.completeFlow<bool>(true);  // resolves the outer flow
+}
+```
 
 ### 6. URLs (optional)
 
@@ -557,7 +566,7 @@ Routing libraries that bake in `freezed` force codegen on every consumer. `gate`
 
 ## Status
 
-v0.9 is the current development line. The core surface (routes, guards, shells in both homogeneous and per-branch typed forms, modal flows with typed results, URL-addressable shell and module state, composable modules, module URL composition, and adaptive layouts at the main delegate, shell branches, and module mounts) is in place. Direction-aware transitions and nested modal flows are tracked for future versions. Public API is shaped for stability but not frozen.
+v0.10 is the current development line. The core surface (routes, guards, shells in both homogeneous and per-branch typed forms, modal flows with typed results and nesting, URL-addressable shell and module state, composable modules, module URL composition, and adaptive layouts at the main delegate, shell branches, and module mounts) is in place. Direction-aware transitions are tracked for future versions. Public API is shaped for stability but not frozen.
 
 ## Comparison
 

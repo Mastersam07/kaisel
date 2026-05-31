@@ -117,10 +117,10 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
   final List<GateGuard<R>> _guards;
   Future<void> _pending = Future<void>.value();
 
-  // Modal flow state. At most one flow is active at a time in v0.3.
-  GateRouter<R>? _flowRouter;
-  GateModalRoute<Object?>? _flowRoute;
-  Completer<Object?>? _flowCompleter;
+  // Modal flow state. Multiple flows can be active simultaneously
+  // (nested modal flows). The list is a stack: flows are pushed by
+  // [run] and popped by [completeFlow]/[dismissFlow] in LIFO order.
+  final List<_ActiveFlow<R>> _flows = <_ActiveFlow<R>>[];
 
   /// The current stack as a read-only list of routes.
   @override
@@ -136,14 +136,23 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
   @override
   bool get canPop => _entries.length > 1;
 
-  /// Whether a modal flow is currently active.
-  bool get hasActiveFlow => _flowRouter != null;
+  /// Whether at least one modal flow is currently active. Equivalent
+  /// to `activeFlows.isNotEmpty`.
+  bool get hasActiveFlow => _flows.isNotEmpty;
 
-  /// The active modal flow's defining route, or null.
-  GateModalRoute<Object?>? get activeFlowRoute => _flowRoute;
-
-  /// The sub-router driving the active modal flow's screens, or null.
-  GateRouter<R>? get activeFlowRouter => _flowRouter;
+  /// All active modal flows, ordered from oldest (bottom of the
+  /// modal stack) to newest (top, rendered on top of everything
+  /// else). Empty when no flow is active. The last entry is the
+  /// flow that [completeFlow] and [dismissFlow] will resolve.
+  ///
+  /// Hosts use this to render one modal layer per flow. Each entry
+  /// exposes the flow's defining route and its sub-router. The
+  /// completer is private to [run]/[completeFlow] so callers can't
+  /// bypass the LIFO completion discipline.
+  List<GateActiveFlow<R>> get activeFlows =>
+      List<GateActiveFlow<R>>.unmodifiable(
+        _flows.map((f) => GateActiveFlow<R>._(f.route, f.router)),
+      );
 
   /// Internal view used by the delegate to key pages.
   @internal
@@ -261,66 +270,72 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
     GateModalRoute<T> flow, {
     List<GateGuard<R>> flowGuards = const [],
   }) async {
-    if (_flowRouter != null) {
-      throw StateError(
-        'A modal flow is already active. Complete it before starting another.',
-      );
-    }
     if (flow is! R) {
       throw ArgumentError(
         '${flow.runtimeType} must extend or implement $R to run as a flow.',
       );
     }
     final completer = Completer<Object?>();
-    _flowCompleter = completer;
-    _flowRoute = flow as GateModalRoute<Object?>;
-    _flowRouter = GateRouter<R>(initial: flow as R, guards: flowGuards);
-    _flowRouter!.addListener(notifyListeners);
+    final flowRouter = GateRouter<R>(initial: flow as R, guards: flowGuards);
+    flowRouter.addListener(notifyListeners);
+    final entry = _ActiveFlow<R>(
+      route: flow as GateModalRoute<Object?>,
+      router: flowRouter,
+      completer: completer,
+    );
+    _flows.add(entry);
     notifyListeners();
 
     try {
       final result = await completer.future;
       return result as T?;
     } finally {
-      if (identical(_flowCompleter, completer)) {
-        _flowRouter?.removeListener(notifyListeners);
-        _flowRouter?.dispose();
-        _flowRouter = null;
-        _flowRoute = null;
-        _flowCompleter = null;
+      // If dispose() ran while we were awaiting, it has already
+      // cleared the flow state (and the ChangeNotifier is now disposed,
+      // so notifyListeners would throw). Only clean up and notify if
+      // this entry is still tracked.
+      if (_flows.remove(entry)) {
+        flowRouter.removeListener(notifyListeners);
+        flowRouter.dispose();
         notifyListeners();
       }
     }
   }
 
-  /// Resolve the active modal flow with [value]. No-op if no flow is
-  /// active.
+  /// Resolve the topmost active modal flow with [value]. No-op if no
+  /// flow is active.
   ///
-  /// The type parameter is for caller clarity — `completeFlow<bool>(true)`
-  /// reads better than `completeFlow(true)` — but the runtime check
-  /// happens at the `await router.run<T>(...)` cast boundary.
+  /// The type parameter is for caller clarity. `completeFlow<bool>(true)`
+  /// reads better than `completeFlow(true)`. The runtime check happens
+  /// at the `await router.run<T>(...)` cast boundary.
+  ///
+  /// Nested flows resolve in LIFO order: only the topmost flow can be
+  /// completed via this API. To unwind multiple flows, complete the
+  /// topmost, await it, then complete the next.
   void completeFlow<T>(T? value) {
-    final completer = _flowCompleter;
-    if (completer == null || completer.isCompleted) return;
+    if (_flows.isEmpty) return;
+    final completer = _flows.last.completer;
+    if (completer.isCompleted) return;
     completer.complete(value);
   }
 
-  /// Dismiss the active modal flow with `null`. No-op if no flow is
-  /// active. Equivalent to `completeFlow<Null>(null)`.
+  /// Dismiss the topmost active modal flow with `null`. No-op if no
+  /// flow is active. Equivalent to `completeFlow<Null>(null)`.
   void dismissFlow() => completeFlow<Null>(null);
 
   @override
   void dispose() {
-    // Resolve any in-flight flow so its awaiter doesn't hang.
-    final completer = _flowCompleter;
-    if (completer != null && !completer.isCompleted) {
-      completer.complete(null);
+    // Resolve any in-flight flows so their awaiters don't hang.
+    // Iterate over a copy so the finally blocks in `run` mutating
+    // `_flows` doesn't disturb the loop.
+    for (final flow in List<_ActiveFlow<R>>.from(_flows)) {
+      if (!flow.completer.isCompleted) {
+        flow.completer.complete(null);
+      }
+      flow.router.removeListener(notifyListeners);
+      flow.router.dispose();
     }
-    _flowRouter?.removeListener(notifyListeners);
-    _flowRouter?.dispose();
-    _flowRouter = null;
-    _flowRoute = null;
-    _flowCompleter = null;
+    _flows.clear();
     super.dispose();
   }
 
@@ -380,4 +395,41 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
     }
     return true;
   }
+}
+
+/// Internal: state for one active modal flow. The router holds a
+/// list of these as a LIFO stack. Each carries the defining route,
+/// the sub-router driving its screens, and the completer that the
+/// `await router.run<T>(...)` is waiting on.
+class _ActiveFlow<R extends GateRoute> {
+  _ActiveFlow({
+    required this.route,
+    required this.router,
+    required this.completer,
+  });
+
+  final GateModalRoute<Object?> route;
+  final GateRouter<R> router;
+  final Completer<Object?> completer;
+}
+
+/// A read-only view of one entry in the active modal flow stack.
+///
+/// Exposed by [GateRouter.activeFlows] so hosts can render one modal
+/// layer per active flow. The flow's defining route and its
+/// sub-router are visible here; the completer is private to the
+/// router so callers can't bypass the LIFO completion discipline.
+///
+/// New in v0.10.
+@immutable
+class GateActiveFlow<R extends GateRoute> {
+  const GateActiveFlow._(this.route, this.router);
+
+  /// The flow's defining route (the route passed to
+  /// [GateRouter.run]). Type-erased to `GateModalRoute<Object?>`;
+  /// the original `T` is recovered at the `await` boundary.
+  final GateModalRoute<Object?> route;
+
+  /// The sub-router driving the flow's screens.
+  final GateRouter<R> router;
 }

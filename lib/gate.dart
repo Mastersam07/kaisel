@@ -34,7 +34,7 @@ export 'src/gate_module_codec.dart'
         UntypedModuleStackCodec;
 export 'src/gate_route.dart';
 export 'src/gate_route_information_parser.dart';
-export 'src/gate_router.dart' show GateNavigator, GateRouter;
+export 'src/gate_router.dart' show GateActiveFlow, GateNavigator, GateRouter;
 export 'src/gate_router_delegate.dart'
     show GateModalBuilder, GatePageBuilder, GatePageWrapper, GateRouterDelegate;
 export 'src/gate_scope.dart';
