@@ -111,25 +111,29 @@ void main() {
 
   group('GateRouteInformationParser', () {
     test('stack constructor decodes deep stacks', () async {
-      final parser = GateRouteInformationParser<_R>(
+      // v0.5: bare constructor now takes a GateConfigCodec. Stack-only
+      // codecs go through the .fromStackCodec migration helper.
+      final parser = GateRouteInformationParser<_R>.fromStackCodec(
         codec: const _StackCodec(),
         fallback: const [_Home()],
       );
       final result = await parser.parseRouteInformation(
         RouteInformation(uri: Uri.parse('/settings')),
       );
-      expect(result, const [_Home(), _Settings()]);
+      expect(result.mainStack, const [_Home(), _Settings()]);
+      expect(result.shellState, isNull);
     });
 
     test('stack constructor falls back on unrecognised URLs', () async {
-      final parser = GateRouteInformationParser<_R>(
+      final parser = GateRouteInformationParser<_R>.fromStackCodec(
         codec: const _StackCodec(),
         fallback: const [_Home()],
       );
       final result = await parser.parseRouteInformation(
         RouteInformation(uri: Uri.parse('/nope')),
       );
-      expect(result, const [_Home()]);
+      expect(result.mainStack, const [_Home()]);
+      expect(result.shellState, isNull);
     });
 
     test('.single constructor wraps a legacy codec', () async {
@@ -140,15 +144,18 @@ void main() {
       final result = await parser.parseRouteInformation(
         RouteInformation(uri: Uri.parse('/settings')),
       );
-      expect(result, const [_Settings()]);
+      expect(result.mainStack, const [_Settings()]);
+      expect(result.shellState, isNull);
     });
 
-    test('restoreRouteInformation encodes the stack', () {
-      final parser = GateRouteInformationParser<_R>(
+    test('restoreRouteInformation encodes the configuration', () {
+      final parser = GateRouteInformationParser<_R>.fromStackCodec(
         codec: const _StackCodec(),
         fallback: const [_Home()],
       );
-      final info = parser.restoreRouteInformation(const [_Home(), _Settings()]);
+      final info = parser.restoreRouteInformation(
+        GateConfig<_R>(mainStack: const [_Home(), _Settings()]),
+      );
       expect(info?.uri.path, '/settings');
     });
   });

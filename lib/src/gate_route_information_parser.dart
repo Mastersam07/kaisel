@@ -1,58 +1,80 @@
 import 'package:flutter/widgets.dart';
 
 import 'gate_codec.dart';
+import 'gate_config.dart';
 import 'gate_route.dart';
 import 'gate_stack_codec.dart';
 
 /// Parses incoming route information (URLs, deep links, restored state)
-/// into a stack of routes for the delegate to render.
+/// into a [GateConfig] for the delegate to apply.
 ///
-/// Accepts either a [GateStackCodec] (multi-route, recommended) or a
-/// single-route [GateCodec] (legacy convenience). With a stack codec, a
-/// single URL can decode into multiple frames so the back button has
-/// somewhere sensible to go on deep links.
+/// In v0.5 the configuration type became [GateConfig] so URLs can carry
+/// branched-shell state in addition to the main stack. Migration paths:
+///
+/// * **Stack-only URLs** (the v0.4 default): wrap your existing
+///   [GateStackCodec] via `GateRouteInformationParser.fromStackCodec`.
+/// * **Shell URLs**: write a [GateConfigCodec] that returns
+///   [GateConfig] with a non-null `shellState` for paths that address
+///   into the shell. The default constructor takes one of these.
+/// * **Single-route URLs** (legacy [GateCodec]): use `.single`. The
+///   parser internally wraps it in [GateSingleStackCodec] then
+///   [StackToConfigCodec].
 class GateRouteInformationParser<R extends GateRoute>
-    extends RouteInformationParser<List<R>> {
-  /// Create a parser backed by a multi-route [GateStackCodec].
+    extends RouteInformationParser<GateConfig<R>> {
+  /// Create a parser backed by a [GateConfigCodec], which can address
+  /// state inside a branched shell.
   ///
-  /// On an unrecognised URL the parser yields [fallback].
+  /// On an unrecognised URL the parser yields a [GateConfig] with
+  /// `mainStack: fallback` and no shell state.
   GateRouteInformationParser({
-    required GateStackCodec<R> codec,
+    required GateConfigCodec<R> codec,
     required List<R> fallback,
   })  : _codec = codec,
         _fallback = List<R>.unmodifiable(fallback),
-        assert(fallback.isNotEmpty,
-            'fallback stack must contain at least one route');
+        assert(
+          fallback.isNotEmpty,
+          'fallback stack must contain at least one route',
+        );
+
+  /// Migration helper: accept a v0.4 [GateStackCodec] and treat URLs
+  /// as stack-only (no shell state ever round-trips through the URL).
+  GateRouteInformationParser.fromStackCodec({
+    required GateStackCodec<R> codec,
+    required List<R> fallback,
+  }) : this(codec: StackToConfigCodec<R>(codec), fallback: fallback);
 
   /// Create a parser backed by a single-route [GateCodec]. Equivalent
-  /// to wrapping it in [GateSingleStackCodec] manually.
+  /// to wrapping it in [GateSingleStackCodec] then [StackToConfigCodec].
   GateRouteInformationParser.single({
     required GateCodec<R> codec,
     required R fallback,
-  })  : _codec = GateSingleStackCodec<R>(codec),
-        _fallback = List<R>.unmodifiable([fallback]);
+  }) : this(
+          codec: StackToConfigCodec<R>(GateSingleStackCodec<R>(codec)),
+          fallback: [fallback],
+        );
 
-  final GateStackCodec<R> _codec;
+  final GateConfigCodec<R> _codec;
   final List<R> _fallback;
 
-  /// The active stack codec.
-  GateStackCodec<R> get codec => _codec;
+  /// The active config codec.
+  GateConfigCodec<R> get codec => _codec;
 
-  /// The fallback stack used when [GateStackCodec.decode] returns `null`.
+  /// The fallback stack used when [GateConfigCodec.decode] returns
+  /// `null`.
   List<R> get fallback => _fallback;
 
   @override
-  Future<List<R>> parseRouteInformation(
+  Future<GateConfig<R>> parseRouteInformation(
     RouteInformation routeInformation,
   ) async {
     final decoded = _codec.decode(routeInformation.uri);
-    if (decoded == null || decoded.isEmpty) return _fallback;
+    if (decoded == null) return GateConfig<R>(mainStack: _fallback);
     return decoded;
   }
 
   @override
-  RouteInformation? restoreRouteInformation(List<R> configuration) {
-    if (configuration.isEmpty) return null;
+  RouteInformation? restoreRouteInformation(GateConfig<R> configuration) {
+    if (configuration.mainStack.isEmpty) return null;
     return RouteInformation(uri: _codec.encode(configuration));
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'gate_config.dart';
 import 'gate_inner_navigator.dart';
 import 'gate_route.dart';
 import 'gate_router.dart';
@@ -32,7 +33,8 @@ import 'gate_scope.dart';
 /// (can-pop and pop on the active branch for back handling); typed
 /// pushes happen on the user's own typed router references, or via
 /// `context.router<BranchR>()` inside a branch screen.
-class BranchedShellRouter extends ChangeNotifier {
+class BranchedShellRouter extends ChangeNotifier
+    implements GateShellRestoreHandle {
   /// Create a shell aggregating [branches]. Each entry is typically a
   /// `GateRouter<BranchR>` for some sealed `BranchR`.
   BranchedShellRouter({
@@ -81,6 +83,39 @@ class BranchedShellRouter extends ChangeNotifier {
     if (branch == _activeBranch) return;
     _activeBranch = branch;
     notifyListeners();
+  }
+
+  // Capture/restore is the bridge between the shell's runtime state
+  // and the URL. captureConfig describes what's currently visible;
+  // restoreFromConfig replays a captured snapshot.
+
+  @override
+  GateShellConfig captureConfig() {
+    return GateShellConfig(
+      activeBranch: _activeBranch,
+      activeBranchStack: current.stack,
+    );
+  }
+
+  @override
+  Future<void> restoreFromConfig(GateShellConfig config) async {
+    if (config.activeBranch < 0 || config.activeBranch >= _branches.length) {
+      throw RangeError.range(
+        config.activeBranch,
+        0,
+        _branches.length - 1,
+        'config.activeBranch',
+      );
+    }
+    // Restore the target branch's stack first so when we switch to it
+    // the UI is already in the right state. Inactive branches are
+    // deliberately left alone — their in-memory state is the user's
+    // history within those tabs.
+    await _branches[config.activeBranch].restoreStack(config.activeBranchStack);
+    if (config.activeBranch != _activeBranch) {
+      _activeBranch = config.activeBranch;
+      notifyListeners();
+    }
   }
 
   @override
@@ -250,8 +285,21 @@ class _GateBranchedShellState extends State<GateBranchedShell> {
     widget.shell.addListener(_onChange);
   }
 
+  GateShellHost? _host;
+
   void _onChange() {
     if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final host = GateShellHostScope.maybeOf(context);
+    if (!identical(host, _host)) {
+      _host?.unregisterShell(widget.shell);
+      _host = host;
+      _host?.registerShell(widget.shell);
+    }
   }
 
   @override
@@ -260,11 +308,14 @@ class _GateBranchedShellState extends State<GateBranchedShell> {
     if (!identical(oldWidget.shell, widget.shell)) {
       oldWidget.shell.removeListener(_onChange);
       widget.shell.addListener(_onChange);
+      _host?.unregisterShell(oldWidget.shell);
+      _host?.registerShell(widget.shell);
     }
   }
 
   @override
   void dispose() {
+    _host?.unregisterShell(widget.shell);
     widget.shell.removeListener(_onChange);
     super.dispose();
   }

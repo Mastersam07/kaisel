@@ -40,24 +40,24 @@ Dart 3 has had the type machinery to do better since 2023: sealed classes, exhau
 
 The architectural posture, in one line: **the route stack is a `List<R>`, navigation is list manipulation, the URL is an optional codec on top, guards are pure functions in a pipeline, and modal flows are sub-routers with typed result completers.**
 
-## What you get in v0.4
+## What you get in v0.5
 
 - **Typed route stack** as `List<R>` over your sealed class.
 - **Default value equality** via `props`. No manual `==`/`hashCode`. No codegen.
 - **Guard pipeline** — `FutureOr<List<R>> Function(current, proposed)`. Composable, async-aware, pure-Dart testable.
-- **Shells** — `GateShell<R>` (homogeneous branches) and `GateBranchedShell` (per-branch typed routes, new in v0.4), both with per-tab back stacks, scoped state, and proper back-button handling.
+- **Shells** — `GateShell<R>` (homogeneous branches) and `GateBranchedShell` (per-branch typed routes), both with per-tab back stacks, scoped state, and proper back-button handling.
+- **URL-addressable shell state** (new in v0.5) — a URL like `/home/products/sku-42` deep-links into the Home branch's stack. Inactive branches keep their in-memory state across tab switches.
 - **Modal sub-flows with typed results** — `await router.run<T>(SomeFlow())` returns `Future<T?>`. The flow has its own internal stack; screens call `context.completeFlow<T>(value)` to resolve the awaiter.
-- **Multi-route URL codec** — `GateStackCodec<R>` so a single URL can restore a deep stack.
+- **`GateConfigCodec<R>`** — the v0.5 codec interface, parameterised by `GateConfig<R>` (main stack + optional shell state). A `StackToConfigCodec` adapter wraps v0.4 codecs unchanged.
 - **Unified `context.router<R>()`** — resolves to the flow router inside a modal, the branch router inside a shell, the main router elsewhere.
 - **Pattern-matched page resolution** with compile-time exhaustiveness checking.
 - **Identity-preserving stack diff** — pushing one route doesn't rebuild others.
 - **Pure-Dart unit tests** for navigation state (no widget tree needed).
 
-## Deliberately not in v0.4
+## Deliberately not in v0.5
 
-Coming in v0.5+:
+Coming in v0.6+:
 
-- Per-branch URLs reaching into shell stacks (`/app/home/products/sku-42`).
 - Composable `RouteModule`s mountable at URL prefixes.
 - Adaptive layout policies on routes (master-detail responsive).
 - Direction-aware and shared-element transitions.
@@ -258,9 +258,11 @@ Inside the flow's screens, push within the flow via `context.router<AppRoute>().
 
 Run modal flows on the **main** router — branch routers don't have a delegate to render the overlay.
 
-### 6. URLs (optional, multi-route)
+### 6. URLs (optional)
 
-If you target web or want deep links, implement a `GateStackCodec`:
+If you target web or want deep links, implement a codec. Two interfaces, picked based on whether you need URLs to address state inside a branched shell.
+
+**`GateStackCodec<R>`** — stack-only URLs, unchanged from v0.4. Pattern-match on the main router's stack:
 
 ```dart
 class AppStackCodec implements GateStackCodec<AppRoute> {
@@ -283,18 +285,78 @@ class AppStackCodec implements GateStackCodec<AppRoute> {
 }
 ```
 
-`/settings` decodes to a 2-deep stack so back goes home. Pass it to the parser:
+Wire via `.fromStackCodec`:
 
 ```dart
-routeInformationParser: GateRouteInformationParser<AppRoute>(
+routeInformationParser: GateRouteInformationParser<AppRoute>.fromStackCodec(
   codec: const AppStackCodec(),
   fallback: const [Home()],
 ),
 ```
 
-Migrating from v0.2's single-route codec? Either implement the new interface, or wrap with `GateRouteInformationParser<R>.single(codec: ..., fallback: ...)` for source compatibility.
+**`GateConfigCodec<R>`** (v0.5) — URLs that reach into a `GateBranchedShell`. The configuration carries the main stack plus the active branch's stack:
 
-If you don't need URLs, don't implement the codec.
+```dart
+class AppCodec implements GateConfigCodec<AppRoute> {
+  const AppCodec();
+
+  @override
+  Uri encode(GateConfig<AppRoute> config) {
+    final shell = config.shellState;
+    if (shell != null && config.mainStack.last is MainShell) {
+      return _encodeShell(shell);
+    }
+    return switch (config.mainStack.last) {
+      Splash() => Uri(path: '/'),
+      Settings() => Uri(path: '/settings'),
+      _ => Uri(path: '/'),
+    };
+  }
+
+  Uri _encodeShell(GateShellConfig shell) => switch (shell.activeBranch) {
+    0 => switch (shell.activeBranchStack) {
+      [HomeRoot()] => Uri(path: '/home'),
+      [HomeRoot(), ProductDetail(:final id)] => Uri(path: '/home/products/$id'),
+      _ => Uri(path: '/home'),
+    },
+    1 => Uri(path: '/discover'),
+    _ => Uri(path: '/home'),
+  };
+
+  @override
+  GateConfig<AppRoute>? decode(Uri uri) => switch (uri.pathSegments) {
+    [] || [''] => GateConfig(mainStack: const [Splash()]),
+    ['home'] => GateConfig(
+      mainStack: const [MainShell()],
+      shellState: GateShellConfig(
+        activeBranch: 0,
+        activeBranchStack: const [HomeRoot()],
+      ),
+    ),
+    ['home', 'products', final id] => GateConfig(
+      mainStack: const [MainShell()],
+      shellState: GateShellConfig(
+        activeBranch: 0,
+        activeBranchStack: [const HomeRoot(), ProductDetail(id)],
+      ),
+    ),
+    _ => null,
+  };
+}
+```
+
+Wire via the regular constructor:
+
+```dart
+routeInformationParser: GateRouteInformationParser<AppRoute>(
+  codec: const AppCodec(),
+  fallback: const [Splash()],
+),
+```
+
+`/home/products/sku-42` deep-links into the Home branch with `ProductDetail('sku-42')` on top of `HomeRoot()`. Switching tabs preserves each branch's stack (inactive branches stay off the URL but in memory).
+
+If you don't need URLs, don't implement either codec.
 
 ## Why no equality codegen
 

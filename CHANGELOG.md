@@ -1,5 +1,96 @@
 # Changelog
 
+## 0.5.0 — Per-branch URLs reaching into shell stacks
+
+One headline feature, one breaking change (with a one-line migration).
+
+### Added
+
+- **`GateConfig<R>`** and **`GateShellConfig`** — the new
+  configuration types that flow between the URL bar and the router.
+  The configuration now describes both the main router's stack and
+  (when a branched shell is mounted) the active branch's stack:
+
+  ```dart
+  GateConfig<AppRoute>(
+    mainStack: [MainShell()],
+    shellState: GateShellConfig(
+      activeBranch: 0,
+      activeBranchStack: [HomeRoot(), ProductDetail('sku-42')],
+    ),
+  )
+  ```
+
+  Encodes to `/home/products/sku-42` and round-trips back on deep
+  link. Only the active branch's stack rides the URL — inactive
+  branches keep their in-memory history so switching tabs and back
+  doesn't reset them.
+
+- **`GateConfigCodec<R>`** — codec interface for the richer
+  configuration. Pattern-match on the main stack's top and the shell
+  state to produce URLs; pattern-match on URI path segments to
+  decode. The example shows the full pattern.
+
+- **`StackToConfigCodec<R>`** — adapter that wraps a v0.4
+  [GateStackCodec] so existing stack-only codecs work unchanged. Use
+  it via `GateRouteInformationParser.fromStackCodec(...)` — that's
+  the entire v0.4 → v0.5 migration if you don't need shell URLs.
+
+- **`GateNavigator.stack` and `GateNavigator.restoreStack`** — the
+  non-generic shell-friendly interface gains read/restore methods so
+  `BranchedShellRouter` can capture and replay branch state across
+  heterogeneously typed routers. `restoreStack` validates each route
+  is assignable to the router's `R` at runtime; mismatches throw
+  `ArgumentError` before any state mutates.
+
+- **`BranchedShellRouter.captureConfig()` and `.restoreFromConfig(...)`**
+  — bridge between the shell's runtime state and the URL. `restoreFromConfig`
+  updates only the target branch and leaves inactive branches alone.
+
+- **Shell-host registration via inherited widget** — a mounted
+  `GateBranchedShell` discovers the enclosing `GateRouterDelegate`
+  through `GateShellHostScope` and registers itself for URL
+  capture/restore. Cold-start deep links into the shell are
+  supported via a pending-state queue: if the URL arrives before
+  the shell mounts, the delegate stores it and applies it when the
+  shell registers.
+
+### Changed (breaking)
+
+- **`GateRouterDelegate<R>`** is now `RouterDelegate<GateConfig<R>>`
+  instead of `RouterDelegate<List<R>>`, and **`GateRouteInformationParser<R>`**
+  is parameterised the same way.
+
+  **If you have a custom delegate or parser**, migrate the
+  configuration type.
+
+  **If you use the gate-provided ones with a `GateStackCodec`** (the
+  v0.4 default), change one line at the wiring site:
+
+  ```dart
+  // v0.4
+  GateRouteInformationParser<AppRoute>(
+    codec: const AppStackCodec(),
+    fallback: const [Splash()],
+  )
+
+  // v0.5 — same codec, minimal migration
+  GateRouteInformationParser<AppRoute>.fromStackCodec(
+    codec: const AppStackCodec(),
+    fallback: const [Splash()],
+  )
+  ```
+
+  To start using shell URLs, replace your `GateStackCodec` with a
+  `GateConfigCodec` and pass it via the regular constructor.
+
+### Deliberately not shipped (v0.6+)
+
+- Composable `RouteModule`s mountable at URL prefixes.
+- Adaptive layout policies on routes (master-detail responsive).
+- Direction-aware and shared-element transitions.
+- Nested modal flows.
+
 ## 0.4.0 — Per-branch typed routes in shells
 
 One additive feature. No breaking changes.

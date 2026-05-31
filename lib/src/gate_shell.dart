@@ -20,10 +20,14 @@ class ShellRouter<R extends GateRoute> extends ChangeNotifier {
     required List<R> branchInitials,
     int initialBranch = 0,
     List<GateGuard<R>> guards = const [],
-  })  : assert(branchInitials.isNotEmpty,
-            'A shell must have at least one branch.'),
-        assert(initialBranch >= 0 && initialBranch < branchInitials.length,
-            'initialBranch out of range'),
+  })  : assert(
+          branchInitials.isNotEmpty,
+          'A shell must have at least one branch.',
+        ),
+        assert(
+          initialBranch >= 0 && initialBranch < branchInitials.length,
+          'initialBranch out of range',
+        ),
         _branches = [
           for (final initial in branchInitials)
             GateRouter<R>(initial: initial, guards: guards),

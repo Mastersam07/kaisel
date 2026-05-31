@@ -131,30 +131,107 @@ GateGuard<AppRoute> splashRedirectGuard(AuthState auth) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// 4. URL codec — main router only.
+// 4. URL codec — v0.5 GateConfigCodec, with shell URLs.
 //
+// v0.5's configuration carries both the main stack and (when a shell
+// is mounted) the active branch's stack. We encode each branch into a
+// distinct URL prefix so deep links can reach into the shell:
+//
+//   /                    → Splash
+//   /login               → Login
+//   /home                → MainShell, Home tab at root
+//   /home/products/x     → MainShell, Home tab with ProductDetail(x)
+//   /discover            → MainShell, Discover tab at root
+//   /discover/items/y    → MainShell, Discover tab with FeedItem(y)
+//   /profile             → MainShell, Profile tab
+//   /settings            → MainShell, Settings on top
+// ─────────────────────────────────────────────────────────────────────
 
-class AppStackCodec implements GateStackCodec<AppRoute> {
-  const AppStackCodec();
+class AppCodec implements GateConfigCodec<AppRoute> {
+  const AppCodec();
+
+  static const _branchPrefixes = ['home', 'discover', 'profile'];
 
   @override
-  Uri encode(List<AppRoute> stack) => switch (stack.last) {
-    Splash() => Uri(path: '/'),
-    Login() => Uri(path: '/login'),
-    MainShell() => Uri(path: '/app'),
-    Settings() => Uri(path: '/settings'),
-    // Modal flow routes are transient state — not URL-addressable.
-    ConfirmAddToCart() || ConfirmAddToCartReview() => Uri(path: '/app'),
-  };
+  Uri encode(GateConfig<AppRoute> config) {
+    // Modal flow routes overlay the app — they don't take URLs of
+    // their own. Encode the underlying state instead.
+    final top = config.mainStack.last;
+    if (top is ConfirmAddToCart || top is ConfirmAddToCartReview) {
+      // Build the config that would exist without the modal on top.
+      final base = config.mainStack
+          .where((r) => r is! ConfirmAddToCart && r is! ConfirmAddToCartReview)
+          .toList();
+      return encode(
+        GateConfig(
+          mainStack: base.isEmpty ? const [Splash()] : base,
+          shellState: config.shellState,
+        ),
+      );
+    }
+    return switch (top) {
+      Splash() => Uri(path: '/'),
+      Login() => Uri(path: '/login'),
+      Settings() => Uri(path: '/settings'),
+      MainShell() => _encodeShell(config.shellState),
+      // Modal routes were handled above; an exhaustiveness placeholder.
+      ConfirmAddToCart() || ConfirmAddToCartReview() => Uri(path: '/'),
+    };
+  }
+
+  Uri _encodeShell(GateShellConfig? shell) {
+    if (shell == null) return Uri(path: '/home');
+    final prefix = _branchPrefixes[shell.activeBranch];
+    final stack = shell.activeBranchStack;
+    // The branch root encodes to /{prefix}; deeper routes append.
+    if (stack.length == 1) return Uri(path: '/$prefix');
+    return switch (shell.activeBranch) {
+      0 => switch (stack) {
+        [HomeRoot(), ProductDetail(:final id)] => Uri(
+          path: '/home/products/$id',
+        ),
+        _ => Uri(path: '/home'),
+      },
+      1 => switch (stack) {
+        [DiscoverRoot(), FeedItem(:final id)] => Uri(
+          path: '/discover/items/$id',
+        ),
+        _ => Uri(path: '/discover'),
+      },
+      2 => Uri(path: '/profile'),
+      _ => Uri(path: '/home'),
+    };
+  }
 
   @override
-  List<AppRoute>? decode(Uri uri) => switch (uri.pathSegments) {
-    [] || [''] => const [Splash()],
-    ['login'] => const [Login()],
-    ['app'] => const [MainShell()],
-    ['settings'] => const [MainShell(), Settings()],
-    _ => null,
-  };
+  GateConfig<AppRoute>? decode(Uri uri) {
+    return switch (uri.pathSegments) {
+      [] || [''] => GateConfig(mainStack: const [Splash()]),
+      ['login'] => GateConfig(mainStack: const [Login()]),
+      ['settings'] => GateConfig(mainStack: const [MainShell(), Settings()]),
+      ['home'] => _shellAt(0, const [HomeRoot()]),
+      ['home', 'products', final id] => _shellAt(0, [
+        const HomeRoot(),
+        ProductDetail(id),
+      ]),
+      ['discover'] => _shellAt(1, const [DiscoverRoot()]),
+      ['discover', 'items', final id] => _shellAt(1, [
+        const DiscoverRoot(),
+        FeedItem(id),
+      ]),
+      ['profile'] => _shellAt(2, const [ProfileRoot()]),
+      _ => null,
+    };
+  }
+
+  GateConfig<AppRoute> _shellAt(int branch, List<GateRoute> stack) =>
+      GateConfig(
+        mainStack: const [MainShell()],
+        shellState: GateShellConfig(
+          activeBranch: branch,
+          activeBranchStack: stack,
+        ),
+      );
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -184,7 +261,7 @@ void main() {
         modalBuilder: _buildModal,
       ),
       routeInformationParser: GateRouteInformationParser<AppRoute>(
-        codec: const AppStackCodec(),
+        codec: const AppCodec(),
         fallback: const [Splash()],
       ),
     ),

@@ -11,8 +11,9 @@ import 'gate_route.dart';
 /// typed routers (e.g. `GateRouter<HomeRoute>` and
 /// `GateRouter<DiscoverRoute>`) under a single list without losing the
 /// non-typed operations they need (can-pop and pop on the active branch
-/// for back-button handling). The typed router still does what it does;
-/// this is just the slice that's safe to call without knowing `R`.
+/// for back-button handling, plus type-erased stack capture/restore
+/// for URL round-trips in v0.5+). The typed router still does what it
+/// does; this is just the slice that's safe to call without knowing `R`.
 abstract class GateNavigator implements Listenable {
   /// Whether [pop] would actually remove a route from this router.
   bool get canPop;
@@ -20,6 +21,17 @@ abstract class GateNavigator implements Listenable {
   /// Pop the top route from this router. Returns `false` if the
   /// router was already at root.
   Future<bool> pop();
+
+  /// The router's current stack, type-erased to [GateRoute]. The
+  /// typed `GateRouter<R>.stack` returns the same data as `List<R>`;
+  /// this is the view shell containers see.
+  List<GateRoute> get stack;
+
+  /// Replace this router's stack from a (type-erased) list of routes.
+  /// Throws [ArgumentError] if any element is not assignable to this
+  /// router's underlying `R`. Used by [GateRouterDelegate] when
+  /// restoring shell state from a URL.
+  Future<void> restoreStack(List<GateRoute> stack);
 }
 
 /// Identity-stable wrapper for a route on the stack.
@@ -111,6 +123,7 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
   Completer<Object?>? _flowCompleter;
 
   /// The current stack as a read-only list of routes.
+  @override
   List<R> get stack => List<R>.unmodifiable(_entries.map((e) => e.route));
 
   /// The route on top of the stack.
@@ -207,6 +220,24 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
   @internal
   Future<void> applyFromInformation(List<R> stack) =>
       _enqueue(() => _navigate(stack));
+
+  /// Type-erased restore from a URL decode. Each element of [stack]
+  /// must be assignable to `R`; if not, throws [ArgumentError] before
+  /// touching state. Equivalent to [set] once the cast checks pass —
+  /// guards still run.
+  @override
+  Future<void> restoreStack(List<GateRoute> stack) {
+    final typed = <R>[];
+    for (final r in stack) {
+      if (r is! R) {
+        throw ArgumentError(
+          'restoreStack: route ${r.runtimeType} is not assignable to $R',
+        );
+      }
+      typed.add(r);
+    }
+    return set(typed);
+  }
 
   /// Present [flow] as a modal sub-flow and await its result.
   ///
