@@ -198,14 +198,19 @@ class BookDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final book = _bookById(id);
-    // No AppBar.leading back arrow when this is rendered inside the
-    // master-detail frame at wide widths. AdaptiveContext below tells
-    // us whether we're the standalone push or the right pane of the
-    // master-detail frame.
-    final isAbsorbed = AdaptiveContext.maybeOf(context)?.isAbsorbed ?? false;
+    // No AppBar.leading back arrow when this is rendered as the
+    // only page in the rendered stack (i.e., absorbed inside the
+    // master-detail frame at wide widths). v0.12's GatePageScope
+    // exposes the page's navigation context to descendants. At
+    // wide widths the BookDetail page absorbs BookList, so the
+    // rendered Navigator has ONE page total and the scope reports
+    // isBottom=true. At narrow widths the rendered stack is
+    // [BookList, BookDetail], so BookDetail's scope reports
+    // isBottom=false and we want the back arrow.
+    final isOnlyPage = GatePageScope.maybeOf(context)?.isBottom ?? false;
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: !isAbsorbed,
+        automaticallyImplyLeading: !isOnlyPage,
         title: Text(book.title),
         actions: [
           IconButton(
@@ -298,25 +303,6 @@ class BookReviewsScreen extends StatelessWidget {
   }
 }
 
-/// InheritedWidget so the detail screen can tell whether it's
-/// rendered inside the master-detail frame (no back arrow needed)
-/// or as a standalone pushed page (back arrow appropriate).
-class AdaptiveContext extends InheritedWidget {
-  const AdaptiveContext({
-    super.key,
-    required this.isAbsorbed,
-    required super.child,
-  });
-
-  final bool isAbsorbed;
-
-  static AdaptiveContext? maybeOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<AdaptiveContext>();
-
-  @override
-  bool updateShouldNotify(AdaptiveContext old) => old.isAbsorbed != isAbsorbed;
-}
-
 class AdaptiveBookApp extends StatefulWidget {
   const AdaptiveBookApp({super.key});
 
@@ -348,15 +334,10 @@ class _AdaptiveBookAppState extends State<AdaptiveBookApp> {
   }) {
     return switch ((route, stack.previous, wide)) {
       // Wide + Detail with List below: absorb into master-detail.
-      // The detail is rendered with AdaptiveContext.isAbsorbed = true
-      // so its AppBar drops the back arrow.
       (BookDetail(:final id), BookList(), true) => GateAbsorbingPage(
         widget: GateMasterDetailScaffold(
           master: const BookListScreen(),
-          detail: AdaptiveContext(
-            isAbsorbed: true,
-            child: BookDetailScreen(id: id),
-          ),
+          detail: BookDetailScreen(id: id),
         ),
         absorbing: 1,
       ),

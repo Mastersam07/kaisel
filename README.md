@@ -40,7 +40,7 @@ Dart 3 has had the type machinery to do better since 2023: sealed classes, exhau
 
 The architectural posture, in one line: **the route stack is a `List<R>`, navigation is list manipulation, the URL is an optional codec on top, guards are pure functions in a pipeline, modal flows are sub-routers with typed result completers, and features ship as composable `RouteModule`s mounted at marker routes.**
 
-## What you get in v0.11
+## What you get in v0.12
 
 - **Typed route stack** as `List<R>` over your sealed class.
 - **Default value equality** via `props`. No manual `==`/`hashCode`. No codegen.
@@ -52,6 +52,7 @@ The architectural posture, in one line: **the route stack is a `List<R>`, naviga
 - **Adaptive layouts** (since v0.8, extended in v0.9). At the main delegate via `GateRouterDelegate.adaptive`, inside shell branches via `GateBranch.adaptive` and `GateShell.adaptive`, and inside modules via `RouteModule.buildAdaptivePage` + `isAdaptive`. A detail route can return `GateAbsorbingPage` to collapse master+detail into a single rendered page (master-detail without changing the stack model). Page identity is keyed on the lowest absorbed entry so selecting a different detail doesn't trigger a Navigator transition.
 - **Modal sub-flows with typed results**: `await router.run<T>(SomeFlow())` returns `Future<T?>`. The flow has its own internal stack; screens call `context.completeFlow<T>(value)` to resolve the awaiter. **Flows can nest** (new in v0.10): each nested flow gets its own sub-router and modal layer, and completions unwind LIFO.
 - **Direction-aware transitions** (new in v0.11). `GatePageWrapper` receives a `GatePageWrapperContext` with `previous` (the route below in the rendered stack), `position`, `stackLength`, `isTop`, `isBottom`. Pattern-match on `(ctx.previous, ctx.route)` to pick a `Page` subclass per route-pair. Shared elements work via Flutter's `Hero` widget against the per-Navigator `HeroController` the framework installs.
+- **`GatePageScope` for descendants** (new in v0.12). The framework injects a `GatePageScope` `InheritedWidget` around every rendered page's child, exposing the page's `route`, `position`, `stackLength`, `previous`, `isTop`, and `isBottom` to deeply-nested widgets. Lets descendants make context-aware decisions ("hide my back arrow when I'm the only rendered page", "show a 'back to X' label using the route below") without prop-drilling or app-side InheritedWidgets.
 - **`GateConfigCodec<R>`**: the v0.5+ codec interface, parameterised by `GateConfig<R>` (main stack + optional shell *or* module state). A `StackToConfigCodec` adapter wraps v0.4 codecs unchanged.
 - **Unified `context.router<R>()`**: resolves to the flow router inside a modal, the branch router inside a branched shell, the module router inside a mount, the main router elsewhere.
 - **Pattern-matched page resolution** with compile-time exhaustiveness checking.
@@ -581,13 +582,44 @@ The Navigator handles push/pop direction automatically (forward on add, reverse 
 
 Shared-element transitions work via Flutter's `Hero` widget against the per-Navigator `HeroController` the framework already installs. Tag widgets with `Hero(tag: ...)` and they animate across pushes. No new framework API.
 
+### 10. Page scope for descendants
+
+The framework wraps every rendered page's child in a `GatePageScope` `InheritedWidget`. Deeply-nested widgets read it via `GatePageScope.maybeOf(context)` (or `.of(context)` if they're always in a gate page). The scope exposes the same fields as the wrapper context — `route`, `position`, `stackLength`, `previous`, `isTop`, `isBottom` — but to the page's content, not just to the wrapping layer.
+
+```dart
+class BookDetailScreen extends StatelessWidget {
+  ...
+  @override
+  Widget build(BuildContext context) {
+    // At narrow widths the rendered stack is [List, Detail],
+    // so isBottom is false → show back arrow.
+    // At wide widths Detail absorbs List, so the rendered stack
+    // is just [Detail], isBottom is true → hide back arrow.
+    final isOnly = GatePageScope.maybeOf(context)?.isBottom ?? false;
+    return Scaffold(
+      appBar: AppBar(automaticallyImplyLeading: !isOnly, ...),
+      ...
+    );
+  }
+}
+```
+
+Useful for:
+
+- Hiding back arrows on pages that are the only rendered page (common with absorbing master-detail layouts).
+- Showing a "back to X" label using the route immediately below.
+- Animating AppBar / chrome based on `isTop` for the topmost page.
+- Pattern-matching on `scope.route` from a deeply-nested widget that doesn't already have the route in scope.
+
+The scope is injected at every wrap call site — main delegate (simple and adaptive), inner navigator (simple and adaptive). User-supplied `pageWrapper` callbacks receive `ctx.child` already wrapped in the scope, so `Page(child: ctx.child)` automatically propagates it. A wrapper that builds a Page with a different child (replacing `ctx.child` entirely) is responsible for re-wrapping in `GatePageScope` itself if it wants descendants to see it.
+
 ## Why no equality codegen
 
 Routing libraries that bake in `freezed` force codegen on every consumer. `gate` provides default `props`-based equality on `GateRoute` itself, so the common case is a one-line override. If you want `freezed sealed`, that still works. Your override wins. If you want Equatable, declare your routes with `extends GateRoute with EquatableMixin`. The library doesn't impose a choice.
 
 ## Status
 
-v0.11 is the current development line. The core surface (routes, guards, shells in both homogeneous and per-branch typed forms, modal flows with typed results and nesting, URL-addressable shell and module state, composable modules, module URL composition, adaptive layouts at the main delegate, shell branches, and module mounts, and route-pair-aware page transitions) is in place. Public API is shaped for stability but not frozen.
+v0.12 is the current development line. The core surface (routes, guards, shells in both homogeneous and per-branch typed forms, modal flows with typed results and nesting, URL-addressable shell and module state, composable modules, module URL composition, adaptive layouts at the main delegate, shell branches, and module mounts, route-pair-aware page transitions, and a `GatePageScope` for descendants) is in place. Public API is shaped for stability but not frozen.
 
 ## Comparison
 

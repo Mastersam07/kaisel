@@ -32,6 +32,7 @@ export 'src/gate_module_codec.dart'
         ModuleMount,
         ModuleStackCodec,
         UntypedModuleStackCodec;
+export 'src/gate_page_scope.dart' show GatePageScope;
 export 'src/gate_page_wrapper.dart'
     show GatePageWrapper, GatePageWrapperContext;
 export 'src/gate_route.dart';

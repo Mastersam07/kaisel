@@ -4,6 +4,7 @@ import 'package:flutter/scheduler.dart';
 import 'gate_adaptive.dart';
 import 'gate_config.dart';
 import 'gate_inner_navigator.dart';
+import 'gate_page_scope.dart';
 import 'gate_page_wrapper.dart';
 import 'gate_route.dart';
 import 'gate_router.dart';
@@ -400,9 +401,15 @@ class GateRouterDelegate<R extends GateRoute>
         _wrapSimple(
           GatePageWrapperContext<R>(
             route: entries[i].route,
-            child: Builder(
-              builder: (innerContext) =>
-                  _builder!(innerContext, entries[i].route),
+            child: GatePageScope(
+              route: entries[i].route,
+              position: i,
+              stackLength: entries.length,
+              previous: i > 0 ? entries[i - 1].route : null,
+              child: Builder(
+                builder: (innerContext) =>
+                    _builder!(innerContext, entries[i].route),
+              ),
             ),
             key: ValueKey<int>(entries[i].id),
             position: i,

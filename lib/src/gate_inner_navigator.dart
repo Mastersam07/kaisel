@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'gate_adaptive.dart';
+import 'gate_page_scope.dart';
 import 'gate_page_wrapper.dart';
 import 'gate_route.dart';
 import 'gate_router.dart';
@@ -115,29 +116,38 @@ class _GateInnerNavigatorState<R extends GateRoute>
   @override
   Widget build(BuildContext context) {
     final entries = widget.router.entries;
-    final pages = widget.adaptivePageBuilder != null
-        ? buildAdaptivePages<R>(
-            context: context,
-            entries: entries,
-            builder: widget.adaptivePageBuilder!,
-            wrap: _wrapAdaptive,
-          )
-        : [
-            for (var i = 0; i < entries.length; i++)
-              _wrapSimple(
-                GatePageWrapperContext<R>(
+    final pages = switch (widget.adaptivePageBuilder) {
+      final builder? => buildAdaptivePages<R>(
+          context: context,
+          entries: entries,
+          builder: builder,
+          wrap: _wrapAdaptive,
+        ),
+      _ => [
+          for (var i = 0; i < entries.length; i++)
+            _wrapSimple(
+              GatePageWrapperContext<R>(
+                route: entries[i].route,
+                child: GatePageScope(
                   route: entries[i].route,
-                  child: Builder(
-                    builder: (innerContext) =>
-                        widget.pageBuilder!(innerContext, entries[i].route),
-                  ),
-                  key: ValueKey<int>(entries[i].id),
                   position: i,
                   stackLength: entries.length,
                   previous: i > 0 ? entries[i - 1].route : null,
+                  child: Builder(
+                    builder: (innerContext) => widget.pageBuilder!(
+                      innerContext,
+                      entries[i].route,
+                    ),
+                  ),
                 ),
+                key: ValueKey<int>(entries[i].id),
+                position: i,
+                stackLength: entries.length,
+                previous: i > 0 ? entries[i - 1].route : null,
               ),
-          ];
+            ),
+        ]
+    };
 
     return HeroControllerScope(
       controller: _heroController,

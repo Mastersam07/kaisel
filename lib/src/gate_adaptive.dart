@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'gate_page_scope.dart';
 import 'gate_page_wrapper.dart';
 import 'gate_route.dart';
 import 'gate_router.dart';
@@ -296,12 +297,23 @@ List<Page<Object?>> buildAdaptivePages<R extends GateRoute>({
   // `previous` is the route of the rendered page below this one
   // (not the router-stack neighbour). For absorbing pages this is
   // the route of the absorbing entry of the page below.
+  //
+  // The child is also wrapped in a GatePageScope (v0.12) before
+  // being passed to the wrap callback, so descendants of the
+  // page's content can read navigation context via
+  // GatePageScope.of(context).
   return [
     for (var pos = 0; pos < tuples.length; pos++)
       wrap(
         GatePageWrapperContext<R>(
           route: tuples[pos].route,
-          child: tuples[pos].child,
+          child: GatePageScope(
+            route: tuples[pos].route,
+            position: pos,
+            stackLength: tuples.length,
+            previous: pos > 0 ? tuples[pos - 1].route : null,
+            child: tuples[pos].child,
+          ),
           key: tuples[pos].key,
           position: pos,
           stackLength: tuples.length,

@@ -1,5 +1,71 @@
 # Changelog
 
+## 0.12.0: Page scope for descendants
+
+A small additive release: framework-provided
+`GatePageScope` `InheritedWidget` exposes the wrapper context to
+descendant widgets. v0.11 gave the page-wrapping layer enough info
+to choose transitions; v0.12 gives the descendant widgets enough
+info to make context-aware decisions ("am I the only rendered
+page?", "what's the route below me?").
+
+### API
+
+- **`GatePageScope`**: new `InheritedWidget` in
+  `src/gate_page_scope.dart`. Exposes `route` (typed as
+  `GateRoute`), `position`, `stackLength`, `previous`, and the
+  convenience getters `isTop` / `isBottom`. Read with
+  `GatePageScope.maybeOf(context)` (returns null if outside a
+  gate page) or `GatePageScope.of(context)` (asserts there is
+  one).
+
+- The framework injects `GatePageScope` at every wrap call site:
+  the main delegate's simple and adaptive paths, and the inner
+  navigator's simple and adaptive paths. User-supplied
+  `pageWrapper` callbacks receive `ctx.child` already wrapped in
+  the scope, so a wrapper that does
+  `Page(child: ctx.child)` automatically propagates it into the
+  page's content tree.
+
+### Why this matters
+
+The canonical use case is hiding a back arrow on a page that's the
+only one rendered. With absorbing master-detail layouts, the
+router's stack has multiple entries but the rendered Navigator
+shows just one page. Before v0.12, the detail screen needed an
+app-side `InheritedWidget` (the example app called it
+`AdaptiveContext`) injected at the absorbing-builder site to know
+"don't render a back arrow, I'm absorbing the page below". With
+v0.12 the detail screen reads
+`GatePageScope.maybeOf(context)?.isBottom` directly. The example's
+`AdaptiveContext` is gone.
+
+The same pattern applies to "back to X" labels (read
+`scope.previous`), AppBar fading per `isTop`, and route-aware
+deep-nested widgets that don't want to thread the route through
+constructors.
+
+### Example
+
+`example/lib/main_adaptive.dart` no longer ships its own
+`AdaptiveContext` class. `BookDetailScreen` reads
+`GatePageScope.maybeOf(context)?.isBottom` instead. The behaviour
+is identical: at narrow widths the rendered stack is
+`[BookList, BookDetail]` and `isBottom == false` so the back arrow
+shows; at wide widths the BookDetail page absorbs BookList, the
+rendered stack is `[BookDetail]` only, `isBottom == true` so the
+back arrow hides.
+
+### Caveat
+
+A custom `pageWrapper` that constructs a Page with a different
+child (replacing `ctx.child` entirely instead of passing it
+through) is responsible for re-wrapping in `GatePageScope` if it
+wants descendants to see it. The common pattern of
+`Page(child: ctx.child)` just works.
+
+---
+
 ## 0.11.0: Direction-aware transitions and adaptive ergonomics
 
 Two changes. The headline is the breaking-but-deferred wrapper
