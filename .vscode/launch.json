@@ -33,6 +33,66 @@
                 "--target=lib/main_adaptive.dart",
                 "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
             ],
+        },
+        {
+            "name": "[MOBILE NESTED FLOWS] example",
+            "cwd": "example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_nested_flows.dart",
+                "--device-id=63D5D2F7-1483-4A33-997C-534B6C8C4871"
+            ],
+        },
+        {
+            "name": "[NESTED FLOWS] example",
+            "cwd": "example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_nested_flows.dart",
+                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+            ],
+        },
+        {
+            "name": "[MOBILE TRANSITIONS] example",
+            "cwd": "example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_transitions.dart",
+                "--device-id=63D5D2F7-1483-4A33-997C-534B6C8C4871"
+            ],
+        },
+        {
+            "name": "[TRANSITIONS] example",
+            "cwd": "example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_transitions.dart",
+                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+            ],
+        },
+         {
+            "name": "[MOBILE SHELL ADAPTIVE] example",
+            "cwd": "example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_shell_adaptive.dart",
+                "--device-id=63D5D2F7-1483-4A33-997C-534B6C8C4871"
+            ],
+        },
+        {
+            "name": "[SHELL ADAPTIVE] example",
+            "cwd": "example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_shell_adaptive.dart",
+                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+            ],
         }
     ]
 }
