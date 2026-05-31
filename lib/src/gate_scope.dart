@@ -50,8 +50,7 @@ class RouterScope<R extends GateRoute> extends InheritedWidget {
       context.dependOnInheritedWidgetOfExactType<RouterScope<R>>();
 
   @override
-  bool updateShouldNotify(RouterScope<R> old) =>
-      !identical(old.router, router);
+  bool updateShouldNotify(RouterScope<R> old) => !identical(old.router, router);
 }
 
 /// Unified router accessors. `context.router<R>()` resolves to the

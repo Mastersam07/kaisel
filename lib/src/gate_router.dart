@@ -1,8 +1,26 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'gate_guard.dart';
 import 'gate_route.dart';
+
+/// Non-generic view of a [GateRouter]'s navigation primitives.
+///
+/// Lets containers like `BranchedShellRouter` aggregate heterogeneously
+/// typed routers (e.g. `GateRouter<HomeRoute>` and
+/// `GateRouter<DiscoverRoute>`) under a single list without losing the
+/// non-typed operations they need (can-pop and pop on the active branch
+/// for back-button handling). The typed router still does what it does;
+/// this is just the slice that's safe to call without knowing `R`.
+abstract class GateNavigator implements Listenable {
+  /// Whether [pop] would actually remove a route from this router.
+  bool get canPop;
+
+  /// Pop the top route from this router. Returns `false` if the
+  /// router was already at root.
+  Future<bool> pop();
+}
 
 /// Identity-stable wrapper for a route on the stack.
 ///
@@ -54,7 +72,8 @@ class GateStackEntry<R extends GateRoute> {
 /// Mutations are serialized: calling `push(a)` then `push(b)` without
 /// awaiting still applies them in order. Each operation waits for the
 /// previous one's guards to settle before running.
-class GateRouter<R extends GateRoute> extends ChangeNotifier {
+class GateRouter<R extends GateRoute> extends ChangeNotifier
+    implements GateNavigator {
   /// Create a router with a single initial route and an optional guard
   /// pipeline.
   GateRouter({
@@ -101,6 +120,7 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier {
   int get depth => _entries.length;
 
   /// Whether a [pop] would actually remove a route.
+  @override
   bool get canPop => _entries.length > 1;
 
   /// Whether a modal flow is currently active.
@@ -125,6 +145,7 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier {
   /// Concurrent pops applied rapidly each see the post-previous-pop
   /// stack, so two pops in a row from a 3-deep stack pop both routes
   /// rather than silently coalescing.
+  @override
   Future<bool> pop() => _enqueue(() async {
         if (!canPop) return false;
         final next = stack.sublist(0, stack.length - 1);

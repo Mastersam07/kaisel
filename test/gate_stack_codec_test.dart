@@ -148,8 +148,7 @@ void main() {
         codec: const _StackCodec(),
         fallback: const [_Home()],
       );
-      final info =
-          parser.restoreRouteInformation(const [_Home(), _Settings()]);
+      final info = parser.restoreRouteInformation(const [_Home(), _Settings()]);
       expect(info?.uri.path, '/settings');
     });
   });

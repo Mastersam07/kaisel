@@ -3,8 +3,14 @@ import 'package:gate/gate.dart';
 
 // ─────────────────────────────────────────────────────────────────────
 // 1. Routes
+//
+// In v0.4, each shell branch has its own sealed type. AppRoute contains
+// only top-level concerns; HomeRoute / DiscoverRoute / ProfileRoute are
+// separate hierarchies. The compiler enforces "you can't push a
+// DiscoverRoute into the Home tab."
 // ─────────────────────────────────────────────────────────────────────
 
+// Top-level routes (main router).
 sealed class AppRoute extends GateRoute {
   const AppRoute();
 }
@@ -17,52 +23,18 @@ final class Login extends AppRoute {
   const Login();
 }
 
-/// Marker interface for routes that require an authenticated user.
-///
-/// Declared as a standalone interface (rather than `mixin RequiresAuth
-/// on AppRoute`) so it lives outside the sealed hierarchy. A mixin
-/// declared `on AppRoute` becomes a subtype of `AppRoute` from the
-/// exhaustiveness checker's perspective, which then insists on a
-/// `RequiresAuth()` pattern in any `switch` over `AppRoute` even when
-/// every concrete final class is enumerated. Implementing a standalone
-/// interface sidesteps that.
 abstract interface class RequiresAuth {}
 
 final class MainShell extends AppRoute implements RequiresAuth {
   const MainShell();
 }
 
-// Branch roots:
-final class HomeRoot extends AppRoute implements RequiresAuth {
-  const HomeRoot();
-}
-
-final class DiscoverRoot extends AppRoute implements RequiresAuth {
-  const DiscoverRoot();
-}
-
-final class ProfileRoot extends AppRoute implements RequiresAuth {
-  const ProfileRoot();
-}
-
-// In-branch detail page (Home branch).
-final class ProductDetail extends AppRoute implements RequiresAuth {
-  const ProductDetail(this.id);
-  final String id;
-  @override
-  List<Object?> get props => [id];
-}
-
-// Top-level page reachable from inside the shell.
 final class Settings extends AppRoute implements RequiresAuth {
   const Settings();
 }
 
-// ─── Modal flow routes ───────────────────────────────────────────────
-//
-// ConfirmAddToCart implements GateModalRoute<int>: the flow returns
-// the chosen quantity, or null if dismissed.
-
+// Modal flow routes — still AppRoute, because flows run on the main
+// router and overlay the entire app (including the shell chrome).
 final class ConfirmAddToCart extends AppRoute
     implements RequiresAuth, GateModalRoute<int> {
   const ConfirmAddToCart(this.productId);
@@ -82,6 +54,47 @@ final class ConfirmAddToCartReview extends AppRoute implements RequiresAuth {
   List<Object?> get props => [productId, quantity];
 }
 
+// Per-branch sealed hierarchies. Each branch's router is typed to its
+// specific subtype.
+
+sealed class HomeRoute extends GateRoute {
+  const HomeRoute();
+}
+
+final class HomeRoot extends HomeRoute {
+  const HomeRoot();
+}
+
+final class ProductDetail extends HomeRoute {
+  const ProductDetail(this.id);
+  final String id;
+  @override
+  List<Object?> get props => [id];
+}
+
+sealed class DiscoverRoute extends GateRoute {
+  const DiscoverRoute();
+}
+
+final class DiscoverRoot extends DiscoverRoute {
+  const DiscoverRoot();
+}
+
+final class FeedItem extends DiscoverRoute {
+  const FeedItem(this.id);
+  final String id;
+  @override
+  List<Object?> get props => [id];
+}
+
+sealed class ProfileRoute extends GateRoute {
+  const ProfileRoute();
+}
+
+final class ProfileRoot extends ProfileRoute {
+  const ProfileRoot();
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // 2. Auth state
 // ─────────────────────────────────────────────────────────────────────
@@ -95,7 +108,9 @@ class AuthState extends ValueNotifier<bool> {
 final auth = AuthState();
 
 // ─────────────────────────────────────────────────────────────────────
-// 3. Guards
+// 3. Guards (main router only; once you're past MainShell the user is
+//    authenticated for the rest of the session, so branch routers
+//    don't need their own auth guards in this example).
 // ─────────────────────────────────────────────────────────────────────
 
 GateGuard<AppRoute> authGuard(AuthState auth) {
@@ -116,47 +131,37 @@ GateGuard<AppRoute> splashRedirectGuard(AuthState auth) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// 4. Multi-route URL codec
+// 4. URL codec — main router only.
 //
-// A *stack* codec: one URL can decode into multiple frames so the back
-// button has somewhere sensible to go on deep links.
-// ─────────────────────────────────────────────────────────────────────
 
 class AppStackCodec implements GateStackCodec<AppRoute> {
   const AppStackCodec();
 
   @override
   Uri encode(List<AppRoute> stack) => switch (stack.last) {
-        Splash() => Uri(path: '/'),
-        Login() => Uri(path: '/login'),
-        MainShell() => Uri(path: '/app'),
-        Settings() => Uri(path: '/settings'),
-        // Branches & in-branch routes don't have main-router URLs —
-        // they live inside the shell's nested navigators.
-        HomeRoot() ||
-        DiscoverRoot() ||
-        ProfileRoot() ||
-        ProductDetail() ||
-        ConfirmAddToCart() ||
-        ConfirmAddToCartReview() =>
-          Uri(path: '/app'),
-      };
+    Splash() => Uri(path: '/'),
+    Login() => Uri(path: '/login'),
+    MainShell() => Uri(path: '/app'),
+    Settings() => Uri(path: '/settings'),
+    // Modal flow routes are transient state — not URL-addressable.
+    ConfirmAddToCart() || ConfirmAddToCartReview() => Uri(path: '/app'),
+  };
 
   @override
-  List<AppRoute>? decode(Uri uri) {
-    return switch (uri.pathSegments) {
-      [] || [''] => const [Splash()],
-      ['login'] => const [Login()],
-      ['app'] => const [MainShell()],
-      // /settings restores a deep stack so back goes to the shell.
-      ['settings'] => const [MainShell(), Settings()],
-      _ => null,
-    };
-  }
+  List<AppRoute>? decode(Uri uri) => switch (uri.pathSegments) {
+    [] || [''] => const [Splash()],
+    ['login'] => const [Login()],
+    ['app'] => const [MainShell()],
+    ['settings'] => const [MainShell(), Settings()],
+    _ => null,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// 5. Wire it up
+// 5. Wire it up.
+//
+// The main router is global. Branch routers are created in
+// _MainShellScreen's State so they're tied to the shell's lifecycle.
 // ─────────────────────────────────────────────────────────────────────
 
 final router = GateRouter<AppRoute>(
@@ -166,18 +171,16 @@ final router = GateRouter<AppRoute>(
 
 void main() {
   auth.addListener(() {
-    if (!auth.value) {
-      router.set(const [Login()]);
-    }
+    if (!auth.value) router.set(const [Login()]);
   });
 
   runApp(
     MaterialApp.router(
-      title: 'Gate v0.3 example',
+      title: 'Gate v0.4 example',
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.indigo),
       routerDelegate: GateRouterDelegate<AppRoute>(
         router: router,
-        builder: _buildPage,
+        builder: _buildMainPage,
         modalBuilder: _buildModal,
       ),
       routeInformationParser: GateRouteInformationParser<AppRoute>(
@@ -188,26 +191,21 @@ void main() {
   );
 }
 
-Widget _buildPage(BuildContext context, AppRoute route) => switch (route) {
-      Splash() => const _SplashScreen(),
-      Login() => const _LoginScreen(),
-      MainShell() => const _MainShellScreen(),
-      HomeRoot() => const _HomeScreen(),
-      DiscoverRoot() => const _DiscoverScreen(),
-      ProfileRoot() => const _ProfileScreen(),
-      ProductDetail(:final id) => _ProductDetailScreen(id: id),
-      Settings() => const _SettingsScreen(),
-      ConfirmAddToCart(:final productId) =>
-        _ConfirmAddToCartScreen(productId: productId),
-      ConfirmAddToCartReview(:final productId, :final quantity) =>
-        _ConfirmAddToCartReviewScreen(
-          productId: productId,
-          quantity: quantity,
-        ),
-    };
+// Main router's pageBuilder — exhaustive over AppRoute (top-level
+// routes + modal flow routes). It does NOT handle HomeRoute /
+// DiscoverRoute / ProfileRoute — those are each branch's concern.
+Widget _buildMainPage(BuildContext context, AppRoute route) => switch (route) {
+  Splash() => const _SplashScreen(),
+  Login() => const _LoginScreen(),
+  MainShell() => const _MainShellScreen(),
+  Settings() => const _SettingsScreen(),
+  ConfirmAddToCart(:final productId) => _ConfirmAddToCartScreen(
+    productId: productId,
+  ),
+  ConfirmAddToCartReview(:final productId, :final quantity) =>
+    _ConfirmAddToCartReviewScreen(productId: productId, quantity: quantity),
+};
 
-/// Renders an active modal flow over the main UI as a centered card on
-/// a dimmed backdrop.
 Widget _buildModal(
   BuildContext context,
   GateModalRoute<Object?> route,
@@ -274,13 +272,63 @@ class _LoginScreen extends StatelessWidget {
   }
 }
 
-class _MainShellScreen extends StatelessWidget {
+/// Creates branch routers and the shell aggregator, keeps them alive
+/// for the lifetime of the main shell, and renders them with
+/// `GateBranchedShell`.
+class _MainShellScreen extends StatefulWidget {
   const _MainShellScreen();
   @override
+  State<_MainShellScreen> createState() => _MainShellScreenState();
+}
+
+class _MainShellScreenState extends State<_MainShellScreen> {
+  late final GateRouter<HomeRoute> _homeRouter = GateRouter<HomeRoute>(
+    initial: const HomeRoot(),
+  );
+  late final GateRouter<DiscoverRoute> _discoverRouter =
+      GateRouter<DiscoverRoute>(initial: const DiscoverRoot());
+  late final GateRouter<ProfileRoute> _profileRouter = GateRouter<ProfileRoute>(
+    initial: const ProfileRoot(),
+  );
+  late final BranchedShellRouter _shell = BranchedShellRouter(
+    branches: [_homeRouter, _discoverRouter, _profileRouter],
+  );
+
+  @override
+  void dispose() {
+    _shell.dispose();
+    _homeRouter.dispose();
+    _discoverRouter.dispose();
+    _profileRouter.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return GateShell<AppRoute>(
-      branchInitials: const [HomeRoot(), DiscoverRoot(), ProfileRoot()],
-      pageBuilder: _buildPage,
+    return GateBranchedShell(
+      shell: _shell,
+      branches: [
+        GateBranch<HomeRoute>(
+          router: _homeRouter,
+          pageBuilder: (context, route) => switch (route) {
+            HomeRoot() => const _HomeScreen(),
+            ProductDetail(:final id) => _ProductDetailScreen(id: id),
+          },
+        ),
+        GateBranch<DiscoverRoute>(
+          router: _discoverRouter,
+          pageBuilder: (context, route) => switch (route) {
+            DiscoverRoot() => const _DiscoverScreen(),
+            FeedItem(:final id) => _FeedItemScreen(id: id),
+          },
+        ),
+        GateBranch<ProfileRoute>(
+          router: _profileRouter,
+          pageBuilder: (context, route) => switch (route) {
+            ProfileRoot() => const _ProfileScreen(),
+          },
+        ),
+      ],
       chromeBuilder: (context, active, branchContent, switchBranch) {
         return Scaffold(
           body: branchContent,
@@ -290,7 +338,9 @@ class _MainShellScreen extends StatelessWidget {
             destinations: const [
               NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
               NavigationDestination(
-                  icon: Icon(Icons.explore), label: 'Discover'),
+                icon: Icon(Icons.explore),
+                label: 'Discover',
+              ),
               NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
             ],
           ),
@@ -312,7 +362,7 @@ class _HomeScreen extends StatelessWidget {
             ListTile(
               title: Text('Product $id'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.router<AppRoute>().push(ProductDetail(id)),
+              onTap: () => context.router<HomeRoute>().push(ProductDetail(id)),
             ),
         ],
       ),
@@ -326,14 +376,27 @@ class _DiscoverScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Discover')),
-      body: Center(
-        child: FilledButton(
-          onPressed: () => context
-              .router<AppRoute>()
-              .push(const ProductDetail('discovery-pick')),
-          child: const Text('Featured product'),
-        ),
+      body: ListView(
+        children: [
+          for (final id in ['post-1', 'post-2', 'post-3'])
+            ListTile(
+              title: Text('Feed item $id'),
+              onTap: () => context.router<DiscoverRoute>().push(FeedItem(id)),
+            ),
+        ],
       ),
+    );
+  }
+}
+
+class _FeedItemScreen extends StatelessWidget {
+  const _FeedItemScreen({required this.id});
+  final String id;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Feed item $id')),
+      body: Center(child: Text('Discover-only screen for $id')),
     );
   }
 }
@@ -348,17 +411,21 @@ class _ProfileScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Settings is a top-level route — push it on the main
-            // router so it appears OVER the shell.
             FilledButton(
-              onPressed: () => router.push(const Settings()),
+              // Top-level navigation: push on the MAIN router
+              // (context.router<AppRoute>()) so Settings appears OVER
+              // the shell. URL becomes /settings.
+              onPressed: () =>
+                  context.router<AppRoute>().push(const Settings()),
               child: const Text('Settings'),
             ),
             const SizedBox(height: 12),
             TextButton(
-              onPressed: auth.logOut,
-              child: const Text('Log out'),
+              onPressed: () => context.branchedShell().switchTo(0),
+              child: const Text('Go to Home tab'),
             ),
+            const SizedBox(height: 12),
+            TextButton(onPressed: auth.logOut, child: const Text('Log out')),
           ],
         ),
       ),
@@ -378,17 +445,18 @@ class _ProductDetailScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Detail page for $id',
-                style: Theme.of(context).textTheme.headlineSmall),
+            Text(
+              'Detail page for $id',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
             const SizedBox(height: 24),
             FilledButton.icon(
               icon: const Icon(Icons.add_shopping_cart),
               label: const Text('Add to cart'),
               onPressed: () async {
-                // Run a typed modal flow. The result type (int?) is
-                // inferred from ConfirmAddToCart's GateModalRoute<int>.
-                // We call run() on the main router — modals overlay
-                // everything, including the shell chrome.
+                // Run a typed modal flow on the MAIN router.
+                // Branch routers don't have a delegate to render
+                // overlays, so flows always go through the main.
                 final qty = await router.run(ConfirmAddToCart(id));
                 if (qty != null && context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -411,18 +479,19 @@ class _SettingsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: const Center(
-        child: Text('Top-level page reached at /settings. Back goes home.'),
+        child: Text(
+          'Top-level page reached at /settings. Back goes to the shell.',
+        ),
       ),
     );
   }
 }
 
-// ─── Modal flow screens ──────────────────────────────────────────────
+// ─── Modal flow screens (still AppRoute — flows are top-level) ───────
 
 class _ConfirmAddToCartScreen extends StatefulWidget {
   const _ConfirmAddToCartScreen({required this.productId});
   final String productId;
-
   @override
   State<_ConfirmAddToCartScreen> createState() =>
       _ConfirmAddToCartScreenState();
@@ -430,7 +499,6 @@ class _ConfirmAddToCartScreen extends StatefulWidget {
 
 class _ConfirmAddToCartScreenState extends State<_ConfirmAddToCartScreen> {
   int _qty = 1;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -438,7 +506,6 @@ class _ConfirmAddToCartScreenState extends State<_ConfirmAddToCartScreen> {
         title: Text('Add ${widget.productId}'),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          // dismissFlow resolves the awaiter with null.
           onPressed: context.dismissFlow,
         ),
       ),
@@ -467,15 +534,14 @@ class _ConfirmAddToCartScreenState extends State<_ConfirmAddToCartScreen> {
               alignment: Alignment.centerRight,
               child: FilledButton(
                 onPressed: () {
-                  // context.router resolves to the FLOW's sub-router
-                  // because the flow screen sits inside RouterScope
-                  // installed by the delegate.
+                  // context.router<AppRoute>() inside the flow resolves
+                  // to the flow's sub-router (not the main router).
                   context.router<AppRoute>().push(
-                        ConfirmAddToCartReview(
-                          productId: widget.productId,
-                          quantity: _qty,
-                        ),
-                      );
+                    ConfirmAddToCartReview(
+                      productId: widget.productId,
+                      quantity: _qty,
+                    ),
+                  );
                 },
                 child: const Text('Next'),
               ),
@@ -514,9 +580,7 @@ class _ConfirmAddToCartReviewScreen extends StatelessWidget {
                   child: const Text('Back'),
                 ),
                 FilledButton(
-                  onPressed: () =>
-                      // Resolve the awaiter with the chosen quantity.
-                      context.completeFlow<int>(quantity),
+                  onPressed: () => context.completeFlow<int>(quantity),
                   child: const Text('Confirm'),
                 ),
               ],

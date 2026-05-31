@@ -21,10 +21,8 @@ class GateRouteInformationParser<R extends GateRoute>
     required List<R> fallback,
   })  : _codec = codec,
         _fallback = List<R>.unmodifiable(fallback),
-        assert(
-          fallback.isNotEmpty,
-          'fallback stack must contain at least one route',
-        );
+        assert(fallback.isNotEmpty,
+            'fallback stack must contain at least one route');
 
   /// Create a parser backed by a single-route [GateCodec]. Equivalent
   /// to wrapping it in [GateSingleStackCodec] manually.

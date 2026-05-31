@@ -1,5 +1,113 @@
 # Changelog
 
+## 0.4.0 — Per-branch typed routes in shells
+
+One additive feature. No breaking changes.
+
+### Added
+
+- **`GateBranchedShell`, `GateBranch<R>`, `BranchedShellRouter`** — a
+  shell whose branches have **different** sealed route types. Where
+  the v0.2/v0.3 `GateShell<R>` requires every branch to share one
+  route type (so pushing `DiscoverRoute` into the Home tab is a
+  runtime concern), the branched shell typeschecks each branch
+  independently:
+
+  ```dart
+  sealed class HomeRoute extends GateRoute { const HomeRoute(); }
+  sealed class DiscoverRoute extends GateRoute { const DiscoverRoute(); }
+
+  final homeRouter = GateRouter<HomeRoute>(initial: const HomeRoot());
+  final discoverRouter = GateRouter<DiscoverRoute>(initial: const DiscoverRoot());
+  final shell = BranchedShellRouter(branches: [homeRouter, discoverRouter]);
+
+  GateBranchedShell(
+    shell: shell,
+    branches: [
+      GateBranch<HomeRoute>(
+        router: homeRouter,
+        pageBuilder: (context, route) => switch (route) {
+          HomeRoot() => const HomeScreen(),
+          ProductDetail(:final id) => ProductDetailScreen(id: id),
+        },
+      ),
+      GateBranch<DiscoverRoute>(
+        router: discoverRouter,
+        pageBuilder: (context, route) => switch (route) {
+          DiscoverRoot() => const DiscoverScreen(),
+          FeedItem(:final id) => FeedItemScreen(id: id),
+        },
+      ),
+    ],
+    chromeBuilder: ...,
+  )
+  ```
+
+  Inside a branch screen, `context.router<HomeRoute>()` returns the
+  home branch's typed router; trying to push a `DiscoverRoute` into
+  it is a compile error. `context.router<AppRoute>()` still returns
+  the main app router, because `RouterScope` lookup is by exact
+  generic type — different `R`s don't shadow each other.
+
+- **`GateNavigator`** — non-generic interface that `GateRouter`
+  implements, exposing `canPop` and `pop()`. Lets containers like
+  `BranchedShellRouter` hold heterogeneously typed routers
+  (Dart's generic invariance makes a `List<GateRouter<? extends
+  GateRoute>>` impossible without erasure). Most apps won't reference
+  it directly; it's the shape the shell needs.
+
+- **`context.branchedShell()`** — accessor for the enclosing
+  [BranchedShellRouter] inside a branched shell, for programmatic
+  `switchTo` etc.
+
+### Deliberately not shipped (v0.5+)
+
+- Per-branch URLs reaching into shell stacks (e.g. `/app/home/products/sku-42`).
+  Requires restructuring the configuration type beyond `List<R>`.
+- Composable `RouteModule`s mountable at URL prefixes.
+- Adaptive layout policies on routes (master-detail responsive).
+- Direction-aware and shared-element transitions.
+- Nested modal flows.
+
+## 0.3.2 — Patch
+
+### Fixed
+
+- `dispose()` mid-flow no longer throws `A GateRouter was used after
+  being disposed`. Trace: `dispose()` cleared the flow state and
+  called `super.dispose()`, but the `finally` block in the awaiting
+  `run<T>` then ran a `notifyListeners()` on the now-disposed
+  notifier. The `finally` now checks whether the router still owns
+  the flow state (`identical(_flowCompleter, completer)`) before
+  cleaning up — when `dispose` got there first, the check is false
+  and the cleanup is skipped.
+- Test `fromStack rejects empty` was passing the factory as a
+  function reference (`expect(GateRouter<_R>.fromStack, throwsArgumentError)`),
+  which `expect` invoked with zero arguments and threw
+  `NoSuchMethodError` instead of `ArgumentError`. Now wrapped in a
+  closure: `expect(() => GateRouter<_R>.fromStack(const []), throwsArgumentError)`.
+
+## 0.3.1 — Patch
+
+### Fixed
+
+- `context.router<R>()` was a compile error in 0.3.0: the extension
+  body returned `RouterScope.of<R>(this)` instead of accessing the
+  scope's `.router` field. Now returns `GateRouter<R>` as declared.
+
+### Changed
+
+- Example app: replaced `mixin RequiresAuth on AppRoute {}` with
+  `abstract interface class RequiresAuth {}` and switched route
+  classes from `with RequiresAuth` to `implements RequiresAuth`.
+  A mixin declared `on AppRoute` becomes a subtype of `AppRoute`
+  from the exhaustiveness checker's perspective, which then insists
+  on a `RequiresAuth()` pattern in every `switch` over `AppRoute`
+  even when every concrete final class is enumerated. Marker
+  interfaces that live outside the sealed hierarchy don't have
+  this problem. Runtime behaviour of the auth guard
+  (`r is RequiresAuth`) is unchanged. (No library API change.)
+
 ## 0.3.0 — Modal flows, multi-route URLs, unified router access
 
 Three additions. One small breaking change in the parser constructor.

@@ -40,29 +40,28 @@ Dart 3 has had the type machinery to do better since 2023: sealed classes, exhau
 
 The architectural posture, in one line: **the route stack is a `List<R>`, navigation is list manipulation, the URL is an optional codec on top, guards are pure functions in a pipeline, and modal flows are sub-routers with typed result completers.**
 
-## What you get in v0.3
+## What you get in v0.4
 
 - **Typed route stack** as `List<R>` over your sealed class.
 - **Default value equality** via `props`. No manual `==`/`hashCode`. No codegen.
 - **Guard pipeline** — `FutureOr<List<R>> Function(current, proposed)`. Composable, async-aware, pure-Dart testable.
-- **Shells** — `GateShell<R>` for tab/bottom-nav with per-branch back stacks, scoped state, and proper back-button handling.
+- **Shells** — `GateShell<R>` (homogeneous branches) and `GateBranchedShell` (per-branch typed routes, new in v0.4), both with per-tab back stacks, scoped state, and proper back-button handling.
 - **Modal sub-flows with typed results** — `await router.run<T>(SomeFlow())` returns `Future<T?>`. The flow has its own internal stack; screens call `context.completeFlow<T>(value)` to resolve the awaiter.
-- **Multi-route URL codec** — `GateStackCodec<R>` so a single URL can restore a deep stack (back button has somewhere sensible to go on deep links).
+- **Multi-route URL codec** — `GateStackCodec<R>` so a single URL can restore a deep stack.
 - **Unified `context.router<R>()`** — resolves to the flow router inside a modal, the branch router inside a shell, the main router elsewhere.
 - **Pattern-matched page resolution** with compile-time exhaustiveness checking.
 - **Identity-preserving stack diff** — pushing one route doesn't rebuild others.
 - **Pure-Dart unit tests** for navigation state (no widget tree needed).
 
-## Deliberately not in v0.3
+## Deliberately not in v0.4
 
-Coming in v0.4:
+Coming in v0.5+:
 
+- Per-branch URLs reaching into shell stacks (`/app/home/products/sku-42`).
 - Composable `RouteModule`s mountable at URL prefixes.
 - Adaptive layout policies on routes (master-detail responsive).
 - Direction-aware and shared-element transitions.
-- Per-branch typed route subtypes inside a shell.
 - Nested modal flows.
-- Per-branch URLs reaching into shell stacks.
 
 ## Usage
 
@@ -129,6 +128,10 @@ Guards do **not** run on system back. The pop has already animated by the time w
 
 ### 4. Shells (bottom-nav with per-tab state)
 
+Two shell flavours, picked based on how strictly you want per-tab typing.
+
+**`GateShell<R>`** — all branches share one route type. Simpler for small apps.
+
 ```dart
 builder: (context, route) => switch (route) {
   MainShell() => GateShell<AppRoute>(
@@ -146,12 +149,63 @@ builder: (context, route) => switch (route) {
 },
 ```
 
-Inside any branch screen:
+Inside a branch screen with this flavour, `context.router<AppRoute>()` returns the active branch's router and `context.shellRouter<AppRoute>()` returns the shell aggregator.
+
+**`GateBranchedShell`** (v0.4) — each branch has its own sealed type. Pushing a route from the wrong tab is a compile error.
 
 ```dart
-context.router<AppRoute>().push(const ProductDetail('42')); // resolves to branch router
-context.shellRouter<AppRoute>().switchTo(2);                 // change tab
+sealed class HomeRoute extends GateRoute { const HomeRoute(); }
+final class HomeRoot extends HomeRoute { const HomeRoot(); }
+final class ProductDetail extends HomeRoute {
+  const ProductDetail(this.id);
+  final String id;
+  @override
+  List<Object?> get props => [id];
+}
+
+sealed class DiscoverRoute extends GateRoute { const DiscoverRoute(); }
+// ...
+
+// In your shell widget's state:
+final homeRouter = GateRouter<HomeRoute>(initial: const HomeRoot());
+final discoverRouter = GateRouter<DiscoverRoute>(initial: const DiscoverRoot());
+final shell = BranchedShellRouter(branches: [homeRouter, discoverRouter]);
+
+GateBranchedShell(
+  shell: shell,
+  branches: [
+    GateBranch<HomeRoute>(
+      router: homeRouter,
+      pageBuilder: (context, route) => switch (route) {
+        HomeRoot() => const HomeScreen(),
+        ProductDetail(:final id) => ProductDetailScreen(id: id),
+      },
+    ),
+    GateBranch<DiscoverRoute>(
+      router: discoverRouter,
+      pageBuilder: (context, route) => switch (route) { /* ... */ },
+    ),
+  ],
+  chromeBuilder: (context, active, branchContent, switchBranch) => Scaffold(
+    body: branchContent,
+    bottomNavigationBar: NavigationBar(
+      selectedIndex: active,
+      onDestinationSelected: switchBranch,
+      destinations: const [/* ... */],
+    ),
+  ),
+)
 ```
+
+Inside a Home branch screen:
+
+```dart
+context.router<HomeRoute>().push(const ProductDetail('42'));      // typed
+context.router<AppRoute>().push(const Settings());                // main router
+context.branchedShell().switchTo(2);                              // change tab
+```
+
+`context.router<HomeRoute>()` and `context.router<AppRoute>()` don't collide — `RouterScope` lookup is by exact generic type, so different `R`s shadow only their own scope.
 
 Each branch keeps its own back stack (via `IndexedStack`); Android back unwinds the active branch first; only at branch root does back fall through to the parent router.
 

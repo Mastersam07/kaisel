@@ -47,8 +47,7 @@ class GateInnerNavigator<R extends GateRoute> extends StatefulWidget {
   final List<NavigatorObserver> observers;
 
   @override
-  State<GateInnerNavigator<R>> createState() =>
-      _GateInnerNavigatorState<R>();
+  State<GateInnerNavigator<R>> createState() => _GateInnerNavigatorState<R>();
 }
 
 class _GateInnerNavigatorState<R extends GateRoute>

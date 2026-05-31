@@ -161,7 +161,6 @@ void main() {
 
 // A modal route NOT in the _R sealed hierarchy — used to test the
 // runtime type check inside run<T>.
-final class _ForeignFlow extends GateRoute
-    implements GateModalRoute<String> {
+final class _ForeignFlow extends GateRoute implements GateModalRoute<String> {
   const _ForeignFlow();
 }

@@ -48,8 +48,7 @@ abstract class GateStackCodec<R extends GateRoute> {
 /// Adapts a single-route [GateCodec] (v0.1 / v0.2) to the multi-route
 /// [GateStackCodec] interface. Useful for migrating without rewriting
 /// your codec.
-class GateSingleStackCodec<R extends GateRoute>
-    implements GateStackCodec<R> {
+class GateSingleStackCodec<R extends GateRoute> implements GateStackCodec<R> {
   /// Wrap [codec] so it can be used wherever a [GateStackCodec] is
   /// expected. Encodes the top of the stack; decodes to a depth-1 stack.
   const GateSingleStackCodec(this.codec);
