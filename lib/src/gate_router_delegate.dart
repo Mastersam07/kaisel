@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import 'gate_adaptive.dart';
 import 'gate_config.dart';
 import 'gate_inner_navigator.dart';
 import 'gate_route.dart';
@@ -64,7 +65,7 @@ class GateRouterDelegate<R extends GateRoute>
     implements GateNestedHost {
   /// Create a delegate driving [router].
   ///
-  /// [builder] resolves a route to a widget — use pattern matching here
+  /// [builder] resolves a route to a widget. Use pattern matching here
   /// so the compiler enforces exhaustiveness over your sealed type.
   ///
   /// [pageWrapper] optionally customises how the widget becomes a
@@ -75,18 +76,71 @@ class GateRouterDelegate<R extends GateRoute>
   /// flow's UI is overlaid on top of the main stack.
   GateRouterDelegate({
     required this.router,
-    required this.builder,
+    required GatePageBuilder<R> builder,
     this.pageWrapper,
     this.modalBuilder,
-  }) {
+  })  : _builder = builder,
+        _adaptiveBuilder = null {
+    router.addListener(_safeNotifyListeners);
+  }
+
+  /// Create a delegate that uses an adaptive builder for the main
+  /// stack.
+  ///
+  /// The adaptive builder receives a [GateStackContext] for each
+  /// entry so it can pattern-match on neighbours and decide whether
+  /// to render a standalone or absorbing page. A typical use is
+  /// master-detail at wide breakpoints: the detail route absorbs
+  /// the master into one rendered page.
+  ///
+  /// ```dart
+  /// GateRouterDelegate.adaptive(
+  ///   router: router,
+  ///   builder: (context, route, stack) {
+  ///     final wide = MediaQuery.sizeOf(context).width >= 700;
+  ///     return switch ((route, stack.previous, wide)) {
+  ///       (ProductDetail(:final id), ProductList(), true) =>
+  ///         GateAbsorbingPage(
+  ///           widget: GateMasterDetailScaffold(
+  ///             master: const ProductListScreen(),
+  ///             detail: ProductDetailScreen(id: id),
+  ///           ),
+  ///           absorbing: 1,
+  ///         ),
+  ///       _ => GateStandalonePage(buildSimple(route)),
+  ///     };
+  ///   },
+  /// );
+  /// ```
+  ///
+  /// Modal flows still run through the simple per-route flow inside
+  /// `modalBuilder`. The adaptive builder is consulted only for the
+  /// main Navigator's stack. When a modal flow is active, each of
+  /// its routes is built by calling the adaptive builder with a
+  /// single-entry stack context and using just the widget; the
+  /// `absorbing` count is ignored in that path.
+  ///
+  /// New in v0.8.
+  GateRouterDelegate.adaptive({
+    required this.router,
+    required GateAdaptivePageBuilder<R> builder,
+    this.pageWrapper,
+    this.modalBuilder,
+  })  : _builder = null,
+        _adaptiveBuilder = builder {
     router.addListener(_safeNotifyListeners);
   }
 
   /// The router whose state drives this delegate.
   final GateRouter<R> router;
 
-  /// Resolves a route to a widget.
-  final GatePageBuilder<R> builder;
+  /// Simple page builder (v0.7 style). Null when [GateRouterDelegate.adaptive]
+  /// was used.
+  final GatePageBuilder<R>? _builder;
+
+  /// Adaptive page builder (v0.8). Null when the default constructor
+  /// was used.
+  final GateAdaptivePageBuilder<R>? _adaptiveBuilder;
 
   /// Optional customiser for the [Page] wrapping. Defaults to
   /// [MaterialPage].
@@ -215,12 +269,14 @@ class GateRouterDelegate<R extends GateRoute>
 
   @override
   Widget build(BuildContext context) {
+    final entries = router.entries;
+    final mainPages = _adaptiveBuilder != null
+        ? _adaptiveMainPages(context, entries)
+        : _simpleMainPages(context, entries);
+
     final mainNavigator = Navigator(
       key: navigatorKey,
-      pages: [
-        for (final entry in router.entries)
-          _wrap(context, entry.route, ValueKey<int>(entry.id)),
-      ],
+      pages: mainPages,
       onDidRemovePage: _onDidRemovePage,
     );
 
@@ -241,7 +297,7 @@ class GateRouterDelegate<R extends GateRoute>
         flowRouter: flowRouter,
         flowRoute: flowRoute,
         flowNavigatorKey: _flowNavigatorKey,
-        pageBuilder: builder,
+        pageBuilder: _effectiveSimpleBuilder,
         pageWrapper: pageWrapper,
         modalBuilder: modalBuilder!,
         onComplete: (value) => router.completeFlow<Object>(value),
@@ -254,9 +310,92 @@ class GateRouterDelegate<R extends GateRoute>
     return GateNestedHostScope(host: this, child: content);
   }
 
-  Page<Object?> _wrap(BuildContext context, R route, LocalKey key) {
+  List<Page<Object?>> _simpleMainPages(
+    BuildContext context,
+    List<GateStackEntry<R>> entries,
+  ) {
+    return [
+      for (final entry in entries)
+        _wrapSimple(context, entry.route, ValueKey<int>(entry.id)),
+    ];
+  }
+
+  List<Page<Object?>> _adaptiveMainPages(
+    BuildContext context,
+    List<GateStackEntry<R>> entries,
+  ) {
+    final adaptive = _adaptiveBuilder!;
+    final stack = [for (final e in entries) e.route];
+    final pages = <Page<Object?>>[];
+    var i = stack.length - 1;
+
+    while (i >= 0) {
+      final ctx = GateStackContext<R>(stack: stack, position: i);
+      final result = adaptive(context, stack[i], ctx);
+
+      switch (result) {
+        case GateStandalonePage(:final widget):
+          pages.insert(
+            0,
+            _wrapAdaptive(
+              stack[i],
+              _AdaptiveKey(entries[i].id, entries[i].id),
+              widget,
+            ),
+          );
+          i--;
+        case GateAbsorbingPage(:final widget, :final absorbing):
+          var lowestIdx = i - absorbing;
+          if (lowestIdx < 0) {
+            // Pathological: route asked to absorb more entries than
+            // exist below it. Clamp to absorbing what's available.
+            // Helpful for tests; users shouldn't hit this in real
+            // apps unless their pattern-match is wrong.
+            assert(
+              false,
+              'GateAbsorbingPage(absorbing: $absorbing) at position $i '
+              'overflows the stack of length ${stack.length}',
+            );
+            lowestIdx = 0;
+          }
+          // Page identity uses the lowest absorbed entry's id so that
+          // toggling absorbed/standalone (or swapping detail-A for
+          // detail-B) doesn't trigger a Navigator transition. The
+          // popId is the top absorbing entry's id so the OS back
+          // gesture pops the top, not the lowest.
+          pages.insert(
+            0,
+            _wrapAdaptive(
+              stack[i],
+              _AdaptiveKey(entries[lowestIdx].id, entries[i].id),
+              widget,
+            ),
+          );
+          i = lowestIdx - 1;
+      }
+    }
+
+    return pages;
+  }
+
+  /// The simple builder used by the modal-flow inner navigator. When
+  /// the delegate was constructed with an adaptive builder, synthesise
+  /// one by calling the adaptive builder on a single-entry stack and
+  /// using its widget. Modal flow screens are always rendered as
+  /// standalone; `absorbing` is ignored on this path.
+  GatePageBuilder<R> get _effectiveSimpleBuilder {
+    final simple = _builder;
+    if (simple != null) return simple;
+    final adaptive = _adaptiveBuilder!;
+    return (BuildContext context, R route) {
+      final ctx = GateStackContext<R>(stack: [route], position: 0);
+      return adaptive(context, route, ctx).widget;
+    };
+  }
+
+  Page<Object?> _wrapSimple(BuildContext context, R route, LocalKey key) {
     final child = Builder(
-      builder: (innerContext) => builder(innerContext, route),
+      builder: (innerContext) => _builder!(innerContext, route),
     );
     final wrapper = pageWrapper;
     if (wrapper case final wrapper?) {
@@ -265,12 +404,25 @@ class GateRouterDelegate<R extends GateRoute>
     return MaterialPage<Object?>(key: key, child: child);
   }
 
+  Page<Object?> _wrapAdaptive(R route, LocalKey key, Widget widget) {
+    final wrapper = pageWrapper;
+    if (wrapper case final wrapper?) {
+      return wrapper(route, widget, key);
+    }
+    return MaterialPage<Object?>(key: key, child: widget);
+  }
+
   void _onDidRemovePage(Page<Object?> page) {
     // See notes in v0.4: Navigator-driven pops sync our state, but
-    // guards do NOT rerun on this path — that's by design.
+    // guards do NOT rerun on this path. That's by design.
     final key = page.key;
-    if (key is! ValueKey<int>) return;
-    router.onPageRemoved(key.value);
+    if (key is _AdaptiveKey) {
+      router.onPageRemoved(key.popId);
+      return;
+    }
+    if (key is ValueKey<int>) {
+      router.onPageRemoved(key.value);
+    }
   }
 
   @override
@@ -375,4 +527,37 @@ class _ModalOverlay<R extends GateRoute> extends StatelessWidget {
 
     return Stack(children: [mainContent, flowUi]);
   }
+}
+
+/// Page key used by the adaptive pipeline. Carries two integer ids:
+/// [stableId] (used for [Navigator] page identity) and [popId] (used
+/// by `_onDidRemovePage` to figure out which router entry to drop on
+/// an OS back gesture).
+///
+/// For standalone pages they're identical: the page's own entry id.
+/// For absorbing pages [stableId] is the lowest absorbed entry's id
+/// (so toggling absorbed/standalone preserves Navigator identity),
+/// and [popId] is the top absorbing entry's id (so OS back pops the
+/// top of the logical stack, not the lowest absorbed entry).
+///
+/// Equality and hashCode use only [stableId]; [popId] is opaque to
+/// [Navigator]. This is what gives master-detail its in-place feel:
+/// `[List, DetailA]` and `[List, DetailB]` produce equal keys, so
+/// Navigator doesn't animate between them.
+@immutable
+class _AdaptiveKey extends LocalKey {
+  const _AdaptiveKey(this.stableId, this.popId);
+
+  final int stableId;
+  final int popId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _AdaptiveKey && other.stableId == stableId;
+
+  @override
+  int get hashCode => stableId.hashCode;
+
+  @override
+  String toString() => '_AdaptiveKey(stable: $stableId, pop: $popId)';
 }

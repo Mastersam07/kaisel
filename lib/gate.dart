@@ -1,3 +1,11 @@
+export 'src/gate_adaptive.dart'
+    show
+        GateAbsorbingPage,
+        GateAdaptivePageBuilder,
+        GateMasterDetailScaffold,
+        GatePageResult,
+        GateStackContext,
+        GateStandalonePage;
 export 'src/gate_branched_shell.dart'
     show
         BranchedShellRouter,

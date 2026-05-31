@@ -88,7 +88,7 @@ abstract class RouteModule<R extends GateRoute> {
   /// composer to wire URLs automatically without duplicating the
   /// module's URL structure in the host's main codec. If `null`, the
   /// host's main codec is fully responsible for any URL handling
-  /// involving this module's routes — the v0.6 pattern.
+  /// involving this module's routes (the v0.6 pattern).
   ///
   /// New in v0.7.
   ModuleStackCodec<R>? get codec => null;

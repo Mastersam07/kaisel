@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:gate/gate.dart';
 
-// ─────────────────────────────────────────────────────────────────────
 // 1. Routes
 //
 // In v0.4, each shell branch has its own sealed type. AppRoute contains
 // only top-level concerns; HomeRoute / DiscoverRoute / ProfileRoute are
 // separate hierarchies. The compiler enforces "you can't push a
 // DiscoverRoute into the Home tab."
-// ─────────────────────────────────────────────────────────────────────
 
 // Top-level routes (main router).
 sealed class AppRoute extends GateRoute {
@@ -35,12 +33,12 @@ final class Settings extends AppRoute implements RequiresAuth {
 
 // v0.6: a top-level marker route that mounts the Checkout module.
 // The module owns its internal routes (CheckoutCart, CheckoutShipping,
-// CheckoutConfirm) under its own sealed type — see CheckoutRoute below.
+// CheckoutConfirm) under its own sealed type. See CheckoutRoute below.
 final class CheckoutMount extends AppRoute implements RequiresAuth {
   const CheckoutMount();
 }
 
-// Modal flow routes — still AppRoute, because flows run on the main
+// Modal flow routes: still AppRoute, because flows run on the main
 // router and overlay the entire app (including the shell chrome).
 final class ConfirmAddToCart extends AppRoute
     implements RequiresAuth, GateModalRoute<int> {
@@ -102,7 +100,7 @@ final class ProfileRoot extends ProfileRoute {
   const ProfileRoot();
 }
 
-// The Checkout module — a self-contained routing unit.
+// The Checkout module: a self-contained routing unit.
 //
 // In v0.6, a RouteModule packages a sealed subtype, an initial stack,
 // a page builder, optional guards, and an optional page wrapper. The
@@ -204,7 +202,7 @@ GateGuard<AppRoute> splashRedirectGuard(AuthState auth) {
   };
 }
 
-// 4. URL codec — v0.5 GateConfigCodec, with shell URLs.
+// 4. URL codec: v0.5 GateConfigCodec, with shell URLs.
 //
 // v0.5's configuration carries both the main stack and (when a shell
 // is mounted) the active branch's stack. We encode each branch into a
@@ -220,7 +218,7 @@ GateGuard<AppRoute> splashRedirectGuard(AuthState auth) {
 //   /settings            → MainShell, Settings on top
 
 // The host's MAIN-stack codec. After v0.7 it doesn't know anything
-// about the Checkout module's URL structure — that ships with the
+// about the Checkout module's URL structure. That ships with the
 // module. The composer below wires them together.
 class _MainAppCodec implements GateConfigCodec<AppRoute> {
   const _MainAppCodec();
@@ -229,7 +227,7 @@ class _MainAppCodec implements GateConfigCodec<AppRoute> {
 
   @override
   Uri encode(GateConfig<AppRoute> config) {
-    // Modal flow routes overlay the app — they don't take URLs of
+    // Modal flow routes overlay the app; they don't take URLs of
     // their own. Encode the underlying state instead.
     final top = config.mainStack.last;
     if (top is ConfirmAddToCart || top is ConfirmAddToCartReview) {
@@ -243,7 +241,7 @@ class _MainAppCodec implements GateConfigCodec<AppRoute> {
         ),
       );
     }
-    // CheckoutMount is intentionally absent from this switch — the
+    // CheckoutMount is intentionally absent from this switch. The
     // composer ([ConfigCodecWithModules]) handles any URL whose top
     // route is a registered module mount, BEFORE delegating to this
     // base codec. By the time we get here, the top is non-module.
@@ -254,7 +252,7 @@ class _MainAppCodec implements GateConfigCodec<AppRoute> {
       (MainShell(), final GateShellConfig shell) => _encodeShell(shell),
       (MainShell(), _) => Uri(path: '/home'),
       (ConfirmAddToCart() || ConfirmAddToCartReview(), _) => Uri(path: '/'),
-      // CheckoutMount can't reach here in normal flow — the composer
+      // CheckoutMount can't reach here in normal flow; the composer
       // catches it first. The fall-through is for defensive
       // exhaustiveness.
       (CheckoutMount(), _) => Uri(path: '/'),
@@ -320,7 +318,7 @@ class _MainAppCodec implements GateConfigCodec<AppRoute> {
 // list of module mounts. URLs under a mount's prefix go through the
 // module's own codec; everything else falls through to the base.
 //
-// Each module's URL structure lives inside the module — _MainAppCodec
+// Each module's URL structure lives inside the module. _MainAppCodec
 // is checkout-agnostic. Adding more modules means appending to
 // [modules], not editing the main codec.
 const appCodec = ConfigCodecWithModules<AppRoute>(
@@ -366,9 +364,9 @@ void main() {
   );
 }
 
-// Main router's pageBuilder — exhaustive over AppRoute (top-level
+// Main router's pageBuilder: exhaustive over AppRoute (top-level
 // routes + modal flow routes). It does NOT handle HomeRoute /
-// DiscoverRoute / ProfileRoute — those are each branch's concern.
+// DiscoverRoute / ProfileRoute. Those are each branch's concern.
 Widget _buildMainPage(BuildContext context, AppRoute route) => switch (route) {
   Splash() => const _SplashScreen(),
   Login() => const _LoginScreen(),
@@ -671,7 +669,7 @@ class _SettingsScreen extends StatelessWidget {
   }
 }
 
-// ─── Modal flow screens (still AppRoute — flows are top-level) ───────
+// Modal flow screens (still AppRoute; flows are top-level)
 
 class _ConfirmAddToCartScreen extends StatefulWidget {
   const _ConfirmAddToCartScreen({required this.productId});
@@ -780,7 +778,7 @@ class _ConfirmAddToCartReviewScreen extends StatelessWidget {
 //
 // These screens live inside the Checkout module's typed router.
 // `context.router<CheckoutRoute>()` resolves to the module's router;
-// `context.router<AppRoute>()` resolves to the host's main router —
+// `context.router<AppRoute>()` resolves to the host's main router.
 // same lookup-by-exact-type semantics as branched shells.
 
 class _CheckoutCartScreen extends StatelessWidget {
@@ -803,7 +801,7 @@ class _CheckoutCartScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             TextButton(
-              // Exit the module entirely — pops CheckoutMount off the
+              // Exit the module entirely. Pops CheckoutMount off the
               // main stack.
               onPressed: () => context.router<AppRoute>().pop(),
               child: const Text('Cancel'),

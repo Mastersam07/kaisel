@@ -88,7 +88,7 @@ class _AccountCodec extends ModuleStackCodec<_AccountRoute> {
       };
 }
 
-// A bare base codec — handles main-stack routes only.
+// A bare base codec. Handles main-stack routes only.
 class _MainCodec implements GateConfigCodec<_AppRoute> {
   const _MainCodec();
 
@@ -96,8 +96,8 @@ class _MainCodec implements GateConfigCodec<_AppRoute> {
   Uri encode(GateConfig<_AppRoute> config) => switch (config.mainStack.last) {
         _Home() => Uri(path: '/'),
         _Settings() => Uri(path: '/settings'),
-        // Mount routes shouldn't reach here when wrapped by a composer
-        // — defensive fallback.
+        // Mount routes shouldn't reach here when wrapped by a composer.
+        // Defensive fallback.
         _CheckoutMount() || _AccountMount() => Uri(path: '/'),
       };
 
@@ -109,11 +109,13 @@ class _MainCodec implements GateConfigCodec<_AppRoute> {
       };
 }
 
+// Tests
+
 void main() {
   group('ModuleStackCodec type erasure', () {
     test('encodeAny downcasts to the typed encode', () {
       const codec = _CheckoutCodec();
-      // Pass as List<GateRoute> — the erased entry point.
+      // Pass as List<GateRoute>, the erased entry point.
       final result = codec.encodeAny(const <GateRoute>[_Cart(), _Shipping()]);
       expect(result, ['shipping']);
     });
@@ -146,7 +148,7 @@ void main() {
     });
   });
 
-  group('ConfigCodecWithModules — decode', () {
+  group('ConfigCodecWithModules: decode', () {
     const codec = ConfigCodecWithModules<_AppRoute>(
       baseCodec: _MainCodec(),
       modules: [
@@ -201,12 +203,12 @@ void main() {
 
     test(
       'URL within a known prefix but unrecognised by the module codec returns null '
-      '— does NOT fall through to baseCodec',
+      'and does NOT fall through to baseCodec',
       () {
         // /checkout/nope matches the /checkout prefix; the module
-        // codec rejects ['nope']. The composer returns null
-        // rather than letting baseCodec try (which would also reject,
-        // but the principle matters — the URL is in the module's
+        // codec rejects ['nope']. The composer returns null rather
+        // than letting baseCodec try (which would also reject, but
+        // the principle matters: the URL is in the module's
         // namespace).
         expect(codec.decode(Uri.parse('/checkout/nope')), isNull);
       },
@@ -226,7 +228,7 @@ void main() {
     });
   });
 
-  group('ConfigCodecWithModules — encode', () {
+  group('ConfigCodecWithModules: encode', () {
     const codec = ConfigCodecWithModules<_AppRoute>(
       baseCodec: _MainCodec(),
       modules: [
@@ -335,7 +337,7 @@ void main() {
       expect(module.codec, isA<ModuleStackCodec<_CheckoutRoute>>());
       // Round-trip via the typed API on the module's own codec.
       final encoded = module.codec!.encode(const [_Cart(), _Confirm()]);
-      // Confirm doesn't follow Shipping in the codec's contract — but
+      // Confirm doesn't follow Shipping in the codec's contract, but
       // the encode just looks at the last element.
       expect(encoded, ['confirm']);
     });

@@ -1,6 +1,121 @@
 # Changelog
 
-## 0.7.0 — Module URL composition
+## 0.8.0: Adaptive layouts
+
+The headline is `GateRouterDelegate.adaptive`, a new constructor that
+takes a stack-aware page builder. Adaptive page builders can decide
+to render an *absorbing* page that collapses one or more entries
+below it on the stack into a single rendered page. The canonical
+use is master-detail at wide breakpoints: the detail route absorbs
+the master into one widget rather than appearing on top of it.
+
+Additive: v0.7 code still compiles and runs unchanged.
+
+### Added
+
+- **`GateRouterDelegate.adaptive`**: new named constructor. Takes a
+  `GateAdaptivePageBuilder` instead of a `GatePageBuilder`. The
+  main stack goes through the adaptive pipeline. Modal flows
+  continue to render through the simple per-route path; if you use
+  an adaptive delegate with `router.run<T>(...)`, the modal builder
+  synthesises a simple builder from your adaptive one (calling it
+  with a single-entry stack context and using the resulting
+  widget; the `absorbing` count is ignored on the modal path).
+
+  ```dart
+  GateRouterDelegate<AppRoute>.adaptive(
+    router: router,
+    builder: (context, route, stack) {
+      final wide = MediaQuery.sizeOf(context).width >= 700;
+      return switch ((route, stack.previous, wide)) {
+        (ProductDetail(:final id), ProductList(), true) =>
+          GateAbsorbingPage(
+            widget: GateMasterDetailScaffold(
+              master: const ProductListScreen(),
+              detail: ProductDetailScreen(id: id),
+            ),
+          ),
+        _ => GateStandalonePage(buildSimple(route)),
+      };
+    },
+  );
+  ```
+
+- **`GatePageResult`**: sealed result type returned by an adaptive
+  builder. Two variants: `GateStandalonePage(widget)` for the
+  default 1:1 stack-to-pages case, `GateAbsorbingPage(widget,
+  absorbing: n)` to render a widget that subsumes `n` entries
+  below.
+
+- **`GateStackContext<R>`**: passed to the adaptive builder for
+  each entry. Surfaces `stack`, `position`, `previous`, `next`,
+  `isTop`, `isBottom`. Pattern-match on neighbours to decide what
+  to render.
+
+- **`GateAdaptivePageBuilder<R>`**: typedef for
+  `GatePageResult Function(BuildContext, R, GateStackContext<R>)`.
+
+- **`GateMasterDetailScaffold`**: small convenience widget. Rows a
+  master and detail with an optional divider; takes a
+  `masterFraction` for the split. Useful inside an absorbing
+  page's widget. Replace with your own layout if you need
+  different chrome.
+
+### Page identity under absorption
+
+The page produced by `GateAbsorbingPage` is keyed by the *lowest*
+absorbed entry's id, not the absorbing entry's. This matters for
+two scenarios:
+
+1. **Selecting a different detail in master-detail.** Going from
+   `[List, DetailA]` to `[List, DetailB]` produces pages with
+   equal keys (both keyed by List's id). The Navigator sees the
+   same page identity; only the child widget content changes. No
+   slide-in transition; the detail pane just updates. If you want
+   a fade between details, wrap the swapping content in an
+   `AnimatedSwitcher`.
+
+2. **Toggling absorbed vs standalone.** When the breakpoint
+   changes and `[List, Detail]` flips from absorbed (one page) to
+   non-absorbed (two pages), the master page's identity is
+   preserved (still keyed by List's id). The detail page either
+   appears on top (narrow) or vanishes into the absorbing widget
+   (wide).
+
+The pop target is the top absorbing entry, not the lowest absorbed
+one. An OS back gesture on `[List, Detail]` absorbed pops Detail,
+leaving `[List]`. This is what users expect: back means "undo the
+last push" regardless of how the stack happens to be visually
+rendered.
+
+### Scope and limitations
+
+- Adaptive is currently available at the main `GateRouterDelegate`
+  only. Per-branch typed shells (`GateBranchedShell`) and modules
+  (`RouteModule`) still use the simple per-route builder. Adding
+  adaptive support to nested routers is tracked for v0.9+.
+- The simple `GatePageBuilder` is still the default. The base
+  `GateRouterDelegate(...)` constructor is unchanged.
+- A user-supplied `pageWrapper` works with adaptive pages but
+  doesn't get any signal that a page is absorbing. The wrapper
+  sees the absorbing entry's route and the absorbed entry's key.
+  If you need to know inside your wrapper, switch to standalone
+  pages or contribute a `pageWrapper` API extension in v0.9.
+
+### Deferred to 0.9+
+
+- Adaptive support inside `GateBranchedShell` branches and
+  `RouteModule`s. The most common master-detail case lives inside
+  a shell tab; the v0.8 constraint forces it to live at the main
+  level.
+- Direction-aware and shared-element transitions. Still requires a
+  breaking change to `GatePageWrapper`'s signature.
+- Nested modal flows (relaxing the v0.3 "one flow at a time"
+  constraint).
+
+---
+
+## 0.7.0: Module URL composition
 
 One headline feature, additive. Modules can now ship their own URL
 codec; the host composes URL routing without duplicating each
@@ -8,7 +123,7 @@ module's URL structure in its main codec.
 
 ### Added
 
-- **`ModuleStackCodec<R>`** — codec for a module's URL structure,
+- **`ModuleStackCodec<R>`**: codec for a module's URL structure,
   relative to whatever prefix the host mounts it at. Module authors
   subclass this to make their module URL-addressable. The host stays
   unaware of the module's internal route types.
@@ -41,18 +156,18 @@ module's URL structure in its main codec.
   returns the module's root stack; `decode` returns `null` for
   unrecognised segments.
 
-- **`UntypedModuleStackCodec`** — the type-erased view of
+- **`UntypedModuleStackCodec`**: the type-erased view of
   `ModuleStackCodec`. Used by the composer so a single
   `List<ModuleMount>` can hold codecs for modules with different
   internal route types. Most app code references the typed
   `ModuleStackCodec<R>` subclass instead.
 
-- **`ModuleMount<HostR>`** — a mount declaration: the host's marker
+- **`ModuleMount<HostR>`**: a mount declaration with the host's marker
   route, the URL prefix the module answers to, and the module's
   URL codec. Used inside `ConfigCodecWithModules.modules` to wire
   URL routing across module boundaries.
 
-- **`ConfigCodecWithModules<R>`** — a `GateConfigCodec` that
+- **`ConfigCodecWithModules<R>`**: a `GateConfigCodec` that
   composes a base codec with one or more module mounts. URLs under
   a mount's prefix go through the module's codec; everything else
   delegates to the base codec.
@@ -70,11 +185,11 @@ module's URL structure in its main codec.
   );
   ```
 
-  The host's main codec stops knowing about `/checkout/*` URLs —
+  The host's main codec stops knowing about `/checkout/*` URLs;
   the module ships that itself. Adding more modules means
   appending to `modules`, not editing the main codec.
 
-- **`RouteModule.codec`** — new optional getter on `RouteModule`.
+- **`RouteModule.codec`**: new optional getter on `RouteModule`.
   Returns the module's `ModuleStackCodec<R>` if the module is
   URL-aware, `null` otherwise. The composer reads it via
   `ModuleMount.codec` (passed separately so the mount can also
@@ -84,14 +199,14 @@ module's URL structure in its main codec.
 
 Purely additive. v0.6 codecs that hand-roll `/module-prefix/*` URLs
 in their main codec keep working unchanged; the new composer is an
-opt-in convenience. Mixing approaches in one app is fine — the
+opt-in convenience. Mixing approaches in one app is fine; the
 composer is just a `GateConfigCodec` like any other.
 
 ### Decode semantics
 
 - A URL under a mount's prefix is given to the module's codec. If
-  the module codec returns `null`, the composer returns `null` —
-  it does NOT fall through to the base codec. The URL clearly
+  the module codec returns `null`, the composer returns `null`
+  and does NOT fall through to the base codec. The URL clearly
   belongs to that module's namespace.
 - A URL with no matching mount prefix is given to the base codec.
 - `modules` is searched in order. List longer prefixes first if
@@ -101,7 +216,7 @@ composer is just a `GateConfigCodec` like any other.
 ### Deferred to 0.8+
 
 - Adaptive layout policies (master-detail responsive). Needs more
-  design work — the natural API breaks the 1:1 stack-to-pages
+  design work. The natural API breaks the 1:1 stack-to-pages
   mapping the rest of the library assumes.
 - Direction-aware and shared-element transitions. Requires a
   breaking change to `GatePageWrapper`'s signature.

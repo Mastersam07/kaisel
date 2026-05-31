@@ -33,8 +33,7 @@ abstract class UntypedModuleStackCodec {
 /// Module authors implement this to make their module
 /// URL-addressable. The host composes it via
 /// [ConfigCodecWithModules] without needing to know the module's
-/// internal route types — the module ships as a self-contained
-/// unit.
+/// internal route types. The module ships as a self-contained unit.
 ///
 /// ```dart
 /// class CheckoutModuleCodec extends ModuleStackCodec<CheckoutRoute> {
@@ -61,12 +60,12 @@ abstract class UntypedModuleStackCodec {
 ///
 /// Conventions:
 ///
-/// * `encode` of the module's root state returns `const []` — the
+/// * `encode` of the module's root state returns `const []`. The
 ///   mount prefix alone (e.g. `/checkout`) is enough.
 /// * `decode` of `const []` should return the module's root stack
 ///   (typically `initialStack`), so visiting just the prefix lands
 ///   the module at its starting position.
-/// * Return `null` from `decode` for unknown segment patterns — the
+/// * Return `null` from `decode` for unknown segment patterns. The
 ///   parser falls back to its configured fallback stack.
 abstract class ModuleStackCodec<R extends GateRoute>
     implements UntypedModuleStackCodec {
@@ -104,7 +103,7 @@ class ModuleMount<HostR extends GateRoute> {
   ///
   /// [mountRoute] is the marker route in the host's `AppRoute` that
   /// puts the module's [GateModuleMount] on the main stack.
-  /// [prefix] is the URL prefix this module answers to — leading
+  /// [prefix] is the URL prefix this module answers to. Leading
   /// slash is optional; `/checkout` and `checkout` produce the same
   /// segments. [codec] is the module's URL codec, typically a typed
   /// [ModuleStackCodec] subclass.
@@ -127,7 +126,7 @@ class ModuleMount<HostR extends GateRoute> {
   final UntypedModuleStackCodec codec;
 
   /// Internal: split [prefix] into segments, dropping empties.
-  /// Recomputed on each call — call sites are cold (navigation
+  /// Recomputed on each call. Call sites are cold (navigation
   /// events only).
   List<String> _prefixSegments() {
     return prefix.split('/').where((s) => s.isNotEmpty).toList(growable: false);
@@ -140,7 +139,7 @@ class ModuleMount<HostR extends GateRoute> {
 /// URLs whose path starts with a mount's prefix are routed to the
 /// module's codec; everything else goes to [baseCodec]. The host's
 /// main codec doesn't need to know the module's internal URL
-/// structure — modules ship that themselves.
+/// structure; modules ship that themselves.
 ///
 /// ```dart
 /// final codec = ConfigCodecWithModules<AppRoute>(
@@ -164,7 +163,7 @@ class ModuleMount<HostR extends GateRoute> {
 /// the first whose prefix matches the URL's leading segments. If a
 /// match is found, the module codec gets the relative segments. If
 /// the module codec returns `null` (URL inside the prefix but
-/// unrecognised), the composer returns `null` directly — it does NOT
+/// unrecognised), the composer returns `null` directly. It does NOT
 /// fall through to [baseCodec], because the URL clearly belongs to
 /// this module's namespace.
 class ConfigCodecWithModules<R extends GateRoute>
