@@ -169,6 +169,12 @@ class GateRouterDelegate<R extends GateRoute>
   GateNestedConfig? _pendingNested;
   bool _isDisposed = false;
 
+  /// Number of pages produced by the most recent build of the main
+  /// navigator. Used by [popRoute] to detect adaptive absorbing
+  /// states where the Navigator has fewer visible pages than the
+  /// router has logical entries.
+  int _lastBuiltMainPageCount = 0;
+
   GateNestedHandle? get _activeNested => _nested.isEmpty ? null : _nested.last;
 
   /// Notify our listeners, deferring to after the current frame if
@@ -260,12 +266,39 @@ class GateRouterDelegate<R extends GateRoute>
     }
   }
 
-  // popRoute is supplied by PopNavigatorRouterDelegateMixin. The default
-  // calls navigatorKey.currentState?.maybePop(), which runs route-level
-  // willPop hooks and ultimately fires onDidRemovePage, which syncs the
-  // router state. Don't override it to "fall back" to router.pop() — a
-  // false return from maybePop means the route declined to pop (or there
-  // is no nav state), and we should respect that, not force-pop.
+  // popRoute is supplied by PopNavigatorRouterDelegateMixin by default
+  // and just calls navigatorKey.currentState?.maybePop(). For the
+  // simple builder path that's still correct: maybePop runs route
+  // willPop hooks and ultimately fires onDidRemovePage, which syncs
+  // the router state. A false return means the route declined (or
+  // there's no navigator), and we respect that, not force-pop.
+  //
+  // In adaptive mode the Navigator can hold fewer visible pages than
+  // the router has logical entries (a `GateAbsorbingPage` collapses
+  // entries below). When absorption collapses everything to a single
+  // visible page, [Navigator.maybePop] returns false because there's
+  // no route below it (its internal `canPop` requires a route below
+  // the current one), and `onDidRemovePage` never fires. The OS back
+  // gesture would then bubble out of the app instead of unwinding
+  // the logical stack. Override [popRoute] to detect that case and
+  // pop the router directly.
+
+  @override
+  Future<bool> popRoute() async {
+    final navState = navigatorKey.currentState;
+    if (navState == null) return false;
+
+    final popped = await navState.maybePop();
+    if (popped) return true;
+
+    if (_adaptiveBuilder != null &&
+        router.canPop &&
+        _lastBuiltMainPageCount < router.entries.length) {
+      return router.pop();
+    }
+
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -273,6 +306,8 @@ class GateRouterDelegate<R extends GateRoute>
     final mainPages = _adaptiveBuilder != null
         ? _adaptiveMainPages(context, entries)
         : _simpleMainPages(context, entries);
+
+    _lastBuiltMainPageCount = mainPages.length;
 
     final mainNavigator = Navigator(
       key: navigatorKey,

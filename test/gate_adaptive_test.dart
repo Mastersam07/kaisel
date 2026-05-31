@@ -348,11 +348,11 @@ void main() {
           const _ProductDetail('42'),
         ]);
 
-        // Simulate a Navigator pop (e.g., OS back). The Navigator
-        // removes its top page, which triggers onDidRemovePage with
-        // the absorbing page. We want the router to pop the TOP entry
-        // (_ProductDetail), leaving [_ProductList].
-        delegate.navigatorKey.currentState!.maybePop();
+        // Simulate an OS back gesture. Routes through delegate.popRoute,
+        // which tries Navigator.maybePop first; when absorption has
+        // collapsed the stack to one visible page, maybePop returns
+        // false and popRoute falls through to router.pop.
+        await delegate.popRoute();
         await tester.pumpAndSettle();
 
         expect(

@@ -88,6 +88,16 @@ leaving `[List]`. This is what users expect: back means "undo the
 last push" regardless of how the stack happens to be visually
 rendered.
 
+There's one wrinkle here. When absorption collapses everything to
+a single visible page, Flutter's `Navigator.maybePop` returns false
+because there's no route below the current one. In v0.8,
+[GateRouterDelegate.popRoute] tries the Navigator first and falls
+through to `router.pop()` when it detects the absorbing state
+(visible page count below the logical entry count). Without this,
+the OS back gesture on a single-page absorbing state would bubble
+out of the app instead of unwinding the logical stack. The simple
+(non-adaptive) pipeline still uses the mixin's `popRoute` unchanged.
+
 ### Scope and limitations
 
 - Adaptive is currently available at the main `GateRouterDelegate`
