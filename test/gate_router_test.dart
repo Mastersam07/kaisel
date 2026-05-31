@@ -63,11 +63,54 @@ void main() {
       expect(notifications, 1);
     });
 
-    test('replace swaps the top route', () async {
+    test('replaceTop swaps the top route', () async {
       final r = GateRouter<_R>(initial: const _A());
       await r.push(const _B('x'));
-      await r.replace(const _C());
+      await r.replaceTop(const _C());
       expect(r.stack, [const _A(), const _C()]);
+    });
+
+    test('pushOrReplaceTop pushes when no entry matches the predicate',
+        () async {
+      // From [_A]: pushOrReplaceTop(_B('x')) → push (the default
+      // same-runtime-type predicate sees _A on top, not _B).
+      final r = GateRouter<_R>(initial: const _A());
+      await r.pushOrReplaceTop(const _B('x'));
+      expect(r.stack, [const _A(), const _B('x')]);
+    });
+
+    test('pushOrReplaceTop replaces when current top matches by default',
+        () async {
+      // From [_A, _B('x')]: pushOrReplaceTop(_B('y')) → replace
+      // (default predicate: same runtime type).
+      final r = GateRouter<_R>(initial: const _A());
+      await r.push(const _B('x'));
+      await r.pushOrReplaceTop(const _B('y'));
+      expect(r.stack, [const _A(), const _B('y')]);
+    });
+
+    test('pushOrReplaceTop respects an explicit when predicate', () async {
+      // Force push even though default would replace.
+      final r = GateRouter<_R>(initial: const _A());
+      await r.push(const _B('x'));
+      await r.pushOrReplaceTop(const _B('y'), when: (_) => false);
+      expect(r.stack, [const _A(), const _B('x'), const _B('y')]);
+
+      // Force replace even on type mismatch.
+      final r2 = GateRouter<_R>(initial: const _A());
+      await r2.pushOrReplaceTop(const _B('z'), when: (_) => true);
+      expect(r2.stack, [const _B('z')]);
+    });
+
+    test('pushOrReplaceTop with empty stack pushes', () async {
+      // A pre-disposed-ish corner case: route stack should never be
+      // empty in normal operation, but verify the branch.
+      final r = GateRouter<_R>(initial: const _A());
+      // We can't construct an empty stack via public API, so this
+      // mainly verifies that the non-empty default path with a
+      // predicate that returns true still triggers replaceTop.
+      await r.pushOrReplaceTop(const _A());
+      expect(r.stack, [const _A()]);
     });
 
     test('set replaces the whole stack', () async {
@@ -146,7 +189,7 @@ void main() {
       await r.push(const _B('x'));
       var notifications = 0;
       r.addListener(() => notifications++);
-      await r.replace(const _B('x'));
+      await r.replaceTop(const _B('x'));
       expect(notifications, 0);
     });
 

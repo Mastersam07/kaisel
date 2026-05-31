@@ -41,7 +41,7 @@ abstract class GateNavigator implements Listenable {
 /// rebuilds. The router assigns a monotonic id per entry; the delegate
 /// uses it to key the corresponding [Page]. Identity is preserved
 /// across navigations where the route at a given position is unchanged,
-/// so push/pop/replace don't tear down sibling pages.
+/// so push/pop/replaceTop don't tear down sibling pages.
 @immutable
 @internal
 class GateStackEntry<R extends GateRoute> {
@@ -71,7 +71,7 @@ class GateStackEntry<R extends GateRoute> {
 /// ```dart
 /// await router.push(const ProductDetail('sku-42'));
 /// await router.pop();
-/// await router.replace(const Home());
+/// await router.replaceTop(const Home());
 /// await router.set([const Home(), const Cart()]);
 /// ```
 ///
@@ -175,8 +175,12 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
         return true;
       });
 
-  /// Replace the top route. Runs through guards.
-  Future<void> replace(R route) => _enqueue(() {
+  /// Replace the top route on the stack. Runs through guards.
+  ///
+  /// Renamed from `replace` in v0.11 for self-documentation. The
+  /// method only ever touches the top entry; longer-form `replaceTop`
+  /// makes that immediate at the call site.
+  Future<void> replaceTop(R route) => _enqueue(() {
         final next = [...stack];
         if (next.isEmpty) {
           next.add(route);
@@ -185,6 +189,41 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
         }
         return _navigate(next);
       });
+
+  /// Push [route] onto the stack, or replace the top entry if [when]
+  /// matches the current top route.
+  ///
+  /// The canonical case is master-detail at adaptive widths. Tapping
+  /// a different item in the master should:
+  ///
+  /// - **push** the new detail if there's no detail on top yet
+  ///   (`[List]` → `[List, Detail(id)]`),
+  /// - **replace** the top entry if a detail is already there
+  ///   (`[List, Detail(other)]` → `[List, Detail(id)]`).
+  ///
+  /// Replacing instead of pushing is what gives master-detail its
+  /// in-place feel. If you always pushed, the stack would grow and
+  /// the new top entry's previous neighbour would be another
+  /// `Detail`, not `List`, so the adaptive absorbing arm wouldn't
+  /// match and the Navigator would animate a slide-in.
+  ///
+  /// [when] defaults to "replace if the current top has the same
+  /// runtime type as [route]". That works for the common sealed-
+  /// route case where every detail variant shares one type. Pass
+  /// an explicit predicate for finer control (or `(_) => false` to
+  /// force a push, equivalent to calling [push] directly).
+  ///
+  /// New in v0.11.
+  Future<void> pushOrReplaceTop(
+    R route, {
+    bool Function(R current)? when,
+  }) {
+    final predicate = when ?? ((c) => c.runtimeType == route.runtimeType);
+    if (stack.isEmpty || !predicate(current)) {
+      return push(route);
+    }
+    return replaceTop(route);
+  }
 
   /// Replace the entire stack. Must not be empty. Runs through guards.
   ///
@@ -215,7 +254,7 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
   ///
   /// Guards do **not** run on this path. Pop-driven redirects should be
   /// implemented as listeners on app state (e.g. auth) that explicitly
-  /// call [set] or [replace], not as guards.
+  /// call [set] or [replaceTop], not as guards.
   @internal
   void onPageRemoved(int id) {
     final i = _entries.indexWhere((e) => e.id == id);

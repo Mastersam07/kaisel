@@ -400,7 +400,7 @@ void main() {
         expect(find.text('Detail A'), findsOneWidget);
 
         // Swap detail-A for detail-B via replace at the top.
-        await router.replace(const _ProductDetail('B'));
+        await router.replaceTop(const _ProductDetail('B'));
         await tester.pumpAndSettle();
 
         // New detail content visible; absorbed widget still the only

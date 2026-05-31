@@ -170,34 +170,25 @@ class BookListScreen extends StatelessWidget {
   }
 }
 
-// Tapping a book in the list:
+// Tapping a book in the list calls [pushOrReplaceTop] (new in
+// v0.11). It pushes the new detail when there's no detail on top
+// yet, and replaces the top entry when a detail is already there.
 //
-// - From `[BookList]` (no detail visible yet): push so the stack
-//   becomes `[BookList, BookDetail(id)]`. At narrow widths this is
-//   a slide-in. At wide widths, the absorbing pipeline collapses
-//   the two into a single master-detail page.
+// - From `[BookList]`: stack becomes `[BookList, BookDetail(id)]`.
+//   At narrow widths this slides in; at wide widths the absorbing
+//   arm collapses the pair into a master-detail page.
 //
-// - From `[BookList, BookDetail(other)]` (a detail is already on
-//   top): REPLACE the top entry, not push. The stack stays at
-//   depth 2 and just swaps the top route. Both states key on
-//   BookList's entry id, so the Navigator treats them as the same
-//   page and the master-detail's detail pane updates in place
-//   without a slide.
+// - From `[BookList, BookDetail(other)]`: stack stays at depth 2,
+//   just swaps the top route. Both states key on BookList's entry
+//   id, so the Navigator treats them as the same page and the
+//   master-detail's detail pane updates in place without a slide.
 //
-// Replacing instead of pushing is what gives master-detail its
-// in-place feel. If we always pushed, the stack would grow
-// (`[List, DetailA, DetailB, DetailC, ...]`) and each tap would
-// animate a slide because the new top route's previous neighbour
-// is another Detail, not BookList, so it doesn't match the
-// absorbing arm.
-void _selectBook(BuildContext context, String id) {
-  final router = context.router<BookRoute>();
-  if (router.current is BookDetail) {
-    router.replace(BookDetail(id));
-  } else {
-    router.push(BookDetail(id));
-  }
-}
+// The default predicate "replace if current has the same runtime
+// type as [route]" matches here, since every detail variant shares
+// the `BookDetail` type. Pass an explicit `when:` for finer
+// control.
+void _selectBook(BuildContext context, String id) =>
+    context.router<BookRoute>().pushOrReplaceTop(BookDetail(id));
 
 class BookDetailScreen extends StatelessWidget {
   const BookDetailScreen({super.key, required this.id});

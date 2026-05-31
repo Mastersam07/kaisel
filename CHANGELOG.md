@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.11.0: Adaptive ergonomics
+
+A small follow-up to v0.10 driven by what the adaptive demo
+exposed: the master-detail in-place swap requires `replaceTop`-
+shaped navigation, but the obvious call (`router.push(newDetail)`)
+does the wrong thing silently. v0.11 makes the right call easy.
+
+### API
+
+- **`GateRouter.pushOrReplaceTop(R route, {bool Function(R)? when})`**:
+  pushes [route] if [when] returns false for the current top,
+  replaces the top otherwise. Defaults to "replace if the current
+  top has the same runtime type as [route]", which is correct for
+  the common sealed-route master-detail case (every detail variant
+  shares one type). Pass an explicit predicate for finer control,
+  or `(_) => false` to force a push.
+
+  ```dart
+  // In the master pane's list tile:
+  onTap: () => context
+      .router<BookRoute>()
+      .pushOrReplaceTop(BookDetail(book.id)),
+  ```
+
+  This pushes when the current top is `BookList` (becoming
+  `[BookList, BookDetail(id)]`) and replaces when the current top
+  is already a `BookDetail` (`[BookList, BookDetail(other)]` →
+  `[BookList, BookDetail(id)]`). The latter keeps the stack at
+  depth 2 and the absorbing-pipeline page identity stable, so the
+  detail pane updates in place without a Navigator slide.
+
+- **`GateRouter.replace` renamed to `GateRouter.replaceTop`**. The
+  method has always only touched the top entry; the longer name
+  makes that immediate at the call site. There's no alias for the
+  old name. Update your code mechanically: `r.replace(x)` →
+  `r.replaceTop(x)`.
+
+### Example
+
+The adaptive demo (`example/lib/main_adaptive.dart`) now uses
+`pushOrReplaceTop` in its `_selectBook` helper. The previous
+hand-written push-or-replace conditional is gone; the helper is
+a one-liner.
+
+### Still deferred to future versions
+
+- Direction-aware and shared-element transitions. Requires a
+  breaking change to `GatePageWrapper`'s signature.
+
+---
+
 ## 0.10.0: Nested modal flows
 
 v0.3 introduced `router.run<T>(...)` for typed modal sub-flows but

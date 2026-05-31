@@ -418,7 +418,7 @@ class _SplashScreenState extends State<_SplashScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      router.replace(const Splash());
+      router.replaceTop(const Splash());
     });
   }
 

@@ -40,7 +40,7 @@ Dart 3 has had the type machinery to do better since 2023: sealed classes, exhau
 
 The architectural posture, in one line: **the route stack is a `List<R>`, navigation is list manipulation, the URL is an optional codec on top, guards are pure functions in a pipeline, modal flows are sub-routers with typed result completers, and features ship as composable `RouteModule`s mounted at marker routes.**
 
-## What you get in v0.10
+## What you get in v0.11
 
 - **Typed route stack** as `List<R>` over your sealed class.
 - **Default value equality** via `props`. No manual `==`/`hashCode`. No codegen.
@@ -57,7 +57,7 @@ The architectural posture, in one line: **the route stack is a `List<R>`, naviga
 - **Identity-preserving stack diff**: pushing one route doesn't rebuild others.
 - **Pure-Dart unit tests** for navigation state (no widget tree needed).
 
-## Deliberately not in v0.10
+## Deliberately not in v0.11
 
 Coming in future versions:
 
@@ -557,7 +557,7 @@ class ShopModule extends RouteModule<ShopRoute> {
 
 Two things worth knowing about page identity:
 
-- Absorbing pages are keyed by the *lowest* absorbed entry's id, not the absorbing entry's. Going from `[List, DetailA]` to `[List, DetailB]` produces pages with equal keys; the Navigator doesn't animate a transition, the detail pane content just updates. Wrap the swapping content in an `AnimatedSwitcher` if you want a fade between details. Note that the transition is `replace`-shaped, not `push`-shaped: a `router.push(DetailB)` from `[List, DetailA]` produces `[List, DetailA, DetailB]` (three entries, the new top has another `Detail` below it, so the absorbing arm doesn't match and the page slides in). Use `router.replace(DetailB)` when the current top is already a detail.
+- Absorbing pages are keyed by the *lowest* absorbed entry's id, not the absorbing entry's. Going from `[List, DetailA]` to `[List, DetailB]` produces pages with equal keys; the Navigator doesn't animate a transition, the detail pane content just updates. Wrap the swapping content in an `AnimatedSwitcher` if you want a fade between details. Note that the transition is `replaceTop`-shaped, not `push`-shaped: a `router.push(DetailB)` from `[List, DetailA]` produces `[List, DetailA, DetailB]` (three entries, the new top has another `Detail` below it, so the absorbing arm doesn't match and the page slides in). Use `router.pushOrReplaceTop(DetailB)` (since v0.11) so the call pushes when there's no detail on top yet and replaces when there already is.
 - The pop target is the top absorbing entry. OS back on `[List, Detail]` absorbed pops Detail, leaving `[List]`. Back means "undo the last push" regardless of visual rendering. At the main delegate, this needs a `popRoute` override because `Navigator.maybePop` declines when there's only one visible page (see v0.8 changelog). At the shell branch and module level, `PopScope` calls `router.pop()` directly, so absorbing-collapsed-to-1-page is handled by construction.
 
 ## Why no equality codegen
@@ -566,7 +566,7 @@ Routing libraries that bake in `freezed` force codegen on every consumer. `gate`
 
 ## Status
 
-v0.10 is the current development line. The core surface (routes, guards, shells in both homogeneous and per-branch typed forms, modal flows with typed results and nesting, URL-addressable shell and module state, composable modules, module URL composition, and adaptive layouts at the main delegate, shell branches, and module mounts) is in place. Direction-aware transitions are tracked for future versions. Public API is shaped for stability but not frozen.
+v0.11 is the current development line. The core surface (routes, guards, shells in both homogeneous and per-branch typed forms, modal flows with typed results and nesting, URL-addressable shell and module state, composable modules, module URL composition, and adaptive layouts at the main delegate, shell branches, and module mounts) is in place. Direction-aware transitions are tracked for future versions. Public API is shaped for stability but not frozen.
 
 ## Comparison
 
