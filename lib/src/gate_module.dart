@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import 'gate_adaptive.dart';
 import 'gate_config.dart';
 import 'gate_guard.dart';
 import 'gate_inner_navigator.dart';
@@ -73,8 +74,41 @@ abstract class RouteModule<R extends GateRoute> {
   /// the module's sealed type for compile-time exhaustiveness.
   Widget buildPage(BuildContext context, R route);
 
+  /// Adaptive page builder. Override to enable absorbing pages
+  /// inside this module (e.g. master-detail at wide breakpoints).
+  /// Default implementation wraps [buildPage] as a standalone page,
+  /// so modules that don't override get the same 1:1 behaviour as
+  /// before.
+  ///
+  /// When implementing, pattern-match on `(route, stack.previous)`
+  /// and the layout breakpoint to decide between
+  /// [GateStandalonePage] and [GateAbsorbingPage]. See
+  /// `GateRouterDelegate.adaptive` for the canonical example.
+  ///
+  /// New in v0.9.
+  GatePageResult buildAdaptivePage(
+    BuildContext context,
+    R route,
+    GateStackContext<R> stack,
+  ) {
+    return GateStandalonePage(buildPage(context, route));
+  }
+
+  /// Whether this module uses [buildAdaptivePage] to drive its inner
+  /// navigator. Defaults to `false`. Override to return `true` if you
+  /// implement [buildAdaptivePage].
+  ///
+  /// We can't reliably detect overrides at runtime, so modules opt
+  /// in explicitly. Setting this to `true` without overriding
+  /// [buildAdaptivePage] still works (the default returns a
+  /// standalone page); the difference is that the inner navigator
+  /// goes through the adaptive pipeline rather than the simple one.
+  ///
+  /// New in v0.9.
+  bool get isAdaptive => false;
+
   /// Guards run on the module's internal navigation. Module guards
-  /// see only the module's stack — they don't compose with the host
+  /// see only the module's stack. They don't compose with the host
   /// router's guards.
   List<GateGuard<R>> get guards => const [];
 
@@ -229,7 +263,10 @@ class _GateModuleMountState<R extends GateRoute>
         child: GateInnerNavigator<R>(
           router: _router,
           navigatorKey: _navKey,
-          pageBuilder: widget.module.buildPage,
+          pageBuilder:
+              widget.module.isAdaptive ? null : widget.module.buildPage,
+          adaptivePageBuilder:
+              widget.module.isAdaptive ? widget.module.buildAdaptivePage : null,
           pageWrapper: widget.module.pageWrapper,
         ),
       ),

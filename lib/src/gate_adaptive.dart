@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'gate_route.dart';
+import 'gate_router.dart';
 
 /// The result of building a page for one stack entry in an adaptive
 /// page builder.
@@ -173,4 +174,129 @@ class GateMasterDetailScaffold extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Internal page key used by the adaptive pipeline. Carries two
+/// integer ids: [stableId] (used for [Navigator] page identity) and
+/// [popId] (used by host code that turns a removed page back into a
+/// router entry id).
+///
+/// For standalone pages the two are identical: the entry's own id.
+/// For absorbing pages [stableId] is the lowest absorbed entry's id
+/// (so toggling absorbed/standalone preserves Navigator identity
+/// across detail swaps), and [popId] is the top absorbing entry's
+/// id (so OS back pops the top of the logical stack, not the lowest
+/// absorbed entry).
+///
+/// Equality and hashCode use only [stableId]; [popId] is opaque to
+/// [Navigator]. This is what gives master-detail its in-place feel:
+/// `[List, DetailA]` and `[List, DetailB]` produce equal keys, so
+/// Navigator doesn't animate between them.
+///
+/// Internal to the package. Not exported from `gate.dart`. Users
+/// don't need to construct or read this directly: their page builder
+/// returns a [GatePageResult], and the host widgets do the key
+/// bookkeeping.
+@immutable
+class GateAdaptiveKey extends LocalKey {
+  /// Create an adaptive key with separate identity and pop targets.
+  const GateAdaptiveKey(this.stableId, this.popId);
+
+  /// Id used by [Navigator] to decide whether two pages are the same.
+  /// For absorbing pages this is the lowest absorbed entry's id.
+  final int stableId;
+
+  /// Id of the router entry to remove when this page is popped.
+  /// For absorbing pages this is the top absorbing entry's id (the
+  /// "topmost logical entry"), not the lowest absorbed one.
+  final int popId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GateAdaptiveKey && other.stableId == stableId;
+
+  @override
+  int get hashCode => stableId.hashCode;
+
+  @override
+  String toString() => 'GateAdaptiveKey(stable: $stableId, pop: $popId)';
+}
+
+/// Build a list of pages from a stack of entries using an adaptive
+/// page builder. Handles absorption by iterating top-down and
+/// skipping the absorbed entries below a [GateAbsorbingPage].
+///
+/// [wrap] turns a route + key + widget into a concrete [Page]. Hosts
+/// pass a function that applies their own page wrapper (typically a
+/// [MaterialPage], or whatever the host's user supplied).
+///
+/// Used internally by `GateRouterDelegate.adaptive` and by
+/// `GateInnerNavigator` (which is itself used by `GateBranch`,
+/// `GateShell`, and `GateModuleMount`). Exposed because it has no
+/// dependencies on those host widgets and is sometimes useful to
+/// call from a custom host.
+List<Page<Object?>> buildAdaptivePages<R extends GateRoute>({
+  required BuildContext context,
+  required List<GateStackEntry<R>> entries,
+  required GateAdaptivePageBuilder<R> builder,
+  required Page<Object?> Function(R route, LocalKey key, Widget widget) wrap,
+}) {
+  final stack = [for (final e in entries) e.route];
+  final pages = <Page<Object?>>[];
+  var i = stack.length - 1;
+
+  while (i >= 0) {
+    final ctx = GateStackContext<R>(stack: stack, position: i);
+    final result = builder(context, stack[i], ctx);
+
+    switch (result) {
+      case GateStandalonePage(:final widget):
+        pages.insert(
+          0,
+          wrap(
+            stack[i],
+            GateAdaptiveKey(entries[i].id, entries[i].id),
+            widget,
+          ),
+        );
+        i--;
+      case GateAbsorbingPage(:final widget, :final absorbing):
+        var lowestIdx = i - absorbing;
+        if (lowestIdx < 0) {
+          // Pathological: route asked to absorb more entries than
+          // exist below it. Clamp to absorbing what's available.
+          assert(
+            false,
+            'GateAbsorbingPage(absorbing: $absorbing) at position $i '
+            'overflows the stack of length ${stack.length}',
+          );
+          lowestIdx = 0;
+        }
+        pages.insert(
+          0,
+          wrap(
+            stack[i],
+            GateAdaptiveKey(entries[lowestIdx].id, entries[i].id),
+            widget,
+          ),
+        );
+        i = lowestIdx - 1;
+    }
+  }
+
+  return pages;
+}
+
+/// Extract a router-entry id from a removed page's key. Returns
+/// `null` if the page key isn't recognised (which means the page
+/// wasn't built by gate's pipelines).
+///
+/// Hosts call this in their `Navigator.onDidRemovePage` to turn the
+/// removed page back into the entry id to pop from the router.
+///
+/// Internal.
+int? adaptiveEntryIdFromPageKey(LocalKey? key) {
+  if (key is GateAdaptiveKey) return key.popId;
+  if (key is ValueKey<int>) return key.value;
+  return null;
 }

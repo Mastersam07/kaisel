@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'gate_adaptive.dart';
 import 'gate_config.dart';
 import 'gate_inner_navigator.dart';
 import 'gate_route.dart';
@@ -155,27 +156,43 @@ class BranchedShellRouter extends ChangeNotifier implements GateNestedHandle {
 /// The `pageBuilder` is exhaustive over the branch's `R`; you cannot
 /// build screens for routes that don't belong to this branch.
 class GateBranch<R extends GateRoute> extends StatefulWidget {
-  /// Create a branch view bound to [router].
+  /// Create a branch view bound to [router] with a simple per-route
+  /// [pageBuilder].
   const GateBranch({
     super.key,
     required this.router,
-    required this.pageBuilder,
+    required GatePageBuilder<R> pageBuilder,
     this.pageWrapper,
     this.scope,
-  });
+  })  : _pageBuilder = pageBuilder,
+        _adaptivePageBuilder = null;
+
+  /// Create a branch view bound to [router] with an adaptive
+  /// [pageBuilder]. The builder receives a [GateStackContext] for
+  /// each entry so it can return [GateAbsorbingPage] to collapse
+  /// the master into the detail at wide breakpoints.
+  ///
+  /// New in v0.9.
+  const GateBranch.adaptive({
+    super.key,
+    required this.router,
+    required GateAdaptivePageBuilder<R> pageBuilder,
+    this.pageWrapper,
+    this.scope,
+  })  : _pageBuilder = null,
+        _adaptivePageBuilder = pageBuilder;
 
   /// The typed router driving this branch's stack.
   final GateRouter<R> router;
 
-  /// Resolves a route in this branch to a widget. Pattern-match on the
-  /// branch's sealed type for compile-time exhaustiveness.
-  final GatePageBuilder<R> pageBuilder;
+  final GatePageBuilder<R>? _pageBuilder;
+  final GateAdaptivePageBuilder<R>? _adaptivePageBuilder;
 
   /// Optional override of how each route is wrapped as a [Page].
   /// Defaults to [MaterialPage].
   final GatePageWrapper<R>? pageWrapper;
 
-  /// Optional wrapper for the branch's content — wrap with
+  /// Optional wrapper for the branch's content. Wrap with
   /// `BlocProvider` / `ProviderScope` / signals containers, etc.
   /// Called once per branch when the shell is built, so branch-scoped
   /// state lives as long as the branch is mounted.
@@ -194,7 +211,8 @@ class _GateBranchState<R extends GateRoute> extends State<GateBranch<R>> {
     Widget content = GateInnerNavigator<R>(
       router: widget.router,
       navigatorKey: _navKey,
-      pageBuilder: widget.pageBuilder,
+      pageBuilder: widget._pageBuilder,
+      adaptivePageBuilder: widget._adaptivePageBuilder,
       pageWrapper: widget.pageWrapper,
     );
     final scope = widget.scope;

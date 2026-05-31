@@ -1,5 +1,145 @@
 # Changelog
 
+## 0.9.0: Adaptive layouts inside shells and modules
+
+The v0.8 release shipped adaptive layouts at the main `GateRouterDelegate`,
+which is the wrong level for the most common use case. Master-detail
+almost always lives inside a shell tab (a "products" tab whose list
+and detail collapse at wide widths) or inside a feature module (a
+checkout flow's review/summary side-by-side at wide widths). v0.9
+plumbs the adaptive pipeline through the inner navigator shared by
+`GateBranch`, `GateShell`, and `GateModuleMount`, so any of them
+can render absorbing pages.
+
+Additive: v0.8 code still compiles and runs unchanged.
+
+### Added
+
+- **`GateBranch.adaptive`**: new named constructor on `GateBranch`.
+  Takes a `GateAdaptivePageBuilder<R>` instead of a
+  `GatePageBuilder<R>`. The branch's inner navigator goes through
+  the adaptive pipeline.
+
+  ```dart
+  GateBranch<HomeRoute>.adaptive(
+    router: homeRouter,
+    pageBuilder: (context, route, stack) {
+      final wide = MediaQuery.sizeOf(context).width >= 700;
+      return switch ((route, stack.previous, wide)) {
+        (ProductDetail(:final id), ProductList(), true) =>
+          GateAbsorbingPage(
+            widget: GateMasterDetailScaffold(
+              master: const ProductListScreen(),
+              detail: ProductDetailScreen(id: id),
+            ),
+          ),
+        _ => GateStandalonePage(buildSimple(route)),
+      };
+    },
+  );
+  ```
+
+- **`GateShell.adaptive`**: new named constructor on `GateShell`
+  (homogeneous shell). All branches share the adaptive builder
+  (they share the route type). For per-branch adaptive
+  configuration use `GateBranchedShell` with `GateBranch.adaptive`.
+
+- **`RouteModule.buildAdaptivePage`**: new virtual method on
+  `RouteModule` that returns a `GatePageResult`. Default
+  implementation wraps `buildPage` as `GateStandalonePage(...)`, so
+  existing modules are unaffected. Adaptive modules override this
+  and opt in by setting `isAdaptive` to `true`.
+
+  ```dart
+  class ShopModule extends RouteModule<ShopRoute> {
+    const ShopModule();
+
+    @override
+    bool get isAdaptive => true;
+
+    @override
+    Widget buildPage(BuildContext context, ShopRoute route) =>
+      switch (route) { /* ... */ };
+
+    @override
+    GatePageResult buildAdaptivePage(
+      BuildContext context,
+      ShopRoute route,
+      GateStackContext<ShopRoute> stack,
+    ) {
+      final wide = MediaQuery.sizeOf(context).width >= 700;
+      return switch ((route, stack.previous, wide)) {
+        (ProductDetail(:final id), ProductList(), true) =>
+          GateAbsorbingPage(
+            widget: GateMasterDetailScaffold(
+              master: const ProductListScreen(),
+              detail: ProductDetailScreen(id: id),
+            ),
+          ),
+        _ => GateStandalonePage(buildPage(context, route)),
+      };
+    }
+  }
+  ```
+
+- **`RouteModule.isAdaptive`**: opt-in flag (default `false`).
+  Dart doesn't give us reliable runtime override detection, so
+  modules signal intent explicitly. Setting `isAdaptive` to true
+  without overriding `buildAdaptivePage` still works (the default
+  returns a standalone page); the difference is the navigator goes
+  through the adaptive pipeline.
+
+- **`GateInnerNavigator.adaptivePageBuilder`**: new optional
+  parameter on the inner-navigator widget that shells and modules
+  embed. Mutually exclusive with `pageBuilder`; one of the two
+  must be provided. Custom hosts (your own composite widget that
+  embeds a router) can pass either, same as the built-in ones.
+
+### Changed
+
+- `GateBranch.pageBuilder` and `GateShell.pageBuilder` are now
+  private (`_pageBuilder`). They were public final fields in v0.8.
+  No external code in the package or example reads them. If your
+  app introspected the field, switch to constructing through the
+  named constructors as before.
+- The adaptive page-key type, `GateAdaptiveKey`, and the shared
+  iteration helper `buildAdaptivePages` have moved from the
+  delegate's file into `gate_adaptive.dart`. They aren't part of
+  the public barrel. Listed here only because some internals
+  reading code might notice the file location change.
+
+### Pop semantics inside shells and modules
+
+Shells and modules use `PopScope` + `router.pop()` directly to
+handle the Android back gesture. They don't go through the
+mixin's `popRoute` → `Navigator.maybePop` path that bit the main
+delegate in v0.8. The PopScope's `canPop` reads `router.canPop`,
+which reflects the logical stack regardless of how many visible
+pages absorption produced. So absorbing inside a shell branch or
+module is correctly back-poppable by construction. No
+`popRoute`-style override was needed at this level.
+
+### Scope
+
+- `GateShell.adaptive` is homogeneous: all branches share the
+  adaptive builder, matching the homogeneous `GateShell` model.
+  Per-branch adaptive configuration goes through `GateBranchedShell`
+  + `GateBranch.adaptive`.
+- The adaptive iteration is identical at the main delegate, shell
+  branch, and module mount levels — same `buildAdaptivePages`
+  helper, same `GateAdaptiveKey` semantics. A `GateAbsorbingPage`
+  inside a shell branch absorbs entries within that branch's
+  stack, not across the host stack.
+
+### Still deferred to future versions
+
+- Direction-aware and shared-element transitions. Still requires a
+  breaking change to `GatePageWrapper`'s signature.
+- Nested modal flows (relaxing the v0.3 "one flow at a time"
+  constraint).
+
+---
+
 ## 0.8.0: Adaptive layouts
 
 The headline is `GateRouterDelegate.adaptive`, a new constructor that

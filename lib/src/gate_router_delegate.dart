@@ -303,9 +303,10 @@ class GateRouterDelegate<R extends GateRoute>
   @override
   Widget build(BuildContext context) {
     final entries = router.entries;
-    final mainPages = _adaptiveBuilder != null
-        ? _adaptiveMainPages(context, entries)
-        : _simpleMainPages(context, entries);
+    final mainPages = switch (_adaptiveBuilder) {
+      final builder? => _adaptiveMainPages(context, entries, builder),
+      _ => _simpleMainPages(context, entries),
+    };
 
     _lastBuiltMainPageCount = mainPages.length;
 
@@ -358,60 +359,14 @@ class GateRouterDelegate<R extends GateRoute>
   List<Page<Object?>> _adaptiveMainPages(
     BuildContext context,
     List<GateStackEntry<R>> entries,
-  ) {
-    final adaptive = _adaptiveBuilder!;
-    final stack = [for (final e in entries) e.route];
-    final pages = <Page<Object?>>[];
-    var i = stack.length - 1;
-
-    while (i >= 0) {
-      final ctx = GateStackContext<R>(stack: stack, position: i);
-      final result = adaptive(context, stack[i], ctx);
-
-      switch (result) {
-        case GateStandalonePage(:final widget):
-          pages.insert(
-            0,
-            _wrapAdaptive(
-              stack[i],
-              _AdaptiveKey(entries[i].id, entries[i].id),
-              widget,
-            ),
-          );
-          i--;
-        case GateAbsorbingPage(:final widget, :final absorbing):
-          var lowestIdx = i - absorbing;
-          if (lowestIdx < 0) {
-            // Pathological: route asked to absorb more entries than
-            // exist below it. Clamp to absorbing what's available.
-            // Helpful for tests; users shouldn't hit this in real
-            // apps unless their pattern-match is wrong.
-            assert(
-              false,
-              'GateAbsorbingPage(absorbing: $absorbing) at position $i '
-              'overflows the stack of length ${stack.length}',
-            );
-            lowestIdx = 0;
-          }
-          // Page identity uses the lowest absorbed entry's id so that
-          // toggling absorbed/standalone (or swapping detail-A for
-          // detail-B) doesn't trigger a Navigator transition. The
-          // popId is the top absorbing entry's id so the OS back
-          // gesture pops the top, not the lowest.
-          pages.insert(
-            0,
-            _wrapAdaptive(
-              stack[i],
-              _AdaptiveKey(entries[lowestIdx].id, entries[i].id),
-              widget,
-            ),
-          );
-          i = lowestIdx - 1;
-      }
-    }
-
-    return pages;
-  }
+    GateAdaptivePageBuilder<R> builder,
+  ) =>
+      buildAdaptivePages<R>(
+        context: context,
+        entries: entries,
+        builder: builder,
+        wrap: _wrapAdaptive,
+      );
 
   /// The simple builder used by the modal-flow inner navigator. When
   /// the delegate was constructed with an adaptive builder, synthesise
@@ -450,13 +405,9 @@ class GateRouterDelegate<R extends GateRoute>
   void _onDidRemovePage(Page<Object?> page) {
     // See notes in v0.4: Navigator-driven pops sync our state, but
     // guards do NOT rerun on this path. That's by design.
-    final key = page.key;
-    if (key is _AdaptiveKey) {
-      router.onPageRemoved(key.popId);
-      return;
-    }
-    if (key is ValueKey<int>) {
-      router.onPageRemoved(key.value);
+    final entryId = adaptiveEntryIdFromPageKey(page.key);
+    if (entryId case final entryId?) {
+      router.onPageRemoved(entryId);
     }
   }
 
@@ -562,37 +513,4 @@ class _ModalOverlay<R extends GateRoute> extends StatelessWidget {
 
     return Stack(children: [mainContent, flowUi]);
   }
-}
-
-/// Page key used by the adaptive pipeline. Carries two integer ids:
-/// [stableId] (used for [Navigator] page identity) and [popId] (used
-/// by `_onDidRemovePage` to figure out which router entry to drop on
-/// an OS back gesture).
-///
-/// For standalone pages they're identical: the page's own entry id.
-/// For absorbing pages [stableId] is the lowest absorbed entry's id
-/// (so toggling absorbed/standalone preserves Navigator identity),
-/// and [popId] is the top absorbing entry's id (so OS back pops the
-/// top of the logical stack, not the lowest absorbed entry).
-///
-/// Equality and hashCode use only [stableId]; [popId] is opaque to
-/// [Navigator]. This is what gives master-detail its in-place feel:
-/// `[List, DetailA]` and `[List, DetailB]` produce equal keys, so
-/// Navigator doesn't animate between them.
-@immutable
-class _AdaptiveKey extends LocalKey {
-  const _AdaptiveKey(this.stableId, this.popId);
-
-  final int stableId;
-  final int popId;
-
-  @override
-  bool operator ==(Object other) =>
-      other is _AdaptiveKey && other.stableId == stableId;
-
-  @override
-  int get hashCode => stableId.hashCode;
-
-  @override
-  String toString() => '_AdaptiveKey(stable: $stableId, pop: $popId)';
 }

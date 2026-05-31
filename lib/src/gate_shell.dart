@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'gate_adaptive.dart';
 import 'gate_guard.dart';
 import 'gate_inner_navigator.dart';
 import 'gate_route.dart';
@@ -103,24 +104,48 @@ typedef GateBranchScope = Widget Function(
 /// active branch's router when inside a shell) and the shell router
 /// via `context.shellRouter<AppRoute>()`.
 class GateShell<R extends GateRoute> extends StatefulWidget {
-  /// Create a shell with [branchInitials.length] branches.
+  /// Create a shell with [branchInitials.length] branches using a
+  /// simple per-route page builder.
   const GateShell({
     super.key,
     required this.branchInitials,
-    required this.pageBuilder,
+    required GatePageBuilder<R> pageBuilder,
     required this.chromeBuilder,
     this.initialBranch = 0,
     this.guards = const [],
     this.branchScope,
     this.pageWrapper,
-  });
+  })  : _pageBuilder = pageBuilder,
+        _adaptivePageBuilder = null;
 
-  /// One route per branch — the initial route for that branch's stack.
+  /// Create a shell whose branches use an adaptive page builder.
+  /// The builder receives a [GateStackContext] for each entry so it
+  /// can return [GateAbsorbingPage] to collapse the master into the
+  /// detail at wide breakpoints.
+  ///
+  /// All branches share the adaptive builder (the route type is
+  /// the same across branches in [GateShell]). For per-branch
+  /// adaptive configuration use [GateBranchedShell] with
+  /// [GateBranch.adaptive].
+  ///
+  /// New in v0.9.
+  const GateShell.adaptive({
+    super.key,
+    required this.branchInitials,
+    required GateAdaptivePageBuilder<R> pageBuilder,
+    required this.chromeBuilder,
+    this.initialBranch = 0,
+    this.guards = const [],
+    this.branchScope,
+    this.pageWrapper,
+  })  : _pageBuilder = null,
+        _adaptivePageBuilder = pageBuilder;
+
+  /// One route per branch. The initial route for that branch's stack.
   final List<R> branchInitials;
 
-  /// Resolves a route to a widget. The same builder is used across all
-  /// branches, since they share the route type.
-  final GatePageBuilder<R> pageBuilder;
+  final GatePageBuilder<R>? _pageBuilder;
+  final GateAdaptivePageBuilder<R>? _adaptivePageBuilder;
 
   /// Builds the shell chrome around the active branch's content.
   final GateShellChromeBuilder chromeBuilder;
@@ -132,11 +157,11 @@ class GateShell<R extends GateRoute> extends StatefulWidget {
   final List<GateGuard<R>> guards;
 
   /// Optional per-branch wrapper. Called once per branch when the
-  /// shell is built — wrap with `BlocProvider` / `ProviderScope` /
+  /// shell is built. Wrap with `BlocProvider` / `ProviderScope` /
   /// signals containers, etc.
   final GateBranchScope? branchScope;
 
-  /// Optional page wrapper — defaults to [MaterialPage].
+  /// Optional page wrapper. Defaults to [MaterialPage].
   final GatePageWrapper<R>? pageWrapper;
 
   @override
@@ -218,11 +243,12 @@ class _GateShellState<R extends GateRoute> extends State<GateShell<R>> {
     Widget content = GateInnerNavigator<R>(
       router: router,
       navigatorKey: _navKeys[index],
-      pageBuilder: widget.pageBuilder,
+      pageBuilder: widget._pageBuilder,
+      adaptivePageBuilder: widget._adaptivePageBuilder,
       pageWrapper: widget.pageWrapper,
     );
     final scope = widget.branchScope;
-    if (scope != null) {
+    if (scope case final scope?) {
       content = scope(context, index, content);
     }
     // Each branch installs its own RouterScope so context.router<R>()

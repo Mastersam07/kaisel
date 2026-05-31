@@ -40,7 +40,7 @@ Dart 3 has had the type machinery to do better since 2023: sealed classes, exhau
 
 The architectural posture, in one line: **the route stack is a `List<R>`, navigation is list manipulation, the URL is an optional codec on top, guards are pure functions in a pipeline, modal flows are sub-routers with typed result completers, and features ship as composable `RouteModule`s mounted at marker routes.**
 
-## What you get in v0.8
+## What you get in v0.9
 
 - **Typed route stack** as `List<R>` over your sealed class.
 - **Default value equality** via `props`. No manual `==`/`hashCode`. No codegen.
@@ -49,7 +49,7 @@ The architectural posture, in one line: **the route stack is a `List<R>`, naviga
 - **Composable `RouteModule`s**: package a feature's routes as a `const`-friendly unit with its own sealed subtype, page builder, guards, and (since v0.7) URL codec. Mount with `GateModuleMount<R>`.
 - **URL-addressable shell *and* module state**: a URL like `/home/products/sku-42` deep-links into a branch stack; `/checkout/confirm` deep-links into a module's stack. Inactive branches keep their in-memory state across tab switches; modules keep theirs until unmounted.
 - **Module URL composition** (since v0.7). Modules ship their own `ModuleStackCodec`; the host composes URL routing via `ConfigCodecWithModules` without duplicating each module's URL structure in its main codec. The host's main codec stays module-agnostic.
-- **Adaptive layouts** (new in v0.8). `GateRouterDelegate.adaptive` takes a stack-aware page builder. At wide breakpoints, a detail route can return `GateAbsorbingPage` that collapses the master+detail into a single rendered page (master-detail without changing the stack model). Page identity is keyed on the lowest absorbed entry so selecting a different detail doesn't trigger a Navigator transition.
+- **Adaptive layouts** (since v0.8, extended in v0.9). At the main delegate via `GateRouterDelegate.adaptive`, inside shell branches via `GateBranch.adaptive` and `GateShell.adaptive`, and inside modules via `RouteModule.buildAdaptivePage` + `isAdaptive`. A detail route can return `GateAbsorbingPage` to collapse master+detail into a single rendered page (master-detail without changing the stack model). Page identity is keyed on the lowest absorbed entry so selecting a different detail doesn't trigger a Navigator transition.
 - **Modal sub-flows with typed results**: `await router.run<T>(SomeFlow())` returns `Future<T?>`. The flow has its own internal stack; screens call `context.completeFlow<T>(value)` to resolve the awaiter.
 - **`GateConfigCodec<R>`**: the v0.5+ codec interface, parameterised by `GateConfig<R>` (main stack + optional shell *or* module state). A `StackToConfigCodec` adapter wraps v0.4 codecs unchanged.
 - **Unified `context.router<R>()`**: resolves to the flow router inside a modal, the branch router inside a branched shell, the module router inside a mount, the main router elsewhere.
@@ -57,11 +57,10 @@ The architectural posture, in one line: **the route stack is a `List<R>`, naviga
 - **Identity-preserving stack diff**: pushing one route doesn't rebuild others.
 - **Pure-Dart unit tests** for navigation state (no widget tree needed).
 
-## Deliberately not in v0.8
+## Deliberately not in v0.9
 
-Coming in v0.9+:
+Coming in future versions:
 
-- Adaptive layouts inside `GateBranchedShell` branches and `RouteModule`s. v0.8 ships adaptive at the main delegate only; nested routers still use the simple per-route builder.
 - Direction-aware and shared-element transitions. Requires a breaking change to `GatePageWrapper`'s signature.
 - Nested modal flows (relaxing the v0.3 "one flow at a time" constraint).
 
@@ -448,11 +447,15 @@ A deep link to `/checkout/confirm` restores the full module stack `[Cart, Shippi
 
 `GateConfig<R>.nestedState` is a sealed `GateNestedConfig`, either a `GateShellConfig` or a `GateModuleConfig`. The type system guarantees you can carry at most one nested kind on top of the main stack; no runtime assertion is needed. Pattern-match in your codec's `encode` to dispatch by `(topRoute, nestedState)`.
 
-### 8. Adaptive layouts (v0.8)
+### 8. Adaptive layouts
 
-Use `GateRouterDelegate.adaptive` when you want a page builder that can see the full stack, not just the current route. The builder returns a `GatePageResult`: either `GateStandalonePage(widget)` (default 1:1) or `GateAbsorbingPage(widget, absorbing: n)`, which renders a widget that subsumes `n` entries below it on the stack.
+Adaptive layouts let one route render a widget that subsumes one or more entries below it on the stack. The canonical use is master-detail at wide breakpoints: the detail route absorbs the master into a single rendered page. The stack stays the same; only the rendering changes.
 
-The canonical case is master-detail at wide breakpoints. The detail route absorbs the master into a single rendered page:
+The page builder returns a `GatePageResult`: either `GateStandalonePage(widget)` (default 1:1) or `GateAbsorbingPage(widget, absorbing: n)`, which renders a widget that subsumes `n` entries below it on the stack.
+
+Adaptive builders run at three levels: the main delegate (v0.8), shell branches and modules (v0.9). All three share the same `GatePageResult` API, the same page-identity semantics, and the same back-button behaviour. Pick the level that matches where the master-detail lives.
+
+**At the main delegate (v0.8):**
 
 ```dart
 GateRouterDelegate<AppRoute>.adaptive(
@@ -467,26 +470,86 @@ GateRouterDelegate<AppRoute>.adaptive(
             detail: ProductDetailScreen(id: id),
           ),
         ),
-      (ProductDetail(:final id), _, _) =>
-        GateStandalonePage(ProductDetailScreen(id: id)),
-      (ProductList(:final category), _, _) =>
-        GateStandalonePage(ProductListScreen(category: category)),
-      // ... other routes
+      _ => GateStandalonePage(buildSimple(route)),
     };
   },
 );
 ```
 
-At wide breakpoints the stack `[List, Detail('42')]` becomes one page (master + detail side by side); at narrow it becomes two pages (List, then Detail pushed on top). The stack stays the same; only the rendering changes.
+**Inside a shell branch (v0.9):**
+
+Use `GateBranch.adaptive` for `GateBranchedShell` (heterogeneous branches), or `GateShell.adaptive` for the homogeneous shell. The branch's inner navigator goes through the adaptive pipeline; entries within that branch's stack can be absorbed.
+
+```dart
+GateBranchedShell(
+  shell: shell,
+  branches: [
+    GateBranch<HomeRoute>.adaptive(
+      router: homeRouter,
+      pageBuilder: (context, route, stack) {
+        final wide = MediaQuery.sizeOf(context).width >= 700;
+        return switch ((route, stack.previous, wide)) {
+          (ProductDetail(:final id), ProductList(), true) =>
+            GateAbsorbingPage(
+              widget: GateMasterDetailScaffold(
+                master: const ProductListScreen(),
+                detail: ProductDetailScreen(id: id),
+              ),
+            ),
+          _ => GateStandalonePage(buildSimple(route)),
+        };
+      },
+    ),
+    // Other branches stay simple if they don't need adaptive.
+    GateBranch<DiscoverRoute>(router: discoverRouter, pageBuilder: ...),
+  ],
+  chromeBuilder: ...,
+);
+```
+
+**Inside a module (v0.9):**
+
+Override `RouteModule.buildAdaptivePage` and set `isAdaptive` to `true`. The default `buildAdaptivePage` wraps `buildPage` as a standalone page, so unmodified modules behave exactly as before.
+
+```dart
+class ShopModule extends RouteModule<ShopRoute> {
+  const ShopModule();
+
+  @override
+  bool get isAdaptive => true;
+
+  @override
+  Widget buildPage(BuildContext context, ShopRoute route) => switch (route) {
+    ShopList() => const ShopListScreen(),
+    ShopDetail(:final sku) => ShopDetailScreen(sku: sku),
+  };
+
+  @override
+  GatePageResult buildAdaptivePage(
+    BuildContext context,
+    ShopRoute route,
+    GateStackContext<ShopRoute> stack,
+  ) {
+    final wide = MediaQuery.sizeOf(context).width >= 700;
+    return switch ((route, stack.previous, wide)) {
+      (ShopDetail(:final sku), ShopList(), true) => GateAbsorbingPage(
+        widget: GateMasterDetailScaffold(
+          master: const ShopListScreen(),
+          detail: ShopDetailScreen(sku: sku),
+        ),
+      ),
+      _ => GateStandalonePage(buildPage(context, route)),
+    };
+  }
+}
+```
 
 `GateStackContext` exposes `stack`, `position`, `previous`, `next`, `isTop`, `isBottom` so the builder can pattern-match on neighbours. `GateMasterDetailScaffold` is a small convenience widget that lays out master and detail with a divider; replace it with your own if you want different chrome.
 
 Two things worth knowing about page identity:
 
 - Absorbing pages are keyed by the *lowest* absorbed entry's id, not the absorbing entry's. Going from `[List, DetailA]` to `[List, DetailB]` produces pages with equal keys; the Navigator doesn't animate a transition, the detail pane content just updates. Wrap the swapping content in an `AnimatedSwitcher` if you want a fade between details.
-- The pop target is the top absorbing entry. OS back on `[List, Detail]` absorbed pops Detail, leaving `[List]`. Back means "undo the last push" regardless of visual rendering.
-
-Adaptive is currently available at the main `GateRouterDelegate` only. Per-branch shells and modules still use the simple per-route builder; adding adaptive there is tracked for v0.9.
+- The pop target is the top absorbing entry. OS back on `[List, Detail]` absorbed pops Detail, leaving `[List]`. Back means "undo the last push" regardless of visual rendering. At the main delegate, this needs a `popRoute` override because `Navigator.maybePop` declines when there's only one visible page (see v0.8 changelog). At the shell branch and module level, `PopScope` calls `router.pop()` directly, so absorbing-collapsed-to-1-page is handled by construction.
 
 ## Why no equality codegen
 
@@ -494,7 +557,7 @@ Routing libraries that bake in `freezed` force codegen on every consumer. `gate`
 
 ## Status
 
-v0.8 is the current development line. The core surface (routes, guards, shells in both homogeneous and per-branch typed forms, modal flows with typed results, URL-addressable shell and module state, composable modules, module URL composition, and adaptive layouts at the main delegate) is in place. Adaptive layouts inside nested routers, direction-aware transitions, and nested modal flows are tracked for v0.9+. Public API is shaped for stability but not frozen.
+v0.9 is the current development line. The core surface (routes, guards, shells in both homogeneous and per-branch typed forms, modal flows with typed results, URL-addressable shell and module state, composable modules, module URL composition, and adaptive layouts at the main delegate, shell branches, and module mounts) is in place. Direction-aware transitions and nested modal flows are tracked for future versions. Public API is shaped for stability but not frozen.
 
 ## Comparison
 
