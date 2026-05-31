@@ -32,11 +32,13 @@ export 'src/gate_module_codec.dart'
         ModuleMount,
         ModuleStackCodec,
         UntypedModuleStackCodec;
+export 'src/gate_page_wrapper.dart'
+    show GatePageWrapper, GatePageWrapperContext;
 export 'src/gate_route.dart';
 export 'src/gate_route_information_parser.dart';
 export 'src/gate_router.dart' show GateActiveFlow, GateNavigator, GateRouter;
 export 'src/gate_router_delegate.dart'
-    show GateModalBuilder, GatePageBuilder, GatePageWrapper, GateRouterDelegate;
+    show GateModalBuilder, GatePageBuilder, GateRouterDelegate;
 export 'src/gate_scope.dart';
 export 'src/gate_shell.dart'
     show

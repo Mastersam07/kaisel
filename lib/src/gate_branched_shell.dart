@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'gate_adaptive.dart';
 import 'gate_config.dart';
 import 'gate_inner_navigator.dart';
+import 'gate_page_wrapper.dart';
 import 'gate_route.dart';
 import 'gate_router.dart';
 import 'gate_router_delegate.dart';
@@ -216,7 +217,7 @@ class _GateBranchState<R extends GateRoute> extends State<GateBranch<R>> {
       pageWrapper: widget.pageWrapper,
     );
     final scope = widget.scope;
-    if (scope case final scope?) {
+    if (scope != null) {
       content = scope(context, content);
     }
     // RouterScope<R> with the branch's specific subtype, so

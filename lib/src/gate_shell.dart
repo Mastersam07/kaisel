@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'gate_adaptive.dart';
 import 'gate_guard.dart';
 import 'gate_inner_navigator.dart';
+import 'gate_page_wrapper.dart';
 import 'gate_route.dart';
 import 'gate_router.dart';
 import 'gate_router_delegate.dart';
@@ -248,7 +249,7 @@ class _GateShellState<R extends GateRoute> extends State<GateShell<R>> {
       pageWrapper: widget.pageWrapper,
     );
     final scope = widget.branchScope;
-    if (scope case final scope?) {
+    if (scope != null) {
       content = scope(context, index, content);
     }
     // Each branch installs its own RouterScope so context.router<R>()

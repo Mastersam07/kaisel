@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'gate_adaptive.dart';
+import 'gate_page_wrapper.dart';
 import 'gate_route.dart';
 import 'gate_router.dart';
 import 'gate_router_delegate.dart';
@@ -99,19 +100,16 @@ class _GateInnerNavigatorState<R extends GateRoute>
     super.dispose();
   }
 
-  Page<Object?> _wrapSimple(BuildContext context, R route, LocalKey key) {
+  Page<Object?> _wrapSimple(GatePageWrapperContext<R> ctx) {
     final wrapper = widget.pageWrapper;
-    final child = Builder(
-      builder: (innerContext) => widget.pageBuilder!(innerContext, route),
-    );
-    if (wrapper case final wrapper?) return wrapper(route, child, key);
-    return MaterialPage<Object?>(key: key, child: child);
+    if (wrapper != null) return wrapper(ctx);
+    return MaterialPage<Object?>(key: ctx.key, child: ctx.child);
   }
 
-  Page<Object?> _wrapAdaptive(R route, LocalKey key, Widget widget0) {
+  Page<Object?> _wrapAdaptive(GatePageWrapperContext<R> ctx) {
     final wrapper = widget.pageWrapper;
-    if (wrapper case final wrapper?) return wrapper(route, widget0, key);
-    return MaterialPage<Object?>(key: key, child: widget0);
+    if (wrapper != null) return wrapper(ctx);
+    return MaterialPage<Object?>(key: ctx.key, child: ctx.child);
   }
 
   @override
@@ -125,8 +123,20 @@ class _GateInnerNavigatorState<R extends GateRoute>
             wrap: _wrapAdaptive,
           )
         : [
-            for (final entry in entries)
-              _wrapSimple(context, entry.route, ValueKey<int>(entry.id)),
+            for (var i = 0; i < entries.length; i++)
+              _wrapSimple(
+                GatePageWrapperContext<R>(
+                  route: entries[i].route,
+                  child: Builder(
+                    builder: (innerContext) =>
+                        widget.pageBuilder!(innerContext, entries[i].route),
+                  ),
+                  key: ValueKey<int>(entries[i].id),
+                  position: i,
+                  stackLength: entries.length,
+                  previous: i > 0 ? entries[i - 1].route : null,
+                ),
+              ),
           ];
 
     return HeroControllerScope(
@@ -137,7 +147,7 @@ class _GateInnerNavigatorState<R extends GateRoute>
         pages: pages,
         onDidRemovePage: (page) {
           final entryId = adaptiveEntryIdFromPageKey(page.key);
-          if (entryId case final entryId?) {
+          if (entryId != null) {
             widget.router.onPageRemoved(entryId);
           }
         },

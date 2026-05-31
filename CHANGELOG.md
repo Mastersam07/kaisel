@@ -1,21 +1,60 @@
 # Changelog
 
-## 0.11.0: Adaptive ergonomics
+## 0.11.0: Direction-aware transitions and adaptive ergonomics
 
-A small follow-up to v0.10 driven by what the adaptive demo
-exposed: the master-detail in-place swap requires `replaceTop`-
-shaped navigation, but the obvious call (`router.push(newDetail)`)
-does the wrong thing silently. v0.11 makes the right call easy.
+Two changes. The headline is the breaking-but-deferred wrapper
+signature change that unblocks direction-aware transitions. The
+follow-up is the adaptive demo's exposed papercut.
 
-### API
+### Direction-aware transitions
+
+The `GatePageWrapper` typedef has changed signature. Previously it
+took three positional arguments `(R route, Widget child, LocalKey
+key)`. It now takes a single `GatePageWrapperContext<R>` with the
+same three fields plus stack context: `position`, `stackLength`,
+and `previous` (the route below this page in the rendered stack,
+null at the bottom). The wrapper pattern-matches on the route pair
+to pick transitions that care where you came from:
+
+```dart
+pageWrapper: (ctx) {
+  return switch ((ctx.previous, ctx.route)) {
+    (ProductList(), ProductDetail()) =>
+      _ZoomPage(key: ctx.key, child: ctx.child),
+    (_, Settings()) =>
+      _SlideUpPage(key: ctx.key, child: ctx.child),
+    _ => MaterialPage(key: ctx.key, child: ctx.child),
+  };
+}
+```
+
+The Navigator still handles push/pop direction automatically based
+on pages-list diff. The wrapper's job is choosing the *style* of
+transition (which [Page] subclass to construct); the framework
+chooses the direction (forward on add, reverse on remove).
+
+`GatePageWrapperContext` lives in `src/gate_page_wrapper.dart`,
+exported from the barrel.
+
+For absorbing pages, `previous` refers to the page below in the
+**rendered** stack, not the router's full stack. If page B at
+rendered position 1 absorbs entries below it, the page at
+rendered position 2 sees `previous == B.route`, not the absorbed
+entries below B.
+
+**Shared elements** work via Flutter's `Hero` widget on top of the
+per-Navigator `HeroController` the framework already installs.
+There's no new framework API for them; tag widgets with `Hero(tag:
+...)` and they animate across pushes.
+
+### Adaptive ergonomics
 
 - **`GateRouter.pushOrReplaceTop(R route, {bool Function(R)? when})`**:
   pushes [route] if [when] returns false for the current top,
   replaces the top otherwise. Defaults to "replace if the current
   top has the same runtime type as [route]", which is correct for
-  the common sealed-route master-detail case (every detail variant
-  shares one type). Pass an explicit predicate for finer control,
-  or `(_) => false` to force a push.
+  the common sealed-route master-detail case. Pass an explicit
+  predicate for finer control, or `(_) => false` to force a push.
 
   ```dart
   // In the master pane's list tile:
@@ -24,30 +63,28 @@ does the wrong thing silently. v0.11 makes the right call easy.
       .pushOrReplaceTop(BookDetail(book.id)),
   ```
 
-  This pushes when the current top is `BookList` (becoming
-  `[BookList, BookDetail(id)]`) and replaces when the current top
-  is already a `BookDetail` (`[BookList, BookDetail(other)]` →
+  Pushes when the current top is `BookList` (becoming
+  `[BookList, BookDetail(id)]`); replaces when the current top is
+  already a `BookDetail` (`[BookList, BookDetail(other)]` →
   `[BookList, BookDetail(id)]`). The latter keeps the stack at
   depth 2 and the absorbing-pipeline page identity stable, so the
   detail pane updates in place without a Navigator slide.
 
 - **`GateRouter.replace` renamed to `GateRouter.replaceTop`**. The
   method has always only touched the top entry; the longer name
-  makes that immediate at the call site. There's no alias for the
-  old name. Update your code mechanically: `r.replace(x)` →
-  `r.replaceTop(x)`.
+  makes that immediate at the call site.
 
 ### Example
 
-The adaptive demo (`example/lib/main_adaptive.dart`) now uses
-`pushOrReplaceTop` in its `_selectBook` helper. The previous
-hand-written push-or-replace conditional is gone; the helper is
-a one-liner.
+The adaptive demo uses `pushOrReplaceTop` in its `_selectBook`
+helper. Run with `flutter run -t lib/main_adaptive.dart` from the
+example directory.
 
-### Still deferred to future versions
+### Nothing left deferred from earlier versions
 
-- Direction-aware and shared-element transitions. Requires a
-  breaking change to `GatePageWrapper`'s signature.
+The deferred-list in v0.10 ended at "direction-aware and shared-
+element transitions". With v0.11 that's done. Future versions
+will track new work as it surfaces.
 
 ---
 

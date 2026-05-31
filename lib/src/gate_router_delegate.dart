@@ -4,6 +4,7 @@ import 'package:flutter/scheduler.dart';
 import 'gate_adaptive.dart';
 import 'gate_config.dart';
 import 'gate_inner_navigator.dart';
+import 'gate_page_wrapper.dart';
 import 'gate_route.dart';
 import 'gate_router.dart';
 import 'gate_scope.dart';
@@ -25,14 +26,7 @@ typedef GatePageBuilder<R extends GateRoute> = Widget Function(
 );
 
 /// Optional signature for customising how a route becomes a [Page].
-///
-/// Defaults to wrapping in a [MaterialPage]. Override to use
-/// [CupertinoPage], custom transitions, or fullscreen-dialog routes.
-typedef GatePageWrapper<R extends GateRoute> = Page<Object?> Function(
-  R route,
-  Widget child,
-  LocalKey key,
-);
+/// See [GatePageWrapper] and [GatePageWrapperContext].
 
 /// Signature for rendering a modal flow over the main UI.
 ///
@@ -402,8 +396,20 @@ class GateRouterDelegate<R extends GateRoute>
     List<GateStackEntry<R>> entries,
   ) {
     return [
-      for (final entry in entries)
-        _wrapSimple(context, entry.route, ValueKey<int>(entry.id)),
+      for (var i = 0; i < entries.length; i++)
+        _wrapSimple(
+          GatePageWrapperContext<R>(
+            route: entries[i].route,
+            child: Builder(
+              builder: (innerContext) =>
+                  _builder!(innerContext, entries[i].route),
+            ),
+            key: ValueKey<int>(entries[i].id),
+            position: i,
+            stackLength: entries.length,
+            previous: i > 0 ? entries[i - 1].route : null,
+          ),
+        ),
     ];
   }
 
@@ -434,30 +440,23 @@ class GateRouterDelegate<R extends GateRoute>
     };
   }
 
-  Page<Object?> _wrapSimple(BuildContext context, R route, LocalKey key) {
-    final child = Builder(
-      builder: (innerContext) => _builder!(innerContext, route),
-    );
+  Page<Object?> _wrapSimple(GatePageWrapperContext<R> ctx) {
     final wrapper = pageWrapper;
-    if (wrapper case final wrapper?) {
-      return wrapper(route, child, key);
-    }
-    return MaterialPage<Object?>(key: key, child: child);
+    if (wrapper != null) return wrapper(ctx);
+    return MaterialPage<Object?>(key: ctx.key, child: ctx.child);
   }
 
-  Page<Object?> _wrapAdaptive(R route, LocalKey key, Widget widget) {
+  Page<Object?> _wrapAdaptive(GatePageWrapperContext<R> ctx) {
     final wrapper = pageWrapper;
-    if (wrapper case final wrapper?) {
-      return wrapper(route, widget, key);
-    }
-    return MaterialPage<Object?>(key: key, child: widget);
+    if (wrapper != null) return wrapper(ctx);
+    return MaterialPage<Object?>(key: ctx.key, child: ctx.child);
   }
 
   void _onDidRemovePage(Page<Object?> page) {
     // See notes in v0.4: Navigator-driven pops sync our state, but
     // guards do NOT rerun on this path. That's by design.
     final entryId = adaptiveEntryIdFromPageKey(page.key);
-    if (entryId case final entryId?) {
+    if (entryId != null) {
       router.onPageRemoved(entryId);
     }
   }

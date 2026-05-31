@@ -51,17 +51,12 @@ The architectural posture, in one line: **the route stack is a `List<R>`, naviga
 - **Module URL composition** (since v0.7). Modules ship their own `ModuleStackCodec`; the host composes URL routing via `ConfigCodecWithModules` without duplicating each module's URL structure in its main codec. The host's main codec stays module-agnostic.
 - **Adaptive layouts** (since v0.8, extended in v0.9). At the main delegate via `GateRouterDelegate.adaptive`, inside shell branches via `GateBranch.adaptive` and `GateShell.adaptive`, and inside modules via `RouteModule.buildAdaptivePage` + `isAdaptive`. A detail route can return `GateAbsorbingPage` to collapse master+detail into a single rendered page (master-detail without changing the stack model). Page identity is keyed on the lowest absorbed entry so selecting a different detail doesn't trigger a Navigator transition.
 - **Modal sub-flows with typed results**: `await router.run<T>(SomeFlow())` returns `Future<T?>`. The flow has its own internal stack; screens call `context.completeFlow<T>(value)` to resolve the awaiter. **Flows can nest** (new in v0.10): each nested flow gets its own sub-router and modal layer, and completions unwind LIFO.
+- **Direction-aware transitions** (new in v0.11). `GatePageWrapper` receives a `GatePageWrapperContext` with `previous` (the route below in the rendered stack), `position`, `stackLength`, `isTop`, `isBottom`. Pattern-match on `(ctx.previous, ctx.route)` to pick a `Page` subclass per route-pair. Shared elements work via Flutter's `Hero` widget against the per-Navigator `HeroController` the framework installs.
 - **`GateConfigCodec<R>`**: the v0.5+ codec interface, parameterised by `GateConfig<R>` (main stack + optional shell *or* module state). A `StackToConfigCodec` adapter wraps v0.4 codecs unchanged.
 - **Unified `context.router<R>()`**: resolves to the flow router inside a modal, the branch router inside a branched shell, the module router inside a mount, the main router elsewhere.
 - **Pattern-matched page resolution** with compile-time exhaustiveness checking.
 - **Identity-preserving stack diff**: pushing one route doesn't rebuild others.
 - **Pure-Dart unit tests** for navigation state (no widget tree needed).
-
-## Deliberately not in v0.11
-
-Coming in future versions:
-
-- Direction-aware and shared-element transitions. Requires a breaking change to `GatePageWrapper`'s signature.
 
 ## Usage
 
@@ -560,13 +555,39 @@ Two things worth knowing about page identity:
 - Absorbing pages are keyed by the *lowest* absorbed entry's id, not the absorbing entry's. Going from `[List, DetailA]` to `[List, DetailB]` produces pages with equal keys; the Navigator doesn't animate a transition, the detail pane content just updates. Wrap the swapping content in an `AnimatedSwitcher` if you want a fade between details. Note that the transition is `replaceTop`-shaped, not `push`-shaped: a `router.push(DetailB)` from `[List, DetailA]` produces `[List, DetailA, DetailB]` (three entries, the new top has another `Detail` below it, so the absorbing arm doesn't match and the page slides in). Use `router.pushOrReplaceTop(DetailB)` (since v0.11) so the call pushes when there's no detail on top yet and replaces when there already is.
 - The pop target is the top absorbing entry. OS back on `[List, Detail]` absorbed pops Detail, leaving `[List]`. Back means "undo the last push" regardless of visual rendering. At the main delegate, this needs a `popRoute` override because `Navigator.maybePop` declines when there's only one visible page (see v0.8 changelog). At the shell branch and module level, `PopScope` calls `router.pop()` directly, so absorbing-collapsed-to-1-page is handled by construction.
 
+### 9. Transitions (route-pair-aware)
+
+Customise page transitions by passing a `pageWrapper`. The wrapper receives a `GatePageWrapperContext<R>` with the route, child, key, and stack context (`position`, `stackLength`, `previous`, `isTop`, `isBottom`). Pattern-match on the route pair to pick a `Page` subclass:
+
+```dart
+GateRouterDelegate<AppRoute>(
+  router: router,
+  builder: (context, route) => switch (route) { /* ... */ },
+  pageWrapper: (ctx) {
+    return switch ((ctx.previous, ctx.route)) {
+      (ProductList(), ProductDetail()) =>
+        _ZoomPage(key: ctx.key, child: ctx.child),
+      (_, Settings()) =>
+        _SlideUpPage(key: ctx.key, child: ctx.child),
+      _ => MaterialPage<Object?>(key: ctx.key, child: ctx.child),
+    };
+  },
+);
+```
+
+The Navigator handles push/pop direction automatically (forward on add, reverse on remove). The wrapper's job is choosing the *style* of transition (which `Page` subclass to construct); the framework chooses the direction.
+
+`previous` refers to the page below in the *rendered* stack, not the router's full stack. For absorbing pages, the absorbed entries don't show up as `previous` for the page above; the absorbing page's own route does.
+
+Shared-element transitions work via Flutter's `Hero` widget against the per-Navigator `HeroController` the framework already installs. Tag widgets with `Hero(tag: ...)` and they animate across pushes. No new framework API.
+
 ## Why no equality codegen
 
 Routing libraries that bake in `freezed` force codegen on every consumer. `gate` provides default `props`-based equality on `GateRoute` itself, so the common case is a one-line override. If you want `freezed sealed`, that still works. Your override wins. If you want Equatable, declare your routes with `extends GateRoute with EquatableMixin`. The library doesn't impose a choice.
 
 ## Status
 
-v0.11 is the current development line. The core surface (routes, guards, shells in both homogeneous and per-branch typed forms, modal flows with typed results and nesting, URL-addressable shell and module state, composable modules, module URL composition, and adaptive layouts at the main delegate, shell branches, and module mounts) is in place. Direction-aware transitions are tracked for future versions. Public API is shaped for stability but not frozen.
+v0.11 is the current development line. The core surface (routes, guards, shells in both homogeneous and per-branch typed forms, modal flows with typed results and nesting, URL-addressable shell and module state, composable modules, module URL composition, adaptive layouts at the main delegate, shell branches, and module mounts, and route-pair-aware page transitions) is in place. Public API is shaped for stability but not frozen.
 
 ## Comparison
 

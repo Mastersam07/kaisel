@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'gate_page_wrapper.dart';
 import 'gate_route.dart';
 import 'gate_router.dart';
 
@@ -226,9 +227,13 @@ class GateAdaptiveKey extends LocalKey {
 /// page builder. Handles absorption by iterating top-down and
 /// skipping the absorbed entries below a [GateAbsorbingPage].
 ///
-/// [wrap] turns a route + key + widget into a concrete [Page]. Hosts
-/// pass a function that applies their own page wrapper (typically a
-/// [MaterialPage], or whatever the host's user supplied).
+/// [wrap] turns a [GatePageWrapperContext] into a concrete [Page].
+/// Hosts pass a function that applies their own page wrapper
+/// (typically a [MaterialPage], or whatever the host's user
+/// supplied). The helper computes the wrapper context with each
+/// page's rendered position, total rendered length, and the route
+/// of the page below it (the rendered "previous", not the router
+/// stack's neighbour).
 ///
 /// Used internally by `GateRouterDelegate.adaptive` and by
 /// `GateInnerNavigator` (which is itself used by `GateBranch`,
@@ -239,24 +244,27 @@ List<Page<Object?>> buildAdaptivePages<R extends GateRoute>({
   required BuildContext context,
   required List<GateStackEntry<R>> entries,
   required GateAdaptivePageBuilder<R> builder,
-  required Page<Object?> Function(R route, LocalKey key, Widget widget) wrap,
+  required Page<Object?> Function(GatePageWrapperContext<R> ctx) wrap,
 }) {
   final stack = [for (final e in entries) e.route];
-  final pages = <Page<Object?>>[];
-  var i = stack.length - 1;
 
+  // First pass: top-down iteration collects (route, key, child)
+  // tuples for each rendered page. Each absorbing entry skips its
+  // absorbed neighbours below.
+  final tuples = <_RenderedPageTuple<R>>[];
+  var i = stack.length - 1;
   while (i >= 0) {
     final ctx = GateStackContext<R>(stack: stack, position: i);
     final result = builder(context, stack[i], ctx);
 
     switch (result) {
       case GateStandalonePage(:final widget):
-        pages.insert(
+        tuples.insert(
           0,
-          wrap(
-            stack[i],
-            GateAdaptiveKey(entries[i].id, entries[i].id),
-            widget,
+          _RenderedPageTuple<R>(
+            route: stack[i],
+            key: GateAdaptiveKey(entries[i].id, entries[i].id),
+            child: widget,
           ),
         );
         i--;
@@ -272,19 +280,50 @@ List<Page<Object?>> buildAdaptivePages<R extends GateRoute>({
           );
           lowestIdx = 0;
         }
-        pages.insert(
+        tuples.insert(
           0,
-          wrap(
-            stack[i],
-            GateAdaptiveKey(entries[lowestIdx].id, entries[i].id),
-            widget,
+          _RenderedPageTuple<R>(
+            route: stack[i],
+            key: GateAdaptiveKey(entries[lowestIdx].id, entries[i].id),
+            child: widget,
           ),
         );
         i = lowestIdx - 1;
     }
   }
 
-  return pages;
+  // Second pass: wrap each tuple with full rendered-stack context.
+  // `previous` is the route of the rendered page below this one
+  // (not the router-stack neighbour). For absorbing pages this is
+  // the route of the absorbing entry of the page below.
+  return [
+    for (var pos = 0; pos < tuples.length; pos++)
+      wrap(
+        GatePageWrapperContext<R>(
+          route: tuples[pos].route,
+          child: tuples[pos].child,
+          key: tuples[pos].key,
+          position: pos,
+          stackLength: tuples.length,
+          previous: pos > 0 ? tuples[pos - 1].route : null,
+        ),
+      ),
+  ];
+}
+
+/// Internal: a (route, key, child) tuple collected during the first
+/// pass of [buildAdaptivePages]. Held briefly so the second pass
+/// can attach rendered position and previous-route context.
+class _RenderedPageTuple<R extends GateRoute> {
+  _RenderedPageTuple({
+    required this.route,
+    required this.key,
+    required this.child,
+  });
+
+  final R route;
+  final LocalKey key;
+  final Widget child;
 }
 
 /// Extract a router-entry id from a removed page's key. Returns

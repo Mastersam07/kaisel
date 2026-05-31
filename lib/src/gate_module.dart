@@ -4,6 +4,7 @@ import 'gate_adaptive.dart';
 import 'gate_config.dart';
 import 'gate_guard.dart';
 import 'gate_inner_navigator.dart';
+import 'gate_page_wrapper.dart';
 import 'gate_module_codec.dart';
 import 'gate_route.dart';
 import 'gate_router.dart';
