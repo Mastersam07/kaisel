@@ -52,6 +52,8 @@ class GateInnerNavigator<R extends GateRoute> extends StatefulWidget {
 
 class _GateInnerNavigatorState<R extends GateRoute>
     extends State<GateInnerNavigator<R>> {
+  final HeroController _heroController = HeroController();
+
   @override
   void initState() {
     super.initState();
@@ -88,19 +90,22 @@ class _GateInnerNavigatorState<R extends GateRoute>
 
   @override
   Widget build(BuildContext context) {
-    return Navigator(
-      key: widget.navigatorKey,
-      observers: widget.observers,
-      pages: [
-        for (final entry in widget.router.entries)
-          _wrap(context, entry.route, ValueKey<int>(entry.id)),
-      ],
-      onDidRemovePage: (page) {
-        final key = page.key;
-        if (key is ValueKey<int>) {
-          widget.router.onPageRemoved(key.value);
-        }
-      },
+    return HeroControllerScope(
+      controller: _heroController,
+      child: Navigator(
+        key: widget.navigatorKey,
+        observers: widget.observers,
+        pages: [
+          for (final entry in widget.router.entries)
+            _wrap(context, entry.route, ValueKey<int>(entry.id)),
+        ],
+        onDidRemovePage: (page) {
+          final key = page.key;
+          if (key is ValueKey<int>) {
+            widget.router.onPageRemoved(key.value);
+          }
+        },
+      ),
     );
   }
 }

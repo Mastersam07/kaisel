@@ -35,7 +35,7 @@ class _FakeShellHandle extends ChangeNotifier implements GateNestedHandle {
   Type get configType => GateShellConfig;
 
   @override
-  GateNestedConfig captureConfig() => captureValue;
+  GateShellConfig captureConfig() => captureValue;
 
   @override
   Future<void> restoreFromConfig(GateNestedConfig config) async {
@@ -51,7 +51,7 @@ class _FakeModuleHandle extends ChangeNotifier implements GateNestedHandle {
   Type get configType => GateModuleConfig;
 
   @override
-  GateNestedConfig captureConfig() => captureValue;
+  GateModuleConfig captureConfig() => captureValue;
 
   @override
   Future<void> restoreFromConfig(GateNestedConfig config) async {
@@ -60,6 +60,8 @@ class _FakeModuleHandle extends ChangeNotifier implements GateNestedHandle {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('configType matches runtimeType', () {
     // The whole nested-host matching mechanism rests on
     //

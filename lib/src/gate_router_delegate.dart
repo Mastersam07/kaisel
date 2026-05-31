@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import 'gate_config.dart';
 import 'gate_inner_navigator.dart';
@@ -78,7 +79,7 @@ class GateRouterDelegate<R extends GateRoute>
     this.pageWrapper,
     this.modalBuilder,
   }) {
-    router.addListener(notifyListeners);
+    router.addListener(_safeNotifyListeners);
   }
 
   /// The router whose state drives this delegate.
@@ -112,8 +113,34 @@ class GateRouterDelegate<R extends GateRoute>
 
   final List<GateNestedHandle> _nested = <GateNestedHandle>[];
   GateNestedConfig? _pendingNested;
+  bool _isDisposed = false;
 
   GateNestedHandle? get _activeNested => _nested.isEmpty ? null : _nested.last;
+
+  /// Notify our listeners, deferring to after the current frame if
+  /// we're called from inside a build/layout/paint callback.
+  ///
+  /// The Router widget that owns this delegate listens to us and
+  /// synchronously calls `setState` in response. When a nested
+  /// router's State.didChangeDependencies fires during build and
+  /// triggers `registerNested`, a direct `notifyListeners()` would
+  /// reach that listener mid-build and throw "setState called during
+  /// build". Deferring sidesteps that without losing the update: the
+  /// post-frame callback fires before the next frame, and the URL bar
+  /// catches up one tick later.
+  void _safeNotifyListeners() {
+    if (_isDisposed) return;
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    final inFrame = phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks;
+    if (inFrame) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_isDisposed) notifyListeners();
+      });
+    } else {
+      notifyListeners();
+    }
+  }
 
   @override
   void registerNested(GateNestedHandle handle) {
@@ -126,7 +153,7 @@ class GateRouterDelegate<R extends GateRoute>
     if (existing >= 0) {
       _nested.removeAt(existing);
     } else {
-      handle.addListener(notifyListeners);
+      handle.addListener(_safeNotifyListeners);
     }
     _nested.add(handle);
 
@@ -135,7 +162,7 @@ class GateRouterDelegate<R extends GateRoute>
       _pendingNested = null;
       handle.restoreFromConfig(pending);
     }
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   @override
@@ -143,8 +170,8 @@ class GateRouterDelegate<R extends GateRoute>
     final index = _nested.indexWhere((h) => identical(h, handle));
     if (index < 0) return;
     _nested.removeAt(index);
-    handle.removeListener(notifyListeners);
-    notifyListeners();
+    handle.removeListener(_safeNotifyListeners);
+    _safeNotifyListeners();
   }
 
   @override
@@ -248,9 +275,10 @@ class GateRouterDelegate<R extends GateRoute>
 
   @override
   void dispose() {
-    router.removeListener(notifyListeners);
+    _isDisposed = true;
+    router.removeListener(_safeNotifyListeners);
     for (final handle in _nested) {
-      handle.removeListener(notifyListeners);
+      handle.removeListener(_safeNotifyListeners);
     }
     _nested.clear();
     super.dispose();
