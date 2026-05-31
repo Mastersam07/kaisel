@@ -621,6 +621,10 @@ Routing libraries that bake in `freezed` force codegen on every consumer. `gate`
 
 v0.12 is the current development line. The core surface (routes, guards, shells in both homogeneous and per-branch typed forms, modal flows with typed results and nesting, URL-addressable shell and module state, composable modules, module URL composition, adaptive layouts at the main delegate, shell branches, and module mounts, route-pair-aware page transitions, and a `GatePageScope` for descendants) is in place. Public API is shaped for stability but not frozen.
 
+## Roadmap
+
+See [`ROADMAP.md`](ROADMAP.md) for work being considered for future versions: state restoration via `RestorationManager`, a `gate_lint` analyzer plugin, a migration guide from `go_router` and `auto_route`, and a DevTools extension.
+
 ## Comparison
 
 For a longer-form motivation, see the companion article: *Flutter Routing Is a Pre-Dart-3 Design.*
