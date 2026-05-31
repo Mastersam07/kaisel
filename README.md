@@ -40,14 +40,15 @@ Dart 3 has had the type machinery to do better since 2023: sealed classes, exhau
 
 The architectural posture, in one line: **the route stack is a `List<R>`, navigation is list manipulation, the URL is an optional codec on top, guards are pure functions in a pipeline, modal flows are sub-routers with typed result completers, and features ship as composable `RouteModule`s mounted at marker routes.**
 
-## What you get in v0.6
+## What you get in v0.7
 
 - **Typed route stack** as `List<R>` over your sealed class.
 - **Default value equality** via `props`. No manual `==`/`hashCode`. No codegen.
 - **Guard pipeline** — `FutureOr<List<R>> Function(current, proposed)`. Composable, async-aware, pure-Dart testable.
 - **Shells** — `GateShell<R>` (homogeneous branches) and `GateBranchedShell` (per-branch typed routes), both with per-tab back stacks, scoped state, and proper back-button handling.
-- **Composable `RouteModule`s** (new in v0.6) — package a feature's routes as a `const`-friendly unit with its own sealed subtype, page builder, and guards. Mount with `GateModuleMount<R>`; the host's codec assembles URLs at whatever prefix it chooses.
+- **Composable `RouteModule`s** — package a feature's routes as a `const`-friendly unit with its own sealed subtype, page builder, guards, and (new in v0.7) URL codec. Mount with `GateModuleMount<R>`.
 - **URL-addressable shell *and* module state** — a URL like `/home/products/sku-42` deep-links into a branch stack; `/checkout/confirm` deep-links into a module's stack. Inactive branches keep their in-memory state across tab switches; modules keep theirs until unmounted.
+- **Module URL composition** (new in v0.7) — modules ship their own `ModuleStackCodec`; the host composes URL routing via `ConfigCodecWithModules` without duplicating each module's URL structure in its main codec. The host's main codec stays module-agnostic.
 - **Modal sub-flows with typed results** — `await router.run<T>(SomeFlow())` returns `Future<T?>`. The flow has its own internal stack; screens call `context.completeFlow<T>(value)` to resolve the awaiter.
 - **`GateConfigCodec<R>`** — the v0.5+ codec interface, parameterised by `GateConfig<R>` (main stack + optional shell *or* module state). A `StackToConfigCodec` adapter wraps v0.4 codecs unchanged.
 - **Unified `context.router<R>()`** — resolves to the flow router inside a modal, the branch router inside a branched shell, the module router inside a mount, the main router elsewhere.
@@ -55,14 +56,13 @@ The architectural posture, in one line: **the route stack is a `List<R>`, naviga
 - **Identity-preserving stack diff** — pushing one route doesn't rebuild others.
 - **Pure-Dart unit tests** for navigation state (no widget tree needed).
 
-## Deliberately not in v0.6
+## Deliberately not in v0.7
 
-Coming in v0.7+:
+Coming in v0.8+:
 
-- Adaptive layout policies on routes (master-detail responsive).
-- Direction-aware and shared-element transitions.
+- Adaptive layout policies on routes (master-detail responsive). Needs more design work — the natural API breaks the 1:1 stack-to-pages mapping the rest of the library assumes.
+- Direction-aware and shared-element transitions. Requires a breaking change to `GatePageWrapper`'s signature.
 - Nested modal flows (relaxing the v0.3 "one flow at a time" constraint).
-- A composition helper for prefix-based module URL routing (the host's codec currently assembles module URLs by hand).
 
 ## Usage
 
@@ -357,9 +357,9 @@ routeInformationParser: GateRouteInformationParser<AppRoute>(
 
 If you don't need URLs, don't implement either codec.
 
-### 7. Modules (v0.6)
+### 7. Modules
 
-A `RouteModule` packages a feature's routes as a `const`-friendly unit: its own sealed subtype, its own page builder, its own optional guards. The host mounts it with `GateModuleMount<R>` at a top-level route, and the host's codec decides how the module's URLs are assembled. The module doesn't know about the host's prefix.
+A `RouteModule` packages a feature's routes as a `const`-friendly unit: its own sealed subtype, its own page builder, its own optional guards, and (v0.7) its own optional URL codec. The host mounts the module at a top-level route and composes URL routing via `ConfigCodecWithModules`. The module doesn't know what prefix the host will mount it at.
 
 ```dart
 sealed class CheckoutRoute extends GateRoute { const CheckoutRoute(); }
@@ -384,6 +384,31 @@ class CheckoutModule extends RouteModule<CheckoutRoute> {
         CheckoutShipping() => const CheckoutShippingScreen(),
         CheckoutConfirm() => const CheckoutConfirmScreen(),
       };
+
+  @override
+  ModuleStackCodec<CheckoutRoute>? get codec =>
+      const CheckoutModuleCodec();
+}
+
+class CheckoutModuleCodec extends ModuleStackCodec<CheckoutRoute> {
+  const CheckoutModuleCodec();
+
+  @override
+  List<String> encode(List<CheckoutRoute> stack) => switch (stack.last) {
+    CheckoutCart() => const [],          // root: prefix alone
+    CheckoutShipping() => const ['shipping'],
+    CheckoutConfirm() => const ['confirm'],
+  };
+
+  @override
+  List<CheckoutRoute>? decode(List<String> segments) => switch (segments) {
+    [] => const [CheckoutCart()],
+    ['shipping'] => const [CheckoutCart(), CheckoutShipping()],
+    ['confirm'] => const [
+      CheckoutCart(), CheckoutShipping(), CheckoutConfirm(),
+    ],
+    _ => null,
+  };
 }
 ```
 
@@ -403,24 +428,22 @@ Widget _buildMainPage(BuildContext context, AppRoute route) =>
 
 Inside the module's screens, `context.router<CheckoutRoute>()` resolves to the module's typed router — pushing a `CheckoutShipping` typechecks; pushing an `AppRoute` is a compile error. `context.router<AppRoute>()` bypasses this scope and finds the host router above (same lookup-by-exact-type semantics as branched shells), which is how the module exits itself: `context.router<AppRoute>().pop()` pops `CheckoutMount` off the main stack.
 
-URLs are wired through the host's `GateConfigCodec`. A deep link to `/checkout/confirm` restores the full module stack `[Cart, Shipping, Confirm]` so back unwinds through the flow:
+Wire URLs via the composer — the host's main codec stays module-agnostic, and the module's codec handles paths under whatever prefix the host declares:
 
 ```dart
-GateConfig<AppRoute>? decode(Uri uri) => switch (uri.pathSegments) {
-  ['checkout'] => _moduleAt(const [CheckoutCart()]),
-  ['checkout', 'shipping'] =>
-    _moduleAt(const [CheckoutCart(), CheckoutShipping()]),
-  ['checkout', 'confirm'] => _moduleAt(
-      const [CheckoutCart(), CheckoutShipping(), CheckoutConfirm()],
+const appCodec = ConfigCodecWithModules<AppRoute>(
+  baseCodec: _MainAppCodec(),
+  modules: [
+    ModuleMount(
+      mountRoute: CheckoutMount(),
+      prefix: '/checkout',
+      codec: CheckoutModuleCodec(),
     ),
-  // ...
-};
-
-GateConfig<AppRoute> _moduleAt(List<GateRoute> stack) => GateConfig(
-      mainStack: const [CheckoutMount()],
-      nestedState: GateModuleConfig(stack: stack),
-    );
+  ],
+);
 ```
+
+A deep link to `/checkout/confirm` restores the full module stack `[Cart, Shipping, Confirm]` so back unwinds through the flow. Adding another module means appending to `modules` — no edits to the main codec.
 
 `GateConfig<R>.nestedState` is a sealed `GateNestedConfig` — either a `GateShellConfig` or a `GateModuleConfig`. The type system guarantees you can carry at most one nested kind on top of the main stack; no runtime assertion is needed. Pattern-match in your codec's `encode` to dispatch by `(topRoute, nestedState)`.
 

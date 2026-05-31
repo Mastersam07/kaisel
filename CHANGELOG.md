@@ -1,5 +1,115 @@
 # Changelog
 
+## 0.7.0 — Module URL composition
+
+One headline feature, additive. Modules can now ship their own URL
+codec; the host composes URL routing without duplicating each
+module's URL structure in its main codec.
+
+### Added
+
+- **`ModuleStackCodec<R>`** — codec for a module's URL structure,
+  relative to whatever prefix the host mounts it at. Module authors
+  subclass this to make their module URL-addressable. The host stays
+  unaware of the module's internal route types.
+
+  ```dart
+  class CheckoutModuleCodec extends ModuleStackCodec<CheckoutRoute> {
+    const CheckoutModuleCodec();
+
+    @override
+    List<String> encode(List<CheckoutRoute> stack) => switch (stack.last) {
+      CheckoutCart() => const [],
+      CheckoutShipping() => const ['shipping'],
+      CheckoutConfirm() => const ['confirm'],
+    };
+
+    @override
+    List<CheckoutRoute>? decode(List<String> segments) => switch (segments) {
+      [] => const [CheckoutCart()],
+      ['shipping'] => const [CheckoutCart(), CheckoutShipping()],
+      ['confirm'] => const [
+        CheckoutCart(), CheckoutShipping(), CheckoutConfirm(),
+      ],
+      _ => null,
+    };
+  }
+  ```
+
+  Conventions: `encode` of the module's root state returns
+  `const []` (the mount prefix is enough); `decode` of `const []`
+  returns the module's root stack; `decode` returns `null` for
+  unrecognised segments.
+
+- **`UntypedModuleStackCodec`** — the type-erased view of
+  `ModuleStackCodec`. Used by the composer so a single
+  `List<ModuleMount>` can hold codecs for modules with different
+  internal route types. Most app code references the typed
+  `ModuleStackCodec<R>` subclass instead.
+
+- **`ModuleMount<HostR>`** — a mount declaration: the host's marker
+  route, the URL prefix the module answers to, and the module's
+  URL codec. Used inside `ConfigCodecWithModules.modules` to wire
+  URL routing across module boundaries.
+
+- **`ConfigCodecWithModules<R>`** — a `GateConfigCodec` that
+  composes a base codec with one or more module mounts. URLs under
+  a mount's prefix go through the module's codec; everything else
+  delegates to the base codec.
+
+  ```dart
+  const appCodec = ConfigCodecWithModules<AppRoute>(
+    baseCodec: _MainAppCodec(),
+    modules: [
+      ModuleMount(
+        mountRoute: CheckoutMount(),
+        prefix: '/checkout',
+        codec: _CheckoutModuleCodec(),
+      ),
+    ],
+  );
+  ```
+
+  The host's main codec stops knowing about `/checkout/*` URLs —
+  the module ships that itself. Adding more modules means
+  appending to `modules`, not editing the main codec.
+
+- **`RouteModule.codec`** — new optional getter on `RouteModule`.
+  Returns the module's `ModuleStackCodec<R>` if the module is
+  URL-aware, `null` otherwise. The composer reads it via
+  `ModuleMount.codec` (passed separately so the mount can also
+  declare its prefix, which is the host's decision).
+
+### Compatibility
+
+Purely additive. v0.6 codecs that hand-roll `/module-prefix/*` URLs
+in their main codec keep working unchanged; the new composer is an
+opt-in convenience. Mixing approaches in one app is fine — the
+composer is just a `GateConfigCodec` like any other.
+
+### Decode semantics
+
+- A URL under a mount's prefix is given to the module's codec. If
+  the module codec returns `null`, the composer returns `null` —
+  it does NOT fall through to the base codec. The URL clearly
+  belongs to that module's namespace.
+- A URL with no matching mount prefix is given to the base codec.
+- `modules` is searched in order. List longer prefixes first if
+  you have nested-prefix collisions (`/checkout/v2` before
+  `/checkout`).
+
+### Deferred to 0.8+
+
+- Adaptive layout policies (master-detail responsive). Needs more
+  design work — the natural API breaks the 1:1 stack-to-pages
+  mapping the rest of the library assumes.
+- Direction-aware and shared-element transitions. Requires a
+  breaking change to `GatePageWrapper`'s signature.
+- Nested modal flows (relaxing the v0.3 "one flow at a time"
+  constraint).
+
+---
+
 ## 0.6.0 — Composable `RouteModule`s + unified nested-router state
 
 One headline feature, one structural cleanup. **Breaking changes

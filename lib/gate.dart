@@ -18,6 +18,12 @@ export 'src/gate_config.dart'
 export 'src/gate_guard.dart';
 export 'src/gate_inner_navigator.dart';
 export 'src/gate_module.dart' show GateModuleMount, RouteModule;
+export 'src/gate_module_codec.dart'
+    show
+        ConfigCodecWithModules,
+        ModuleMount,
+        ModuleStackCodec,
+        UntypedModuleStackCodec;
 export 'src/gate_route.dart';
 export 'src/gate_route_information_parser.dart';
 export 'src/gate_router.dart' show GateNavigator, GateRouter;

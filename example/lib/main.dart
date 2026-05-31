@@ -139,6 +139,38 @@ class CheckoutModule extends RouteModule<CheckoutRoute> {
         CheckoutShipping() => const _CheckoutShippingScreen(),
         CheckoutConfirm() => const _CheckoutConfirmScreen(),
       };
+
+  // v0.7: the module owns its own URL structure, relative to whatever
+  // prefix the host mounts it at. The host's main codec stays
+  // checkout-agnostic; ConfigCodecWithModules wires the prefix.
+  @override
+  ModuleStackCodec<CheckoutRoute>? get codec => const _CheckoutModuleCodec();
+}
+
+class _CheckoutModuleCodec extends ModuleStackCodec<CheckoutRoute> {
+  const _CheckoutModuleCodec();
+
+  @override
+  List<String> encode(List<CheckoutRoute> stack) => switch (stack.last) {
+    CheckoutCart() => const [],
+    CheckoutShipping() => const ['shipping'],
+    CheckoutConfirm() => const ['confirm'],
+  };
+
+  // A deep link to .../confirm restores the full [Cart, Shipping,
+  // Confirm] stack so back unwinds through the flow rather than
+  // popping straight out of the module.
+  @override
+  List<CheckoutRoute>? decode(List<String> segments) => switch (segments) {
+    [] => const [CheckoutCart()],
+    ['shipping'] => const [CheckoutCart(), CheckoutShipping()],
+    ['confirm'] => const [
+      CheckoutCart(),
+      CheckoutShipping(),
+      CheckoutConfirm(),
+    ],
+    _ => null,
+  };
 }
 
 // 2. Auth state
@@ -187,8 +219,11 @@ GateGuard<AppRoute> splashRedirectGuard(AuthState auth) {
 //   /profile             → MainShell, Profile tab
 //   /settings            → MainShell, Settings on top
 
-class AppCodec implements GateConfigCodec<AppRoute> {
-  const AppCodec();
+// The host's MAIN-stack codec. After v0.7 it doesn't know anything
+// about the Checkout module's URL structure — that ships with the
+// module. The composer below wires them together.
+class _MainAppCodec implements GateConfigCodec<AppRoute> {
+  const _MainAppCodec();
 
   static const _branchPrefixes = ['home', 'discover', 'profile'];
 
@@ -198,7 +233,6 @@ class AppCodec implements GateConfigCodec<AppRoute> {
     // their own. Encode the underlying state instead.
     final top = config.mainStack.last;
     if (top is ConfirmAddToCart || top is ConfirmAddToCartReview) {
-      // Build the config that would exist without the modal on top.
       final base = config.mainStack
           .where((r) => r is! ConfirmAddToCart && r is! ConfirmAddToCartReview)
           .toList();
@@ -209,23 +243,21 @@ class AppCodec implements GateConfigCodec<AppRoute> {
         ),
       );
     }
-    // Pattern-match on (top, nestedState) so the codec is a single
-    // exhaustive switch. The sealed GateNestedConfig lets each
-    // top-route declare which nested config kind belongs to it; a
-    // shell config under a CheckoutMount, or a module config under
-    // MainShell, would be a configuration error caught by the
-    // wildcard arm.
+    // CheckoutMount is intentionally absent from this switch — the
+    // composer ([ConfigCodecWithModules]) handles any URL whose top
+    // route is a registered module mount, BEFORE delegating to this
+    // base codec. By the time we get here, the top is non-module.
     return switch ((top, config.nestedState)) {
       (Splash(), _) => Uri(path: '/'),
       (Login(), _) => Uri(path: '/login'),
       (Settings(), _) => Uri(path: '/settings'),
       (MainShell(), final GateShellConfig shell) => _encodeShell(shell),
       (MainShell(), _) => Uri(path: '/home'),
-      (CheckoutMount(), final GateModuleConfig module) => _encodeCheckout(
-        module,
-      ),
-      (CheckoutMount(), _) => Uri(path: '/checkout'),
       (ConfirmAddToCart() || ConfirmAddToCartReview(), _) => Uri(path: '/'),
+      // CheckoutMount can't reach here in normal flow — the composer
+      // catches it first. The fall-through is for defensive
+      // exhaustiveness.
+      (CheckoutMount(), _) => Uri(path: '/'),
     };
   }
 
@@ -251,21 +283,10 @@ class AppCodec implements GateConfigCodec<AppRoute> {
     };
   }
 
-  // Encode the checkout module's stack at the /checkout prefix.
-  // The module's routes are type-erased to GateRoute when they ride
-  // nestedState; pattern match still works because the runtime types
-  // are concrete (CheckoutCart, CheckoutShipping, CheckoutConfirm).
-  Uri _encodeCheckout(GateModuleConfig module) {
-    return switch (module.stack.last) {
-      CheckoutCart() => Uri(path: '/checkout'),
-      CheckoutShipping() => Uri(path: '/checkout/shipping'),
-      CheckoutConfirm() => Uri(path: '/checkout/confirm'),
-      _ => Uri(path: '/checkout'),
-    };
-  }
-
   @override
   GateConfig<AppRoute>? decode(Uri uri) {
+    // The composer has already attempted module mounts before
+    // delegating here, so /checkout/* URLs never reach this method.
     return switch (uri.pathSegments) {
       [] || [''] => GateConfig(mainStack: const [Splash()]),
       ['login'] => GateConfig(mainStack: const [Login()]),
@@ -281,20 +302,6 @@ class AppCodec implements GateConfigCodec<AppRoute> {
         FeedItem(id),
       ]),
       ['profile'] => _shellAt(2, const [ProfileRoot()]),
-      // Checkout module URLs. The mainStack lands at CheckoutMount;
-      // the nestedState carries the module's own stack. A deep link
-      // to /checkout/confirm restores the full stack [Cart, Shipping,
-      // Confirm] so back unwinds through the flow.
-      ['checkout'] => _moduleAt(const [CheckoutCart()]),
-      ['checkout', 'shipping'] => _moduleAt(const [
-        CheckoutCart(),
-        CheckoutShipping(),
-      ]),
-      ['checkout', 'confirm'] => _moduleAt(const [
-        CheckoutCart(),
-        CheckoutShipping(),
-        CheckoutConfirm(),
-      ]),
       _ => null,
     };
   }
@@ -307,12 +314,25 @@ class AppCodec implements GateConfigCodec<AppRoute> {
           activeBranchStack: stack,
         ),
       );
-
-  GateConfig<AppRoute> _moduleAt(List<GateRoute> stack) => GateConfig(
-    mainStack: const [CheckoutMount()],
-    nestedState: GateModuleConfig(stack: stack),
-  );
 }
+
+// v0.7: the composer. Takes a base codec for main-stack routes plus a
+// list of module mounts. URLs under a mount's prefix go through the
+// module's own codec; everything else falls through to the base.
+//
+// Each module's URL structure lives inside the module — _MainAppCodec
+// is checkout-agnostic. Adding more modules means appending to
+// [modules], not editing the main codec.
+const appCodec = ConfigCodecWithModules<AppRoute>(
+  baseCodec: _MainAppCodec(),
+  modules: [
+    ModuleMount(
+      mountRoute: CheckoutMount(),
+      prefix: '/checkout',
+      codec: _CheckoutModuleCodec(),
+    ),
+  ],
+);
 
 // 5. Wire it up.
 //
@@ -339,7 +359,7 @@ void main() {
         modalBuilder: _buildModal,
       ),
       routeInformationParser: GateRouteInformationParser<AppRoute>(
-        codec: const AppCodec(),
+        codec: appCodec,
         fallback: const [Splash()],
       ),
     ),

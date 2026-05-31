@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'gate_config.dart';
 import 'gate_guard.dart';
 import 'gate_inner_navigator.dart';
+import 'gate_module_codec.dart';
 import 'gate_route.dart';
 import 'gate_router.dart';
 import 'gate_router_delegate.dart';
@@ -80,6 +81,17 @@ abstract class RouteModule<R extends GateRoute> {
   /// Optional override of how each route becomes a [Page]. Defaults
   /// to [MaterialPage].
   GatePageWrapper<R>? get pageWrapper => null;
+
+  /// Optional URL codec for this module.
+  ///
+  /// If provided, the host can use a [ConfigCodecWithModules]
+  /// composer to wire URLs automatically without duplicating the
+  /// module's URL structure in the host's main codec. If `null`, the
+  /// host's main codec is fully responsible for any URL handling
+  /// involving this module's routes — the v0.6 pattern.
+  ///
+  /// New in v0.7.
+  ModuleStackCodec<R>? get codec => null;
 }
 
 /// Thin adapter that exposes a [GateRouter] as a non-generic
