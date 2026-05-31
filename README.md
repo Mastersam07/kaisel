@@ -557,7 +557,7 @@ class ShopModule extends RouteModule<ShopRoute> {
 
 Two things worth knowing about page identity:
 
-- Absorbing pages are keyed by the *lowest* absorbed entry's id, not the absorbing entry's. Going from `[List, DetailA]` to `[List, DetailB]` produces pages with equal keys; the Navigator doesn't animate a transition, the detail pane content just updates. Wrap the swapping content in an `AnimatedSwitcher` if you want a fade between details.
+- Absorbing pages are keyed by the *lowest* absorbed entry's id, not the absorbing entry's. Going from `[List, DetailA]` to `[List, DetailB]` produces pages with equal keys; the Navigator doesn't animate a transition, the detail pane content just updates. Wrap the swapping content in an `AnimatedSwitcher` if you want a fade between details. Note that the transition is `replace`-shaped, not `push`-shaped: a `router.push(DetailB)` from `[List, DetailA]` produces `[List, DetailA, DetailB]` (three entries, the new top has another `Detail` below it, so the absorbing arm doesn't match and the page slides in). Use `router.replace(DetailB)` when the current top is already a detail.
 - The pop target is the top absorbing entry. OS back on `[List, Detail]` absorbed pops Detail, leaving `[List]`. Back means "undo the last push" regardless of visual rendering. At the main delegate, this needs a `popRoute` override because `Navigator.maybePop` declines when there's only one visible page (see v0.8 changelog). At the shell branch and module level, `PopScope` calls `router.pop()` directly, so absorbing-collapsed-to-1-page is handled by construction.
 
 ## Why no equality codegen

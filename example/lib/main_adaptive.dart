@@ -162,11 +162,40 @@ class BookListScreen extends StatelessWidget {
             title: Text(book.title),
             subtitle: Text(book.author),
             trailing: Text('\$${book.price.toStringAsFixed(2)}'),
-            onTap: () => context.router<BookRoute>().push(BookDetail(book.id)),
+            onTap: () => _selectBook(context, book.id),
           );
         },
       ),
     );
+  }
+}
+
+// Tapping a book in the list:
+//
+// - From `[BookList]` (no detail visible yet): push so the stack
+//   becomes `[BookList, BookDetail(id)]`. At narrow widths this is
+//   a slide-in. At wide widths, the absorbing pipeline collapses
+//   the two into a single master-detail page.
+//
+// - From `[BookList, BookDetail(other)]` (a detail is already on
+//   top): REPLACE the top entry, not push. The stack stays at
+//   depth 2 and just swaps the top route. Both states key on
+//   BookList's entry id, so the Navigator treats them as the same
+//   page and the master-detail's detail pane updates in place
+//   without a slide.
+//
+// Replacing instead of pushing is what gives master-detail its
+// in-place feel. If we always pushed, the stack would grow
+// (`[List, DetailA, DetailB, DetailC, ...]`) and each tap would
+// animate a slide because the new top route's previous neighbour
+// is another Detail, not BookList, so it doesn't match the
+// absorbing arm.
+void _selectBook(BuildContext context, String id) {
+  final router = context.router<BookRoute>();
+  if (router.current is BookDetail) {
+    router.replace(BookDetail(id));
+  } else {
+    router.push(BookDetail(id));
   }
 }
 
