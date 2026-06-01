@@ -1,5 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:gate/gate.dart';
+import 'package:gate_core/gate_core.dart';
+import 'package:test/test.dart';
 
 // Test fixtures: a tiny sealed route type using v0.2's default
 // props-based equality. No manual == / hashCode needed.
