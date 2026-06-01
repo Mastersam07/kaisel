@@ -6,7 +6,7 @@
     "configurations": [
         {
             "name": "[MOBILE] example",
-            "cwd": "example",
+            "cwd": "packages/gate/example",
             "request": "launch",
             "type": "dart",
             "args": [
@@ -16,7 +16,7 @@
         },
         {
             "name": "[MOBILE ADAPTIVE] example",
-            "cwd": "example",
+            "cwd": "packages/gate/example",
             "request": "launch",
             "type": "dart",
             "args": [
@@ -26,7 +26,7 @@
         },
         {
             "name": "[ADAPTIVE] example",
-            "cwd": "example",
+            "cwd": "packages/gate/example",
             "request": "launch",
             "type": "dart",
             "args": [
@@ -36,7 +36,7 @@
         },
         {
             "name": "[MOBILE NESTED FLOWS] example",
-            "cwd": "example",
+            "cwd": "packages/gate/example",
             "request": "launch",
             "type": "dart",
             "args": [
@@ -46,7 +46,7 @@
         },
         {
             "name": "[NESTED FLOWS] example",
-            "cwd": "example",
+            "cwd": "packages/gate/example",
             "request": "launch",
             "type": "dart",
             "args": [
@@ -56,7 +56,7 @@
         },
         {
             "name": "[MOBILE TRANSITIONS] example",
-            "cwd": "example",
+            "cwd": "packages/gate/example",
             "request": "launch",
             "type": "dart",
             "args": [
@@ -66,7 +66,7 @@
         },
         {
             "name": "[TRANSITIONS] example",
-            "cwd": "example",
+            "cwd": "packages/gate/example",
             "request": "launch",
             "type": "dart",
             "args": [
@@ -76,7 +76,7 @@
         },
          {
             "name": "[MOBILE SHELL ADAPTIVE] example",
-            "cwd": "example",
+            "cwd": "packages/gate/example",
             "request": "launch",
             "type": "dart",
             "args": [
@@ -86,7 +86,7 @@
         },
         {
             "name": "[SHELL ADAPTIVE] example",
-            "cwd": "example",
+            "cwd": "packages/gate/example",
             "request": "launch",
             "type": "dart",
             "args": [
