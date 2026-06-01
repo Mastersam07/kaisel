@@ -1,5 +1,5 @@
 # gate
-[![codecov](https://codecov.io/gh/Mastersam07/gate/graph/badge.svg?token=tHYIe4iPGo)](https://codecov.io/gh/Mastersam07/gate)
+[![codecov](https://codecov.io/gh/Mastersam07/gate/branch/dev/graph/badge.svg?token=tHYIe4iPGo)](https://codecov.io/gh/Mastersam07/gate)
 
 A Dart 3-native Flutter router built on sealed routes, pattern matching, and a stack-as-state model. **No string paths. No codegen.**
 

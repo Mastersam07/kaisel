@@ -9,7 +9,7 @@ import 'gate_router.dart';
 /// `RouterScope` is installed in three places:
 ///
 /// - by the main [GateRouterDelegate], at the root of the app;
-/// - by [GateShell] (v0.2), once per branch, with that branch's router;
+/// - by [GateShell], once per branch, with that branch's router;
 /// - by [GateRouterDelegate] when rendering an active modal flow, with
 ///   the flow's sub-router.
 ///

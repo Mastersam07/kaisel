@@ -7,10 +7,10 @@ import 'gate_route.dart';
 /// of your sealed types; URLs are a separate projection of those types,
 /// implemented here.
 ///
-/// v0.1 maps the top of the stack to a URL and back. Multi-route URL
-/// encoding (so a deep link can restore a full stack like
-/// `/products/42/reviews/new`) is a v0.2 concern — for now, deep links
-/// land on a single route and you push the rest in app code if needed.
+/// This is the legacy single-route codec: it maps the top of the stack
+/// to a URL and back. For deep links that restore a multi-frame stack
+/// (e.g. `/products/42/reviews/new` → `[Home, Product, Reviews]`), use
+/// [GateStackCodec] instead.
 ///
 /// Example:
 ///

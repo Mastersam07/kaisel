@@ -175,9 +175,8 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
 
   /// Replace the top route on the stack. Runs through guards.
   ///
-  /// Renamed from `replace` in v0.11 for self-documentation. The
-  /// method only ever touches the top entry; longer-form `replaceTop`
-  /// makes that immediate at the call site.
+  /// Only ever touches the top entry; the rest of the stack is
+  /// untouched.
   Future<void> replaceTop(R route) => _enqueue(() {
     final next = [...stack];
     if (next.isEmpty) {
@@ -210,8 +209,6 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
   /// route case where every detail variant shares one type. Pass
   /// an explicit predicate for finer control (or `(_) => false` to
   /// force a push, equivalent to calling [push] directly).
-  ///
-  /// New in v0.11.
   Future<void> pushOrReplaceTop(R route, {bool Function(R current)? when}) {
     final predicate = when ?? ((c) => c.runtimeType == route.runtimeType);
     if (stack.isEmpty || !predicate(current)) {
@@ -293,8 +290,9 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
   /// flow is dismissed without an explicit completion (e.g. by tapping
   /// outside the modal, system back at the flow root, or [dismissFlow]).
   ///
-  /// Throws [StateError] if a flow is already active — v0.3 does not
-  /// support nested flows.
+  /// Nested flows are supported: calling [run] while another flow is
+  /// active pushes a new flow on top, and flows complete in LIFO order
+  /// (see [completeFlow]).
   ///
   /// Guards on the main router are **not** rerun when starting a flow
   /// (a flow is its own transient state, not a navigation on the main
@@ -453,8 +451,6 @@ class _ActiveFlow<R extends GateRoute> {
 /// layer per active flow. The flow's defining route and its
 /// sub-router are visible here; the completer is private to the
 /// router so callers can't bypass the LIFO completion discipline.
-///
-/// New in v0.10.
 @immutable
 class GateActiveFlow<R extends GateRoute> {
   const GateActiveFlow._(this.route, this.router);

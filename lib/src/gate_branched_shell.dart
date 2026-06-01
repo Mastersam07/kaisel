@@ -11,7 +11,7 @@ import 'gate_scope.dart';
 
 /// Aggregator for a shell whose branches have **different** route types.
 ///
-/// Where [ShellRouter] (v0.2 / v0.3) requires every branch to share a
+/// Where [ShellRouter] requires every branch to share a
 /// single route type, `BranchedShellRouter` lets you keep one sealed
 /// type per branch and have the compiler enforce that you never push
 /// a `DiscoverRoute` into the Home tab:
@@ -172,8 +172,6 @@ class GateBranch<R extends GateRoute> extends StatefulWidget {
   /// [pageBuilder]. The builder receives a [GateStackContext] for
   /// each entry so it can return [GateAbsorbingPage] to collapse
   /// the master into the detail at wide breakpoints.
-  ///
-  /// New in v0.9.
   const GateBranch.adaptive({
     super.key,
     required this.router,

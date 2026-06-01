@@ -295,7 +295,7 @@ List<Page<Object?>> buildAdaptivePages<R extends GateRoute>({
   // (not the router-stack neighbour). For absorbing pages this is
   // the route of the absorbing entry of the page below.
   //
-  // The child is also wrapped in a GatePageScope (v0.12) before
+  // The child is also wrapped in a GatePageScope before
   // being passed to the wrap callback, so descendants of the
   // page's content can read navigation context via
   // GatePageScope.of(context).

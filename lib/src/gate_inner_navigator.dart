@@ -21,7 +21,7 @@ import 'gate_router_delegate.dart';
 /// if you're building your own router-aware composite widget, this
 /// is the right primitive to embed.
 ///
-/// Adaptive (v0.9): pass [adaptivePageBuilder] instead of
+/// Adaptive: pass [adaptivePageBuilder] instead of
 /// [pageBuilder] to enable the adaptive pipeline inside this inner
 /// navigator. Exactly one of the two must be provided.
 class GateInnerNavigator<R extends GateRoute> extends StatefulWidget {
@@ -57,8 +57,6 @@ class GateInnerNavigator<R extends GateRoute> extends StatefulWidget {
   /// can return [GateAbsorbingPage] to collapse entries below it
   /// into one rendered page (master-detail at wide breakpoints).
   /// Null when [pageBuilder] is used.
-  ///
-  /// New in v0.9.
   final GateAdaptivePageBuilder<R>? adaptivePageBuilder;
 
   /// Optional override of how each route is wrapped as a [Page].

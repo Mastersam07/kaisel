@@ -8,12 +8,13 @@ import 'gate_stack_codec.dart';
 /// Parses incoming route information (URLs, deep links, restored state)
 /// into a [GateConfig] for the delegate to apply.
 ///
-/// In v0.5+ the configuration type is [GateConfig] so URLs can carry
+/// The configuration type is [GateConfig] so URLs can carry
 /// nested-router state (a branched shell's branch+stack, or a mounted
-/// module's stack) in addition to the main stack. Migration paths:
+/// module's stack) in addition to the main stack. Three ways to wire
+/// the codec:
 ///
-/// * **Stack-only URLs** (the v0.4 default): wrap your existing
-///   [GateStackCodec] via `GateRouteInformationParser.fromStackCodec`.
+/// * **Stack-only URLs**: wrap your existing [GateStackCodec] via
+///   `GateRouteInformationParser.fromStackCodec`.
 /// * **Nested URLs**: write a [GateConfigCodec] that returns
 ///   [GateConfig] with a non-null `nestedState` (a [GateShellConfig]
 ///   or [GateModuleConfig]) for paths that address into the nested
@@ -38,8 +39,8 @@ class GateRouteInformationParser<R extends GateRoute>
          'fallback stack must contain at least one route',
        );
 
-  /// Migration helper: accept a v0.4 [GateStackCodec] and treat URLs
-  /// as stack-only (no shell state ever round-trips through the URL).
+  /// Accept a [GateStackCodec] and treat URLs as stack-only (no shell
+  /// state ever round-trips through the URL).
   GateRouteInformationParser.fromStackCodec({
     required GateStackCodec<R> codec,
     required List<R> fallback,

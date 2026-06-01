@@ -45,7 +45,7 @@ abstract class GateStackCodec<R extends GateRoute> {
   List<R>? decode(Uri uri);
 }
 
-/// Adapts a single-route [GateCodec] (v0.1 / v0.2) to the multi-route
+/// Adapts a single-route [GateCodec] to the multi-route
 /// [GateStackCodec] interface. Useful for migrating without rewriting
 /// your codec.
 class GateSingleStackCodec<R extends GateRoute> implements GateStackCodec<R> {

@@ -12,11 +12,6 @@ import 'gate_route.dart';
 /// route, etc.). Pattern-match on `(ctx.route, ctx.previous)` to
 /// pick transitions based on the route pair, not just the
 /// destination.
-///
-/// Signature changed in v0.11: previously took three positional
-/// arguments `(route, child, key)`. The context object opens room
-/// for the wrapper to see what it's transitioning from, which is
-/// what direction-aware transitions need.
 typedef GatePageWrapper<R extends GateRoute> =
     Page<Object?> Function(GatePageWrapperContext<R> ctx);
 
@@ -43,8 +38,6 @@ typedef GatePageWrapper<R extends GateRoute> =
 /// pages-list diff. The wrapper picks the *style* of transition
 /// (which [Page] subclass to construct); the framework picks the
 /// direction (run forward on add, reverse on remove).
-///
-/// New in v0.11.
 @immutable
 class GatePageWrapperContext<R extends GateRoute> {
   /// Build a wrapper context. Internal to the framework. User code

@@ -37,8 +37,6 @@ import 'gate_route.dart';
 /// `GatePageWrapperContext.child`, so a wrapper that does
 /// `Page(child: ctx.child)` automatically propagates the scope into
 /// the page's content.
-///
-/// New in v0.12.
 @immutable
 class GatePageScope extends InheritedWidget {
   /// Build a page scope. Internal to the framework. User code reads

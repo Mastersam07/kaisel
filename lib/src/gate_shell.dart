@@ -15,7 +15,7 @@ import 'gate_scope.dart';
 /// active branch index. Each branch has its own stack and lifecycle.
 /// Branches share the route type [R]; you constrain "what's valid on
 /// which tab" through your pattern-matched [GatePageBuilder] and your
-/// own discipline. (Per-branch typed routes are a v0.4 concern.)
+/// own discipline. For per-branch typed routes, see [GateBranchedShell].
 class ShellRouter<R extends GateRoute> extends ChangeNotifier {
   /// Create a shell with one router per [branchInitials].
   ShellRouter({
@@ -126,8 +126,6 @@ class GateShell<R extends GateRoute> extends StatefulWidget {
   /// the same across branches in [GateShell]). For per-branch
   /// adaptive configuration use [GateBranchedShell] with
   /// [GateBranch.adaptive].
-  ///
-  /// New in v0.9.
   const GateShell.adaptive({
     super.key,
     required this.branchInitials,
@@ -307,8 +305,7 @@ extension GateShellBuildContextX on BuildContext {
   /// [GateShell]. Equivalent to `context.router<R>()` when inside a
   /// shell.
   ///
-  /// Kept for v0.2 source compatibility; new code should use
-  /// `context.router<R>()`.
+  /// Prefer `context.router<R>()` in new code.
   GateRouter<R> branchRouter<R extends GateRoute>() =>
       ShellScope.of<R>(this).shellRouter.current;
 

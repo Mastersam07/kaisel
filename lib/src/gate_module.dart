@@ -57,10 +57,10 @@ import 'gate_scope.dart';
 /// };
 /// ```
 ///
-/// URL handling lives in the host's [GateConfigCodec], which decides
-/// how the module's stack maps to URL segments. v0.6 doesn't impose
-/// a mount-prefix convention; the host's codec is the single place
-/// where module URLs are assembled.
+/// A module can ship its own [ModuleStackCodec] (see [codec]) so the
+/// host can compose URLs with [ConfigCodecWithModules] without knowing
+/// the module's internal URL structure. Modules without a codec are
+/// URL-handled entirely by the host's own [GateConfigCodec].
 abstract class RouteModule<R extends GateRoute> {
   /// Const constructor so subclasses can be `const`.
   const RouteModule();
@@ -85,8 +85,6 @@ abstract class RouteModule<R extends GateRoute> {
   /// and the layout breakpoint to decide between
   /// [GateStandalonePage] and [GateAbsorbingPage]. See
   /// `GateRouterDelegate.adaptive` for the canonical example.
-  ///
-  /// New in v0.9.
   GatePageResult buildAdaptivePage(
     BuildContext context,
     R route,
@@ -104,8 +102,6 @@ abstract class RouteModule<R extends GateRoute> {
   /// [buildAdaptivePage] still works (the default returns a
   /// standalone page); the difference is that the inner navigator
   /// goes through the adaptive pipeline rather than the simple one.
-  ///
-  /// New in v0.9.
   bool get isAdaptive => false;
 
   /// Guards run on the module's internal navigation. Module guards
@@ -123,9 +119,7 @@ abstract class RouteModule<R extends GateRoute> {
   /// composer to wire URLs automatically without duplicating the
   /// module's URL structure in the host's main codec. If `null`, the
   /// host's main codec is fully responsible for any URL handling
-  /// involving this module's routes (the v0.6 pattern).
-  ///
-  /// New in v0.7.
+  /// involving this module's routes.
   ModuleStackCodec<R>? get codec => null;
 }
 

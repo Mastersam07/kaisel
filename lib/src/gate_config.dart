@@ -218,7 +218,7 @@ abstract class GateConfigCodec<R extends GateRoute> {
   GateConfig<R>? decode(Uri uri);
 }
 
-/// Adapter so a v0.4 [GateStackCodec] (stack-only URLs) works wherever
+/// Adapter so a [GateStackCodec] (stack-only URLs) works wherever
 /// a [GateConfigCodec] is required.
 ///
 /// Useful for migrating apps that don't need nested URLs yet — wrap

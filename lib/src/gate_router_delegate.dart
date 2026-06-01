@@ -25,9 +25,6 @@ import 'gate_scope.dart';
 typedef GatePageBuilder<R extends GateRoute> =
     Widget Function(BuildContext context, R route);
 
-/// Optional signature for customising how a route becomes a [Page].
-/// See [GatePageWrapper] and [GatePageWrapperContext].
-
 /// Signature for rendering a modal flow over the main UI.
 ///
 /// Given the [GateModalRoute] that defined the flow (so you can pattern
@@ -114,8 +111,6 @@ class GateRouterDelegate<R extends GateRoute>
   /// its routes is built by calling the adaptive builder with a
   /// single-entry stack context and using just the widget; the
   /// `absorbing` count is ignored in that path.
-  ///
-  /// New in v0.8.
   GateRouterDelegate.adaptive({
     required this.router,
     required GateAdaptivePageBuilder<R> builder,
@@ -129,11 +124,11 @@ class GateRouterDelegate<R extends GateRoute>
   /// The router whose state drives this delegate.
   final GateRouter<R> router;
 
-  /// Simple page builder (v0.7 style). Null when [GateRouterDelegate.adaptive]
+  /// Simple page builder. Null when [GateRouterDelegate.adaptive]
   /// was used.
   final GatePageBuilder<R>? _builder;
 
-  /// Adaptive page builder (v0.8). Null when the default constructor
+  /// Adaptive page builder. Null when the default constructor
   /// was used.
   final GateAdaptivePageBuilder<R>? _adaptiveBuilder;
 
@@ -468,8 +463,8 @@ class GateRouterDelegate<R extends GateRoute>
   }
 
   void _onDidRemovePage(Page<Object?> page) {
-    // See notes in v0.4: Navigator-driven pops sync our state, but
-    // guards do NOT rerun on this path. That's by design.
+    // Navigator-driven pops sync our state, but guards do NOT rerun
+    // on this path. That's by design.
     final entryId = adaptiveEntryIdFromPageKey(page.key);
     if (entryId != null) {
       router.onPageRemoved(entryId);
