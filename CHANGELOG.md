@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.12.0: Page scope for descendants
+## 0.12.0 — Page scope for descendants
 
-A small additive release: framework-provided
+An additive release: a framework-provided
 `GatePageScope` `InheritedWidget` exposes the wrapper context to
 descendant widgets. v0.11 gave the page-wrapping layer enough info
 to choose transitions; v0.12 gives the descendant widgets enough
@@ -66,11 +66,11 @@ wants descendants to see it. The common pattern of
 
 ---
 
-## 0.11.0: Direction-aware transitions and adaptive ergonomics
+## 0.11.0 — Direction-aware transitions and adaptive ergonomics
 
-Two changes. The headline is the breaking-but-deferred wrapper
-signature change that unblocks direction-aware transitions. The
-follow-up is the adaptive demo's exposed papercut.
+Two changes. The headline is a breaking change to the page-wrapper
+signature that enables direction-aware transitions. The second adds
+`pushOrReplaceTop` for in-place master-detail swaps.
 
 ### Direction-aware transitions
 
@@ -148,7 +148,7 @@ example directory.
 
 ---
 
-## 0.10.0: Nested modal flows
+## 0.10.0 — Nested modal flows
 
 v0.3 introduced `router.run<T>(...)` for typed modal sub-flows but
 restricted to one flow at a time. A second `run` call threw a
@@ -211,25 +211,23 @@ at a time.
 
 ### Example app
 
-A second entry point demonstrates the adaptive pipeline:
-`example/lib/main_adaptive.dart`. A book catalogue with master-detail
-behaviour at wide widths; the route stack stays the same while the
-rendering switches between absorbed and stacked layouts as you
-resize. Run with `flutter run -t lib/main_adaptive.dart` from the
-example directory. See `example/README.md`.
+`example/lib/main_nested_flows.dart` demonstrates nested flows: a
+payment flow opens an "add card" flow on top of itself, with both
+modal layers visible at once. Run with
+`flutter run -t lib/main_nested_flows.dart` from the example
+directory. See `example/README.md`.
 
 ---
 
-## 0.9.0: Adaptive layouts inside shells and modules
+## 0.9.0 — Adaptive layouts inside shells and modules
 
-The v0.8 release shipped adaptive layouts at the main `GateRouterDelegate`,
-which is the wrong level for the most common use case. Master-detail
-almost always lives inside a shell tab (a "products" tab whose list
-and detail collapse at wide widths) or inside a feature module (a
-checkout flow's review/summary side-by-side at wide widths). v0.9
-plumbs the adaptive pipeline through the inner navigator shared by
-`GateBranch`, `GateShell`, and `GateModuleMount`, so any of them
-can render absorbing pages.
+v0.9 extends the adaptive pipeline from the main `GateRouterDelegate`
+(v0.8) into nested routers. Master-detail most often lives inside a
+shell tab (a "products" tab whose list and detail collapse at wide
+widths) or inside a feature module (a checkout flow's review/summary
+side-by-side at wide widths), so v0.9 plumbs the adaptive pipeline
+through the inner navigator shared by `GateBranch`, `GateShell`, and
+`GateModuleMount` — any of them can now render absorbing pages.
 
 Additive: v0.8 code still compiles and runs unchanged.
 
@@ -323,17 +321,16 @@ Additive: v0.8 code still compiles and runs unchanged.
   app introspected the field, switch to constructing through the
   named constructors as before.
 - The adaptive page-key type, `GateAdaptiveKey`, and the shared
-  iteration helper `buildAdaptivePages` have moved from the
-  delegate's file into `gate_adaptive.dart`. They aren't part of
-  the public barrel. Listed here only because some internals
-  reading code might notice the file location change.
+  iteration helper `buildAdaptivePages` moved from the delegate's
+  file into `gate_adaptive.dart`. Neither is part of the public
+  barrel; noted only for anyone reading the internals.
 
 ### Pop semantics inside shells and modules
 
 Shells and modules use `PopScope` + `router.pop()` directly to
 handle the Android back gesture. They don't go through the
-mixin's `popRoute` → `Navigator.maybePop` path that bit the main
-delegate in v0.8. The PopScope's `canPop` reads `router.canPop`,
+mixin's `popRoute` → `Navigator.maybePop` path the main
+delegate uses (see v0.8). The PopScope's `canPop` reads `router.canPop`,
 which reflects the logical stack regardless of how many visible
 pages absorption produced. So absorbing inside a shell branch or
 module is correctly back-poppable by construction. No
@@ -353,7 +350,7 @@ module is correctly back-poppable by construction. No
 
 ---
 
-## 0.8.0: Adaptive layouts
+## 0.8.0 — Adaptive layouts
 
 The headline is `GateRouterDelegate.adaptive`, a new constructor that
 takes a stack-aware page builder. Adaptive page builders can decide
@@ -441,7 +438,7 @@ leaving `[List]`. This is what users expect: back means "undo the
 last push" regardless of how the stack happens to be visually
 rendered.
 
-There's one wrinkle here. When absorption collapses everything to
+One edge case: when absorption collapses everything to
 a single visible page, Flutter's `Navigator.maybePop` returns false
 because there's no route below the current one. In v0.8,
 [GateRouterDelegate.popRoute] tries the Navigator first and falls
@@ -453,21 +450,21 @@ out of the app instead of unwinding the logical stack. The simple
 
 ### Scope and limitations
 
-- Adaptive is currently available at the main `GateRouterDelegate`
-  only. Per-branch typed shells (`GateBranchedShell`) and modules
-  (`RouteModule`) still use the simple per-route builder. Adding
-  adaptive support to nested routers is tracked for v0.9+.
+- At this release, adaptive layouts are available at the main
+  `GateRouterDelegate` only. Per-branch typed shells
+  (`GateBranchedShell`) and modules (`RouteModule`) still use the
+  simple per-route builder.
 - The simple `GatePageBuilder` is still the default. The base
   `GateRouterDelegate(...)` constructor is unchanged.
 - A user-supplied `pageWrapper` works with adaptive pages but
   doesn't get any signal that a page is absorbing. The wrapper
   sees the absorbing entry's route and the absorbed entry's key.
   If you need to know inside your wrapper, switch to standalone
-  pages or contribute a `pageWrapper` API extension in v0.9.
+  pages.
 
 ---
 
-## 0.7.0: Module URL composition
+## 0.7.0 — Module URL composition
 
 One headline feature, additive. Modules can now ship their own URL
 codec; the host composes URL routing without duplicating each
@@ -671,21 +668,20 @@ from v0.5** — the configuration's nested-state field changed shape.
 
 ### Why the cleanup
 
-The two-slot model (`shellState`, `moduleState`) was an additive
-choice that preserved v0.5 source compatibility. With no users in
-the wild yet, that compatibility wasn't worth the structural cost:
-two parallel host interfaces, two parallel scope widgets, a runtime
-assertion duplicating what the type system can express. The sealed
-`GateNestedConfig` says "at most one nested router rides the URL"
-at the type level, which is what we mean.
+The earlier two-slot model (`shellState`, `moduleState`) carried a
+real structural cost: two parallel host interfaces, two parallel
+scope widgets, and a runtime assertion duplicating what the type
+system can already express. The sealed `GateNestedConfig` collapses
+that into one field and states "at most one nested router rides the
+URL" at the type level.
 
 ### Why modules
 
-The v0.5 article framed Dart 3-native routing as enabling
-"feature-team plug-and-play": a feature ships with its own sealed
-subtype, its own pageBuilder, its own guards, and the host composes
-it. v0.5 didn't have that yet — every route had to live in the
-host's `AppRoute`. v0.6 closes that gap. A payments SDK, a KYC
+A core goal of Dart 3-native routing is "feature-team
+plug-and-play": a feature ships with its own sealed subtype, its
+own pageBuilder, and its own guards, and the host composes it.
+Through v0.5 every route still had to live in the host's `AppRoute`;
+v0.6 closes that gap. A payments SDK, a KYC
 flow, an embedded checkout — all can ship as a `RouteModule` the
 host mounts at a top-level route, with deep-linkable URLs.
 

@@ -1,6 +1,6 @@
 # Roadmap
 
-This document tracks work being considered for future versions of gate. Items are scoped and listed in no particular order; concrete commitment happens only when work begins. Things move on or off this list as the library matures. Nothing here is a date or a promise.
+This document tracks work being considered for future versions of gate, and doubles as design notes for contributors. Items are scoped and listed in no particular order; concrete commitment happens only when work begins. The **Design questions** under each item are open for discussion — input via issues or PRs is welcome. Nothing here is a date or a promise.
 
 ## 1. State restoration
 
@@ -14,7 +14,7 @@ Flutter's `RestorationManager` / `RestorationMixin` / `restorationId` / `Restora
 - **Navigator `restorationScopeId`.** Add a constructor parameter to `GateRouterDelegate` and pass it to the main `Navigator`. Repeat for `GateInnerNavigator` so each branch, module, and flow gets its own scope. Lets descendants opt into `RestorationMixin`.
 - **Stack persistence via `RestorationBucket`.** Reuse the existing codec layer. The bucket stores the serialized config string; on restore, the same codec deserializes back into a stack. The transport is the only difference from the URL path; the codec interface stays as-is. Sub-routers need independent buckets, coordinated through the existing `GateNestedHandle` registration the URL pipeline already uses.
 
-**Open questions.** Opt-in (an explicit `restorable: true` flag on the delegate) or opt-out (default on when a `restorationScopeId` is provided)? How does the bucket interact with guards: are guards re-evaluated during restoration, or is the restored stack trusted? Should branch-level buckets restore independently when the parent shell hasn't restored yet, or wait? These need actual design before implementation.
+**Design questions.** Opt-in (an explicit `restorable: true` flag on the delegate) or opt-out (default on when a `restorationScopeId` is provided)? How does the bucket interact with guards: are guards re-evaluated during restoration, or is the restored stack trusted? Should branch-level buckets restore independently when the parent shell hasn't restored yet, or wait? These need actual design before implementation.
 
 **Probable home.** v0.13. (a) and (b) are small and can ship together; (c) is the real work and may warrant its own pass.
 
@@ -32,7 +32,7 @@ A separate `gate_lint` package using `analysis_server_plugin` to surface common 
 
 Each rule wants tests under `test/`, a quick fix where applicable, and a sample in the package README. Some rules need cross-file analysis (e.g., to verify a route is a modal route, the analyzer needs to resolve the type's declared interfaces).
 
-**Open questions.** Ship as a separate `gate_lint` package or as a sub-package in a gate monorepo? Use `custom_lint` (community-friendlier but requires consumers to add a dev dep) or the official `analysis_server_plugin` (heavier integration but ships with the SDK)? Version-locked to `gate` or independent?
+**Design questions.** Ship as a separate `gate_lint` package or as a sub-package in a gate monorepo? Use `custom_lint` (community-friendlier but requires consumers to add a dev dep) or the official `analysis_server_plugin` (heavier integration but ships with the SDK)? Version-locked to `gate` or independent?
 
 **Probable home.** Post-state-restoration, since rules can be refined based on patterns that surface as users build real apps with the library. Realistic: v0.14 or later.
 
@@ -85,7 +85,7 @@ A Flutter DevTools extension (via `devtools_extensions` and the post-3.16 extens
 
 Either way, the runtime side ships as a small companion package (`gate_devtools` or a sub-package) so production builds pay no cost. Probably auto-registered when `kDebugMode` is true.
 
-**Open questions.** Monorepo or separate package? `devtools_extensions` API stability is still relatively young, so breakage on Flutter releases is likely. UI is non-trivial work and benefits from a designer pass before shipping. Read-only (shows state) or read-write (can push/pop routes, replay guard pipelines)? Read-only is the safe first cut.
+**Design questions.** Monorepo or separate package? The `devtools_extensions` API is still evolving, so the extension would track Flutter releases. UI is non-trivial and benefits from a designer pass before shipping. Read-only (shows state) or read-write (push/pop routes, replay guard pipelines)? Read-only is the safe first cut.
 
 **Probable home.** v0.15 or later. The runtime hook can land earlier than the UI work.
 
