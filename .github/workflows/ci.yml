@@ -44,8 +44,11 @@ jobs:
       - name: Analyze
         run: flutter analyze --no-pub
 
+      - name: Generate test optimizer
+        run: dart run tool/test_optimizer.dart
+
       - name: Run tests with coverage
-        run: flutter test --no-pub --coverage
+        run: flutter test --no-pub --coverage test/.test_optimizer.dart
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
