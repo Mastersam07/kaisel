@@ -114,10 +114,7 @@ void main() {
       'fake handles round-trip their declared configType through capture',
       () {
         final shellHandle = _FakeShellHandle();
-        expect(
-          shellHandle.captureConfig().runtimeType,
-          shellHandle.configType,
-        );
+        expect(shellHandle.captureConfig().runtimeType, shellHandle.configType);
 
         final moduleHandle = _FakeModuleHandle();
         expect(
@@ -213,34 +210,42 @@ void main() {
       },
     );
 
-    test('currentConfiguration captures the most-recently registered handle',
-        () {
-      final shell = _FakeShellHandle();
-      shell.captureValue = GateShellConfig(
-        activeBranch: 1,
-        activeBranchStack: const [_TestRoot()],
-      );
-      delegate.registerNested(shell);
-      expect(delegate.currentConfiguration.nestedState, isA<GateShellConfig>());
-      expect(
-        (delegate.currentConfiguration.nestedState! as GateShellConfig)
-            .activeBranch,
-        1,
-      );
+    test(
+      'currentConfiguration captures the most-recently registered handle',
+      () {
+        final shell = _FakeShellHandle();
+        shell.captureValue = GateShellConfig(
+          activeBranch: 1,
+          activeBranchStack: const [_TestRoot()],
+        );
+        delegate.registerNested(shell);
+        expect(
+          delegate.currentConfiguration.nestedState,
+          isA<GateShellConfig>(),
+        );
+        expect(
+          (delegate.currentConfiguration.nestedState! as GateShellConfig)
+              .activeBranch,
+          1,
+        );
 
-      // Register a module handle on top. The configuration now
-      // reflects the module — LIFO.
-      final module = _FakeModuleHandle();
-      delegate.registerNested(module);
-      expect(
-        delegate.currentConfiguration.nestedState,
-        isA<GateModuleConfig>(),
-      );
+        // Register a module handle on top. The configuration now
+        // reflects the module — LIFO.
+        final module = _FakeModuleHandle();
+        delegate.registerNested(module);
+        expect(
+          delegate.currentConfiguration.nestedState,
+          isA<GateModuleConfig>(),
+        );
 
-      // Unregister the module; the shell becomes active again.
-      delegate.unregisterNested(module);
-      expect(delegate.currentConfiguration.nestedState, isA<GateShellConfig>());
-    });
+        // Unregister the module; the shell becomes active again.
+        delegate.unregisterNested(module);
+        expect(
+          delegate.currentConfiguration.nestedState,
+          isA<GateShellConfig>(),
+        );
+      },
+    );
 
     test('re-registering an existing handle moves it to the top', () {
       final shell = _FakeShellHandle();
@@ -258,33 +263,30 @@ void main() {
       expect(delegate.currentConfiguration.nestedState, isA<GateShellConfig>());
     });
 
-    test(
-      'registering the same handle twice consecutively is a no-op for the '
-      'pending mechanism',
-      () async {
-        await delegate.setNewRoutePath(
-          GateConfig<_TestRoute>(
-            mainStack: const [_TestRoot()],
-            nestedState: GateShellConfig(
-              activeBranch: 0,
-              activeBranchStack: const [_OtherRoute()],
-            ),
+    test('registering the same handle twice consecutively is a no-op for the '
+        'pending mechanism', () async {
+      await delegate.setNewRoutePath(
+        GateConfig<_TestRoute>(
+          mainStack: const [_TestRoot()],
+          nestedState: GateShellConfig(
+            activeBranch: 0,
+            activeBranchStack: const [_OtherRoute()],
           ),
-        );
+        ),
+      );
 
-        final shell = _FakeShellHandle();
-        delegate.registerNested(shell);
-        expect(shell.lastRestored, isA<GateShellConfig>());
+      final shell = _FakeShellHandle();
+      delegate.registerNested(shell);
+      expect(shell.lastRestored, isA<GateShellConfig>());
 
-        // Reset the recorder and re-register. The handle is already
-        // at the top of the stack, so registerNested should early-out
-        // and NOT re-apply (already-cleared) pending state, and NOT
-        // re-trigger restoreFromConfig with stale data.
-        shell.lastRestored = null;
-        delegate.registerNested(shell);
-        expect(shell.lastRestored, isNull);
-      },
-    );
+      // Reset the recorder and re-register. The handle is already
+      // at the top of the stack, so registerNested should early-out
+      // and NOT re-apply (already-cleared) pending state, and NOT
+      // re-trigger restoreFromConfig with stale data.
+      shell.lastRestored = null;
+      delegate.registerNested(shell);
+      expect(shell.lastRestored, isNull);
+    });
 
     test('unregistering a never-registered handle is a safe no-op', () {
       final shell = _FakeShellHandle();
@@ -301,24 +303,21 @@ void main() {
       expect(delegate.currentConfiguration.nestedState, isNull);
     });
 
-    test(
-      'setNewRoutePath with an already-registered matching handle applies '
-      'immediately',
-      () async {
-        final module = _FakeModuleHandle();
-        delegate.registerNested(module);
+    test('setNewRoutePath with an already-registered matching handle applies '
+        'immediately', () async {
+      final module = _FakeModuleHandle();
+      delegate.registerNested(module);
 
-        await delegate.setNewRoutePath(
-          GateConfig<_TestRoute>(
-            mainStack: const [_TestRoot()],
-            nestedState: GateModuleConfig(stack: const [_OtherRoute()]),
-          ),
-        );
+      await delegate.setNewRoutePath(
+        GateConfig<_TestRoute>(
+          mainStack: const [_TestRoot()],
+          nestedState: GateModuleConfig(stack: const [_OtherRoute()]),
+        ),
+      );
 
-        expect(module.lastRestored, isA<GateModuleConfig>());
-        final restored = module.lastRestored! as GateModuleConfig;
-        expect(restored.stack.single, isA<_OtherRoute>());
-      },
-    );
+      expect(module.lastRestored, isA<GateModuleConfig>());
+      final restored = module.lastRestored! as GateModuleConfig;
+      expect(restored.stack.single, isA<_OtherRoute>());
+    });
   });
 }

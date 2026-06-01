@@ -172,10 +172,7 @@ class _ModuleHandle<R extends GateRoute> implements GateNestedHandle {
 /// `GateBranch`.
 class GateModuleMount<R extends GateRoute> extends StatefulWidget {
   /// Create a mount around [module].
-  const GateModuleMount({
-    super.key,
-    required this.module,
-  });
+  const GateModuleMount({super.key, required this.module});
 
   /// The module to mount.
   final RouteModule<R> module;
@@ -188,8 +185,9 @@ class _GateModuleMountState<R extends GateRoute>
     extends State<GateModuleMount<R>> {
   late GateRouter<R> _router;
   late _ModuleHandle<R> _handle;
-  late final GlobalKey<NavigatorState> _navKey =
-      GlobalKey<NavigatorState>(debugLabel: 'gate-module-$R');
+  late final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>(
+    debugLabel: 'gate-module-$R',
+  );
 
   GateNestedHost? _host;
 
@@ -264,10 +262,12 @@ class _GateModuleMountState<R extends GateRoute>
         child: GateInnerNavigator<R>(
           router: _router,
           navigatorKey: _navKey,
-          pageBuilder:
-              widget.module.isAdaptive ? null : widget.module.buildPage,
-          adaptivePageBuilder:
-              widget.module.isAdaptive ? widget.module.buildAdaptivePage : null,
+          pageBuilder: widget.module.isAdaptive
+              ? null
+              : widget.module.buildPage,
+          adaptivePageBuilder: widget.module.isAdaptive
+              ? widget.module.buildAdaptivePage
+              : null,
           pageWrapper: widget.module.pageWrapper,
         ),
       ),

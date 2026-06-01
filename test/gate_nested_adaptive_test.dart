@@ -92,12 +92,12 @@ class _AbsorbedHome extends StatelessWidget {
   final String detailId;
   @override
   Widget build(BuildContext context) => Column(
-        children: [
-          const Text('HomeList'),
-          Text('HomeDetail $detailId'),
-          const Text('ABSORBED-HOME'),
-        ],
-      );
+    children: [
+      const Text('HomeList'),
+      Text('HomeDetail $detailId'),
+      const Text('ABSORBED-HOME'),
+    ],
+  );
 }
 
 class _ShopListScreen extends StatelessWidget {
@@ -118,12 +118,12 @@ class _AbsorbedShop extends StatelessWidget {
   final String sku;
   @override
   Widget build(BuildContext context) => Column(
-        children: [
-          const Text('ShopList'),
-          Text('ShopDetail $sku'),
-          const Text('ABSORBED-SHOP'),
-        ],
-      );
+    children: [
+      const Text('ShopList'),
+      Text('ShopDetail $sku'),
+      const Text('ABSORBED-SHOP'),
+    ],
+  );
 }
 
 class _AppHomeScreen extends StatelessWidget {
@@ -169,9 +169,9 @@ class _AdaptiveShopModule extends RouteModule<_ShopRoute> {
   ) {
     return switch ((route, stack.previous)) {
       (_ShopDetail(:final sku), _ShopList()) => GateAbsorbingPage(
-          widget: _AbsorbedShop(sku),
-          absorbing: 1,
-        ),
+        widget: _AbsorbedShop(sku),
+        absorbing: 1,
+      ),
       _ => GateStandalonePage(buildPage(context, route)),
     };
   }
@@ -220,8 +220,9 @@ void main() {
         await homeRouter.push(const _HomeList());
         await homeRouter.push(const _HomeDetail('42'));
 
-        final discoverRouter =
-            GateRouter<_DiscoverRoute>(initial: const _DiscoverRoot());
+        final discoverRouter = GateRouter<_DiscoverRoute>(
+          initial: const _DiscoverRoot(),
+        );
 
         final shell = BranchedShellRouter(
           branches: [homeRouter, discoverRouter],
@@ -235,33 +236,35 @@ void main() {
           router: mainRouter,
           builder: (context, route) => switch (route) {
             _AppHome() => _AppHomeScreen(
-                shell: shell,
-                branches: [
-                  GateBranch<_HomeRoute>.adaptive(
-                    router: homeRouter,
-                    pageBuilder: (context, route, stack) {
-                      return switch ((route, stack.previous)) {
-                        (_HomeDetail(:final id), _HomeList()) =>
-                          GateAbsorbingPage(
-                            widget: _AbsorbedHome(id),
-                            absorbing: 1,
-                          ),
-                        (_HomeDetail(:final id), _) =>
-                          GateStandalonePage(_HomeDetailScreen(id)),
-                        (_HomeList(), _) =>
-                          const GateStandalonePage(_HomeListScreen()),
-                        (_HomeRoot(), _) =>
-                          const GateStandalonePage(_HomeRootScreen()),
-                      };
-                    },
-                  ),
-                  GateBranch<_DiscoverRoute>(
-                    router: discoverRouter,
-                    pageBuilder: (context, route) =>
-                        const _DiscoverRootScreen(),
-                  ),
-                ],
-              ),
+              shell: shell,
+              branches: [
+                GateBranch<_HomeRoute>.adaptive(
+                  router: homeRouter,
+                  pageBuilder: (context, route, stack) {
+                    return switch ((route, stack.previous)) {
+                      (_HomeDetail(:final id), _HomeList()) =>
+                        GateAbsorbingPage(
+                          widget: _AbsorbedHome(id),
+                          absorbing: 1,
+                        ),
+                      (_HomeDetail(:final id), _) => GateStandalonePage(
+                        _HomeDetailScreen(id),
+                      ),
+                      (_HomeList(), _) => const GateStandalonePage(
+                        _HomeListScreen(),
+                      ),
+                      (_HomeRoot(), _) => const GateStandalonePage(
+                        _HomeRootScreen(),
+                      ),
+                    };
+                  },
+                ),
+                GateBranch<_DiscoverRoute>(
+                  router: discoverRouter,
+                  pageBuilder: (context, route) => const _DiscoverRootScreen(),
+                ),
+              ],
+            ),
             _AppShop() => const SizedBox.shrink(),
           },
         );
@@ -311,15 +314,18 @@ void main() {
                 pageBuilder: (context, route, stack) {
                   return switch ((route, stack.previous)) {
                     (_HomeDetail(:final id), _HomeList()) => GateAbsorbingPage(
-                        widget: _AbsorbedHome(id),
-                        absorbing: 1,
-                      ),
-                    (_HomeDetail(:final id), _) =>
-                      GateStandalonePage(_HomeDetailScreen(id)),
-                    (_HomeList(), _) =>
-                      const GateStandalonePage(_HomeListScreen()),
-                    (_HomeRoot(), _) =>
-                      const GateStandalonePage(_HomeRootScreen()),
+                      widget: _AbsorbedHome(id),
+                      absorbing: 1,
+                    ),
+                    (_HomeDetail(:final id), _) => GateStandalonePage(
+                      _HomeDetailScreen(id),
+                    ),
+                    (_HomeList(), _) => const GateStandalonePage(
+                      _HomeListScreen(),
+                    ),
+                    (_HomeRoot(), _) => const GateStandalonePage(
+                      _HomeRootScreen(),
+                    ),
                   };
                 },
               ),
@@ -353,42 +359,39 @@ void main() {
   });
 
   group('Module adaptive: RouteModule.buildAdaptivePage', () {
-    testWidgets(
-      'an isAdaptive module with stack [List, Detail] renders the '
-      'absorbed composite',
-      (tester) async {
-        // We can't push from the outside (the module's router is
-        // private to the mount), so set up a module whose initialStack
-        // is already [List, Detail] to land in the absorbing state.
-        const module = _PrePushedAdaptiveShopModule();
+    testWidgets('an isAdaptive module with stack [List, Detail] renders the '
+        'absorbed composite', (tester) async {
+      // We can't push from the outside (the module's router is
+      // private to the mount), so set up a module whose initialStack
+      // is already [List, Detail] to land in the absorbing state.
+      const module = _PrePushedAdaptiveShopModule();
 
-        final mainRouter = GateRouter<_AppRoute>(initial: const _AppShop());
-        final delegate = GateRouterDelegate<_AppRoute>(
-          router: mainRouter,
-          builder: (context, route) => switch (route) {
-            _AppShop() => const GateModuleMount<_ShopRoute>(module: module),
-            _AppHome() => const SizedBox.shrink(),
-          },
-        );
-        addTearDown(delegate.dispose);
-        addTearDown(mainRouter.dispose);
+      final mainRouter = GateRouter<_AppRoute>(initial: const _AppShop());
+      final delegate = GateRouterDelegate<_AppRoute>(
+        router: mainRouter,
+        builder: (context, route) => switch (route) {
+          _AppShop() => const GateModuleMount<_ShopRoute>(module: module),
+          _AppHome() => const SizedBox.shrink(),
+        },
+      );
+      addTearDown(delegate.dispose);
+      addTearDown(mainRouter.dispose);
 
-        await tester.pumpWidget(
-          MaterialApp.router(
-            routerDelegate: delegate,
-            routeInformationParser: _CurrentStackParser(delegate.router),
-          ),
-        );
-        await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        MaterialApp.router(
+          routerDelegate: delegate,
+          routeInformationParser: _CurrentStackParser(delegate.router),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        // Absorbing widget is visible; standalone List/Detail screens
-        // are not.
-        expect(find.byType(_AbsorbedShop), findsOneWidget);
-        expect(find.byType(_ShopListScreen), findsNothing);
-        expect(find.byType(_ShopDetailScreen), findsNothing);
-        expect(find.text('ABSORBED-SHOP'), findsOneWidget);
-      },
-    );
+      // Absorbing widget is visible; standalone List/Detail screens
+      // are not.
+      expect(find.byType(_AbsorbedShop), findsOneWidget);
+      expect(find.byType(_ShopListScreen), findsNothing);
+      expect(find.byType(_ShopDetailScreen), findsNothing);
+      expect(find.text('ABSORBED-SHOP'), findsOneWidget);
+    });
 
     testWidgets(
       'a non-adaptive module ignores buildAdaptivePage and renders 1:1',
@@ -492,9 +495,9 @@ class _PrePushedAdaptiveShopModule extends RouteModule<_ShopRoute> {
   ) {
     return switch ((route, stack.previous)) {
       (_ShopDetail(:final sku), _ShopList()) => GateAbsorbingPage(
-          widget: _AbsorbedShop(sku),
-          absorbing: 1,
-        ),
+        widget: _AbsorbedShop(sku),
+        absorbing: 1,
+      ),
       _ => GateStandalonePage(buildPage(context, route)),
     };
   }

@@ -37,8 +37,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('GatePageWrapperContext (simple pipeline)', () {
-    testWidgets('captures route, position, stackLength, previous, isTop',
-        (tester) async {
+    testWidgets('captures route, position, stackLength, previous, isTop', (
+      tester,
+    ) async {
       final router = GateRouter<_R>(initial: const _A());
       await router.push(const _B());
       await router.push(const _C('1'));
@@ -100,8 +101,7 @@ void main() {
   });
 
   group('GatePageWrapperContext (adaptive pipeline with absorption)', () {
-    testWidgets(
-        'previous refers to the rendered-below page, not the absorbed '
+    testWidgets('previous refers to the rendered-below page, not the absorbed '
         'entry', (tester) async {
       // Stack: [_A, _B, _C('x')]. Adaptive builder absorbs (_C with
       // prev _B) into one page. The bottom page should be A; the
@@ -118,9 +118,9 @@ void main() {
         builder: (context, route, stack) {
           return switch ((route, stack.previous)) {
             (_C(), _B()) => const GateAbsorbingPage(
-                widget: Text('absorbed'),
-                absorbing: 1,
-              ),
+              widget: Text('absorbed'),
+              absorbing: 1,
+            ),
             _ => GateStandalonePage(Text('$route')),
           };
         },

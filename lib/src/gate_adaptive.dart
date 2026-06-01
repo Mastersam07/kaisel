@@ -67,10 +67,8 @@ class GateStandalonePage extends GatePageResult {
 class GateAbsorbingPage extends GatePageResult {
   /// Wrap [widget] as an absorbing page that consumes [absorbing]
   /// entries below it on the stack.
-  const GateAbsorbingPage({
-    required this.widget,
-    this.absorbing = 1,
-  }) : assert(absorbing >= 1, 'absorbing must be at least 1');
+  const GateAbsorbingPage({required this.widget, this.absorbing = 1})
+    : assert(absorbing >= 1, 'absorbing must be at least 1');
 
   @override
   final Widget widget;
@@ -87,12 +85,10 @@ class GateAbsorbingPage extends GatePageResult {
 @immutable
 class GateStackContext<R extends GateRoute> {
   /// Create a context for an entry at [position] within [stack].
-  const GateStackContext({
-    required this.stack,
-    required this.position,
-  })  : assert(stack.length > 0, 'stack must be non-empty'),
-        assert(position >= 0, 'position must be non-negative'),
-        assert(position < stack.length, 'position out of range');
+  const GateStackContext({required this.stack, required this.position})
+    : assert(stack.length > 0, 'stack must be non-empty'),
+      assert(position >= 0, 'position must be non-negative'),
+      assert(position < stack.length, 'position out of range');
 
   /// The full stack as the router currently has it. Read-only.
   final List<R> stack;
@@ -124,11 +120,12 @@ class GateStackContext<R extends GateRoute> {
 /// entries below.
 ///
 /// See [GateRouterDelegate.adaptive] for how to wire one up.
-typedef GateAdaptivePageBuilder<R extends GateRoute> = GatePageResult Function(
-  BuildContext context,
-  R route,
-  GateStackContext<R> stack,
-);
+typedef GateAdaptivePageBuilder<R extends GateRoute> =
+    GatePageResult Function(
+      BuildContext context,
+      R route,
+      GateStackContext<R> stack,
+    );
 
 /// Convenience widget for master-detail layouts.
 ///
@@ -147,9 +144,9 @@ class GateMasterDetailScaffold extends StatelessWidget {
     this.masterFraction = 0.33,
     this.divider,
   }) : assert(
-          masterFraction > 0 && masterFraction < 1,
-          'masterFraction must be between 0 and 1 exclusive',
-        );
+         masterFraction > 0 && masterFraction < 1,
+         'masterFraction must be between 0 and 1 exclusive',
+       );
 
   /// The master pane (typically a list).
   final Widget master;

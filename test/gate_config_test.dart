@@ -40,18 +40,18 @@ class _LegacyStackCodec implements GateStackCodec<_Top> {
 
   @override
   Uri encode(List<_Top> stack) => switch (stack.last) {
-        _Splash() => Uri(path: '/'),
-        _Shell() => Uri(path: '/app'),
-        _Settings() => Uri(path: '/settings'),
-      };
+    _Splash() => Uri(path: '/'),
+    _Shell() => Uri(path: '/app'),
+    _Settings() => Uri(path: '/settings'),
+  };
 
   @override
   List<_Top>? decode(Uri uri) => switch (uri.pathSegments) {
-        [] || [''] => const [_Splash()],
-        ['app'] => const [_Shell()],
-        ['settings'] => const [_Shell(), _Settings()],
-        _ => null,
-      };
+    [] || [''] => const [_Splash()],
+    ['app'] => const [_Shell()],
+    ['settings'] => const [_Shell(), _Settings()],
+    _ => null,
+  };
 }
 
 void main() {
@@ -116,10 +116,7 @@ void main() {
 
     test('rejects an empty activeBranchStack', () {
       expect(
-        () => GateShellConfig(
-          activeBranch: 0,
-          activeBranchStack: const [],
-        ),
+        () => GateShellConfig(activeBranch: 0, activeBranchStack: const []),
         throwsA(isA<AssertionError>()),
       );
     });

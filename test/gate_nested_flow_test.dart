@@ -67,75 +67,74 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Nested modal flow rendering (v0.10)', () {
-    testWidgets(
-      'two nested flows render as two layered modal overlays',
-      (tester) async {
-        final router = GateRouter<_App>(initial: const _Home());
-        final delegate = GateRouterDelegate<_App>(
-          router: router,
-          builder: (context, route) {
-            return switch (route) {
-              _Home() => const _HomeScreen(),
-              _AddCardFlow() => const _AddCardModalContent(),
-              _VerifyIdentityFlow() => const _VerifyIdentityModalContent(),
-            };
-          },
-          modalBuilder: (context, route, flowContent) => flowContent,
-        );
-        addTearDown(delegate.dispose);
-        addTearDown(router.dispose);
+    testWidgets('two nested flows render as two layered modal overlays', (
+      tester,
+    ) async {
+      final router = GateRouter<_App>(initial: const _Home());
+      final delegate = GateRouterDelegate<_App>(
+        router: router,
+        builder: (context, route) {
+          return switch (route) {
+            _Home() => const _HomeScreen(),
+            _AddCardFlow() => const _AddCardModalContent(),
+            _VerifyIdentityFlow() => const _VerifyIdentityModalContent(),
+          };
+        },
+        modalBuilder: (context, route, flowContent) => flowContent,
+      );
+      addTearDown(delegate.dispose);
+      addTearDown(router.dispose);
 
-        await tester.pumpWidget(
-          MaterialApp.router(
-            routerDelegate: delegate,
-            routeInformationParser: _CurrentStackParser(router),
-          ),
-        );
-        await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        MaterialApp.router(
+          routerDelegate: delegate,
+          routeInformationParser: _CurrentStackParser(router),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        // Only HOME visible initially.
-        expect(find.text('HOME'), findsOneWidget);
-        expect(find.text('ADD-CARD-MODAL'), findsNothing);
-        expect(find.text('VERIFY-IDENTITY-MODAL'), findsNothing);
+      // Only HOME visible initially.
+      expect(find.text('HOME'), findsOneWidget);
+      expect(find.text('ADD-CARD-MODAL'), findsNothing);
+      expect(find.text('VERIFY-IDENTITY-MODAL'), findsNothing);
 
-        // Start the outer flow.
-        final outer = router.run<bool>(const _AddCardFlow());
-        await tester.pumpAndSettle();
+      // Start the outer flow.
+      final outer = router.run<bool>(const _AddCardFlow());
+      await tester.pumpAndSettle();
 
-        expect(router.activeFlows.length, 1);
-        expect(find.text('ADD-CARD-MODAL'), findsOneWidget);
+      expect(router.activeFlows.length, 1);
+      expect(find.text('ADD-CARD-MODAL'), findsOneWidget);
 
-        // Start the nested inner flow from within the outer.
-        final inner = router.run<String>(const _VerifyIdentityFlow());
-        await tester.pumpAndSettle();
+      // Start the nested inner flow from within the outer.
+      final inner = router.run<String>(const _VerifyIdentityFlow());
+      await tester.pumpAndSettle();
 
-        expect(router.activeFlows.length, 2);
-        // BOTH modal contents are in the widget tree. The inner is
-        // on top (its Stack child comes last).
-        expect(find.text('ADD-CARD-MODAL'), findsOneWidget);
-        expect(find.text('VERIFY-IDENTITY-MODAL'), findsOneWidget);
+      expect(router.activeFlows.length, 2);
+      // BOTH modal contents are in the widget tree. The inner is
+      // on top (its Stack child comes last).
+      expect(find.text('ADD-CARD-MODAL'), findsOneWidget);
+      expect(find.text('VERIFY-IDENTITY-MODAL'), findsOneWidget);
 
-        // Complete the inner flow.
-        router.completeFlow<String>('verified-token-42');
-        final tokenResult = await inner;
-        await tester.pumpAndSettle();
+      // Complete the inner flow.
+      router.completeFlow<String>('verified-token-42');
+      final tokenResult = await inner;
+      await tester.pumpAndSettle();
 
-        expect(tokenResult, 'verified-token-42');
-        expect(router.activeFlows.length, 1);
-        expect(find.text('VERIFY-IDENTITY-MODAL'), findsNothing);
-        expect(find.text('ADD-CARD-MODAL'), findsOneWidget);
+      expect(tokenResult, 'verified-token-42');
+      expect(router.activeFlows.length, 1);
+      expect(find.text('VERIFY-IDENTITY-MODAL'), findsNothing);
+      expect(find.text('ADD-CARD-MODAL'), findsOneWidget);
 
-        // Complete the outer flow.
-        router.completeFlow<bool>(true);
-        final cardResult = await outer;
-        await tester.pumpAndSettle();
+      // Complete the outer flow.
+      router.completeFlow<bool>(true);
+      final cardResult = await outer;
+      await tester.pumpAndSettle();
 
-        expect(cardResult, isTrue);
-        expect(router.hasActiveFlow, isFalse);
-        expect(find.text('ADD-CARD-MODAL'), findsNothing);
-        expect(find.text('HOME'), findsOneWidget);
-      },
-    );
+      expect(cardResult, isTrue);
+      expect(router.hasActiveFlow, isFalse);
+      expect(find.text('ADD-CARD-MODAL'), findsNothing);
+      expect(find.text('HOME'), findsOneWidget);
+    });
 
     testWidgets(
       'each flow layer has its own inner Navigator (independent state)',

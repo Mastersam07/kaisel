@@ -36,7 +36,5 @@ import 'gate_route.dart';
 ///   guards: [authGuard(authNotifier)],
 /// );
 /// ```
-typedef GateGuard<R extends GateRoute> = FutureOr<List<R>> Function(
-  List<R> current,
-  List<R> proposed,
-);
+typedef GateGuard<R extends GateRoute> =
+    FutureOr<List<R>> Function(List<R> current, List<R> proposed);

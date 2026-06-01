@@ -20,11 +20,7 @@ import 'gate_router.dart';
 /// main router elsewhere.
 class RouterScope<R extends GateRoute> extends InheritedWidget {
   /// Create a scope around [child] exposing [router].
-  const RouterScope({
-    super.key,
-    required this.router,
-    required super.child,
-  });
+  const RouterScope({super.key, required this.router, required super.child});
 
   /// The router in effect at this scope.
   final GateRouter<R> router;

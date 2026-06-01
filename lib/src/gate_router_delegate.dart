@@ -22,10 +22,8 @@ import 'gate_scope.dart';
 ///   ProductDetail(:final id) => ProductDetailScreen(id: id),
 /// };
 /// ```
-typedef GatePageBuilder<R extends GateRoute> = Widget Function(
-  BuildContext context,
-  R route,
-);
+typedef GatePageBuilder<R extends GateRoute> =
+    Widget Function(BuildContext context, R route);
 
 /// Optional signature for customising how a route becomes a [Page].
 /// See [GatePageWrapper] and [GatePageWrapperContext].
@@ -39,11 +37,12 @@ typedef GatePageBuilder<R extends GateRoute> = Widget Function(
 ///
 /// The [flowChild] is already wired up to its own router; just wrap it
 /// in whatever presentation you want.
-typedef GateModalBuilder = Widget Function(
-  BuildContext context,
-  GateModalRoute<Object?> flowRoute,
-  Widget flowChild,
-);
+typedef GateModalBuilder =
+    Widget Function(
+      BuildContext context,
+      GateModalRoute<Object?> flowRoute,
+      Widget flowChild,
+    );
 
 /// The renderer over a [GateRouter].
 ///
@@ -75,8 +74,8 @@ class GateRouterDelegate<R extends GateRoute>
     required GatePageBuilder<R> builder,
     this.pageWrapper,
     this.modalBuilder,
-  })  : _builder = builder,
-        _adaptiveBuilder = null {
+  }) : _builder = builder,
+       _adaptiveBuilder = null {
     router.addListener(_safeNotifyListeners);
   }
 
@@ -122,8 +121,8 @@ class GateRouterDelegate<R extends GateRoute>
     required GateAdaptivePageBuilder<R> builder,
     this.pageWrapper,
     this.modalBuilder,
-  })  : _builder = null,
-        _adaptiveBuilder = builder {
+  }) : _builder = null,
+       _adaptiveBuilder = builder {
     router.addListener(_safeNotifyListeners);
   }
 
@@ -249,9 +248,9 @@ class GateRouterDelegate<R extends GateRoute>
 
   @override
   GateConfig<R> get currentConfiguration => GateConfig<R>(
-        mainStack: router.stack,
-        nestedState: _activeNested?.captureConfig(),
-      );
+    mainStack: router.stack,
+    nestedState: _activeNested?.captureConfig(),
+  );
 
   @override
   Future<void> setNewRoutePath(GateConfig<R> configuration) async {
@@ -434,13 +433,12 @@ class GateRouterDelegate<R extends GateRoute>
     BuildContext context,
     List<GateStackEntry<R>> entries,
     GateAdaptivePageBuilder<R> builder,
-  ) =>
-      buildAdaptivePages<R>(
-        context: context,
-        entries: entries,
-        builder: builder,
-        wrap: _wrapAdaptive,
-      );
+  ) => buildAdaptivePages<R>(
+    context: context,
+    entries: entries,
+    builder: builder,
+    wrap: _wrapAdaptive,
+  );
 
   /// The simple builder used by the modal-flow inner navigator. When
   /// the delegate was constructed with an adaptive builder, synthesise
@@ -510,8 +508,8 @@ class GateNestedHostScope extends InheritedWidget {
   /// Look up the nearest host, or `null` if none is mounted (e.g.
   /// unit tests that mount a nested router outside a delegate).
   static GateNestedHost? maybeOf(BuildContext context) {
-    final scope =
-        context.dependOnInheritedWidgetOfExactType<GateNestedHostScope>();
+    final scope = context
+        .dependOnInheritedWidgetOfExactType<GateNestedHostScope>();
     return scope?.host;
   }
 

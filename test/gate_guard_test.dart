@@ -127,9 +127,7 @@ void main() {
     });
 
     test('switchTo changes active branch and notifies', () {
-      final shell = ShellRouter<_R>(
-        branchInitials: const [_Home(), _Login()],
-      );
+      final shell = ShellRouter<_R>(branchInitials: const [_Home(), _Login()]);
       var notifications = 0;
       shell.addListener(() => notifications++);
 
@@ -149,9 +147,7 @@ void main() {
     });
 
     test('branch mutations notify shell listeners', () async {
-      final shell = ShellRouter<_R>(
-        branchInitials: const [_Home(), _Login()],
-      );
+      final shell = ShellRouter<_R>(branchInitials: const [_Home(), _Login()]);
       var notifications = 0;
       shell.addListener(() => notifications++);
 
@@ -160,14 +156,16 @@ void main() {
       expect(shell.branches[0].stack, [const _Home(), const _Protected()]);
     });
 
-    test('branches are independent — pushing in one does not affect others',
-        () async {
-      final shell = ShellRouter<_R>(
-        branchInitials: const [_Home(), _Login()],
-      );
-      await shell.branches[0].push(const _Protected());
-      expect(shell.branches[0].stack, [const _Home(), const _Protected()]);
-      expect(shell.branches[1].stack, [const _Login()]);
-    });
+    test(
+      'branches are independent — pushing in one does not affect others',
+      () async {
+        final shell = ShellRouter<_R>(
+          branchInitials: const [_Home(), _Login()],
+        );
+        await shell.branches[0].push(const _Protected());
+        expect(shell.branches[0].stack, [const _Home(), const _Protected()]);
+        expect(shell.branches[1].stack, [const _Login()]);
+      },
+    );
   });
 }

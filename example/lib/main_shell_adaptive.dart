@@ -155,7 +155,7 @@ class _FilmsListScreen extends StatelessWidget {
           final selected = film.id == selectedId;
           return ListTile(
             selected: selected,
-            selectedTileColor: const Color(0xFF00D4FF).withOpacity(0.08),
+            selectedTileColor: const Color(0xFF00D4FF).withValues(alpha: 0.08),
             title: Text(film.title),
             subtitle: Text('${film.director} · ${film.year}'),
             trailing: selected

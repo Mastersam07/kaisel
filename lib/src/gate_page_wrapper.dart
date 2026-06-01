@@ -17,9 +17,8 @@ import 'gate_route.dart';
 /// arguments `(route, child, key)`. The context object opens room
 /// for the wrapper to see what it's transitioning from, which is
 /// what direction-aware transitions need.
-typedef GatePageWrapper<R extends GateRoute> = Page<Object?> Function(
-  GatePageWrapperContext<R> ctx,
-);
+typedef GatePageWrapper<R extends GateRoute> =
+    Page<Object?> Function(GatePageWrapperContext<R> ctx);
 
 /// Context passed to a [GatePageWrapper]. Carries the bits the
 /// wrapper needs to decide how to wrap and animate the page.

@@ -70,24 +70,28 @@ void main() {
       expect(r.stack, [const _A(), const _C()]);
     });
 
-    test('pushOrReplaceTop pushes when no entry matches the predicate',
-        () async {
-      // From [_A]: pushOrReplaceTop(_B('x')) → push (the default
-      // same-runtime-type predicate sees _A on top, not _B).
-      final r = GateRouter<_R>(initial: const _A());
-      await r.pushOrReplaceTop(const _B('x'));
-      expect(r.stack, [const _A(), const _B('x')]);
-    });
+    test(
+      'pushOrReplaceTop pushes when no entry matches the predicate',
+      () async {
+        // From [_A]: pushOrReplaceTop(_B('x')) → push (the default
+        // same-runtime-type predicate sees _A on top, not _B).
+        final r = GateRouter<_R>(initial: const _A());
+        await r.pushOrReplaceTop(const _B('x'));
+        expect(r.stack, [const _A(), const _B('x')]);
+      },
+    );
 
-    test('pushOrReplaceTop replaces when current top matches by default',
-        () async {
-      // From [_A, _B('x')]: pushOrReplaceTop(_B('y')) → replace
-      // (default predicate: same runtime type).
-      final r = GateRouter<_R>(initial: const _A());
-      await r.push(const _B('x'));
-      await r.pushOrReplaceTop(const _B('y'));
-      expect(r.stack, [const _A(), const _B('y')]);
-    });
+    test(
+      'pushOrReplaceTop replaces when current top matches by default',
+      () async {
+        // From [_A, _B('x')]: pushOrReplaceTop(_B('y')) → replace
+        // (default predicate: same runtime type).
+        final r = GateRouter<_R>(initial: const _A());
+        await r.push(const _B('x'));
+        await r.pushOrReplaceTop(const _B('y'));
+        expect(r.stack, [const _A(), const _B('y')]);
+      },
+    );
 
     test('pushOrReplaceTop respects an explicit when predicate', () async {
       // Force push even though default would replace.
@@ -164,23 +168,25 @@ void main() {
       expect(r.current, const _B('x'));
     });
 
-    test('serial mutations apply in submission order without awaiting',
-        () async {
-      final r = GateRouter<_R>(initial: const _A());
-      // Fire-and-forget; they should still serialise.
-      r.push(const _B('1'));
-      r.push(const _B('2'));
-      r.push(const _C());
-      // Await the final operation to flush the queue.
-      await r.push(const _B('end'));
-      expect(r.stack, [
-        const _A(),
-        const _B('1'),
-        const _B('2'),
-        const _C(),
-        const _B('end'),
-      ]);
-    });
+    test(
+      'serial mutations apply in submission order without awaiting',
+      () async {
+        final r = GateRouter<_R>(initial: const _A());
+        // Fire-and-forget; they should still serialise.
+        r.push(const _B('1'));
+        r.push(const _B('2'));
+        r.push(const _C());
+        // Await the final operation to flush the queue.
+        await r.push(const _B('end'));
+        expect(r.stack, [
+          const _A(),
+          const _B('1'),
+          const _B('2'),
+          const _C(),
+          const _B('end'),
+        ]);
+      },
+    );
 
     test('re-pushing the same top route is a no-op (no notify)', () async {
       // With identity-preserving diff, push then replace with an equal

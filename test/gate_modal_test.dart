@@ -102,17 +102,19 @@ void main() {
       expect(r.hasActiveFlow, isFalse);
     });
 
-    test('flow returning incompatible route type throws ArgumentError',
-        () async {
-      // A modal route that's not part of the router's R hierarchy.
-      // Constructed inline to bypass sealed enforcement at the test
-      // boundary.
-      final r = GateRouter<_R>(initial: const _Home());
-      expect(
-        () => r.run(const _ForeignFlow()),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
+    test(
+      'flow returning incompatible route type throws ArgumentError',
+      () async {
+        // A modal route that's not part of the router's R hierarchy.
+        // Constructed inline to bypass sealed enforcement at the test
+        // boundary.
+        final r = GateRouter<_R>(initial: const _Home());
+        expect(
+          () => r.run(const _ForeignFlow()),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
 
     test('sub-router push/pop work within the flow', () async {
       final r = GateRouter<_R>(initial: const _Home());
@@ -261,17 +263,19 @@ void main() {
       expect(r.hasActiveFlow, isFalse);
     });
 
-    test('disposing the router resolves every pending flow with null',
-        () async {
-      final r = GateRouter<_R>(initial: const _Home());
-      final outer = r.run<String>(const _StringFlow());
-      final inner = r.run<bool>(const _BoolFlow());
+    test(
+      'disposing the router resolves every pending flow with null',
+      () async {
+        final r = GateRouter<_R>(initial: const _Home());
+        final outer = r.run<String>(const _StringFlow());
+        final inner = r.run<bool>(const _BoolFlow());
 
-      r.dispose();
+        r.dispose();
 
-      expect(await outer, isNull);
-      expect(await inner, isNull);
-    });
+        expect(await outer, isNull);
+        expect(await inner, isNull);
+      },
+    );
 
     test('three levels of nesting unwind LIFO', () async {
       final r = GateRouter<_R>(initial: const _Home());

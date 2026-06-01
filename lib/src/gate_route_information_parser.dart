@@ -31,12 +31,12 @@ class GateRouteInformationParser<R extends GateRoute>
   GateRouteInformationParser({
     required GateConfigCodec<R> codec,
     required List<R> fallback,
-  })  : _codec = codec,
-        _fallback = List<R>.unmodifiable(fallback),
-        assert(
-          fallback.isNotEmpty,
-          'fallback stack must contain at least one route',
-        );
+  }) : _codec = codec,
+       _fallback = List<R>.unmodifiable(fallback),
+       assert(
+         fallback.isNotEmpty,
+         'fallback stack must contain at least one route',
+       );
 
   /// Migration helper: accept a v0.4 [GateStackCodec] and treat URLs
   /// as stack-only (no shell state ever round-trips through the URL).
@@ -51,9 +51,9 @@ class GateRouteInformationParser<R extends GateRoute>
     required GateCodec<R> codec,
     required R fallback,
   }) : this(
-          codec: StackToConfigCodec<R>(GateSingleStackCodec<R>(codec)),
-          fallback: [fallback],
-        );
+         codec: StackToConfigCodec<R>(GateSingleStackCodec<R>(codec)),
+         fallback: [fallback],
+       );
 
   final GateConfigCodec<R> _codec;
   final List<R> _fallback;

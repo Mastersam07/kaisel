@@ -37,8 +37,9 @@ void main() {
   group('BranchedShellRouter', () {
     test('starts on initialBranch', () {
       final home = GateRouter<_HomeRoute>(initial: const _HomeRoot());
-      final discover =
-          GateRouter<_DiscoverRoute>(initial: const _DiscoverRoot());
+      final discover = GateRouter<_DiscoverRoute>(
+        initial: const _DiscoverRoot(),
+      );
       final shell = BranchedShellRouter(
         branches: [home, discover],
         initialBranch: 1,
@@ -54,8 +55,9 @@ void main() {
 
     test('switchTo changes active branch and notifies', () {
       final home = GateRouter<_HomeRoute>(initial: const _HomeRoot());
-      final discover =
-          GateRouter<_DiscoverRoute>(initial: const _DiscoverRoot());
+      final discover = GateRouter<_DiscoverRoute>(
+        initial: const _DiscoverRoot(),
+      );
       final shell = BranchedShellRouter(branches: [home, discover]);
       addTearDown(shell.dispose);
       addTearDown(home.dispose);
@@ -85,8 +87,9 @@ void main() {
 
     test('currentCanPop reflects the active branch', () async {
       final home = GateRouter<_HomeRoute>(initial: const _HomeRoot());
-      final discover =
-          GateRouter<_DiscoverRoute>(initial: const _DiscoverRoot());
+      final discover = GateRouter<_DiscoverRoute>(
+        initial: const _DiscoverRoot(),
+      );
       final shell = BranchedShellRouter(branches: [home, discover]);
       addTearDown(shell.dispose);
       addTearDown(home.dispose);
@@ -103,8 +106,9 @@ void main() {
 
     test('popCurrent pops the active branch', () async {
       final home = GateRouter<_HomeRoute>(initial: const _HomeRoot());
-      final discover =
-          GateRouter<_DiscoverRoute>(initial: const _DiscoverRoot());
+      final discover = GateRouter<_DiscoverRoute>(
+        initial: const _DiscoverRoot(),
+      );
       final shell = BranchedShellRouter(branches: [home, discover]);
       addTearDown(shell.dispose);
       addTearDown(home.dispose);
@@ -124,8 +128,9 @@ void main() {
 
     test('branch mutations notify shell listeners', () async {
       final home = GateRouter<_HomeRoute>(initial: const _HomeRoot());
-      final discover =
-          GateRouter<_DiscoverRoute>(initial: const _DiscoverRoot());
+      final discover = GateRouter<_DiscoverRoute>(
+        initial: const _DiscoverRoot(),
+      );
       final shell = BranchedShellRouter(branches: [home, discover]);
       addTearDown(shell.dispose);
       addTearDown(home.dispose);
@@ -144,20 +149,23 @@ void main() {
       expect(notifications, 3, reason: 'discover push should notify shell');
     });
 
-    test('branches stay independent — pushing in one is invisible to others',
-        () async {
-      final home = GateRouter<_HomeRoute>(initial: const _HomeRoot());
-      final discover =
-          GateRouter<_DiscoverRoute>(initial: const _DiscoverRoot());
-      final shell = BranchedShellRouter(branches: [home, discover]);
-      addTearDown(shell.dispose);
-      addTearDown(home.dispose);
-      addTearDown(discover.dispose);
+    test(
+      'branches stay independent — pushing in one is invisible to others',
+      () async {
+        final home = GateRouter<_HomeRoute>(initial: const _HomeRoot());
+        final discover = GateRouter<_DiscoverRoute>(
+          initial: const _DiscoverRoot(),
+        );
+        final shell = BranchedShellRouter(branches: [home, discover]);
+        addTearDown(shell.dispose);
+        addTearDown(home.dispose);
+        addTearDown(discover.dispose);
 
-      await home.push(const _ProductDetail('a'));
-      expect(home.stack, [const _HomeRoot(), const _ProductDetail('a')]);
-      expect(discover.stack, [const _DiscoverRoot()]);
-    });
+        await home.push(const _ProductDetail('a'));
+        expect(home.stack, [const _HomeRoot(), const _ProductDetail('a')]);
+        expect(discover.stack, [const _DiscoverRoot()]);
+      },
+    );
 
     test('asserts that branches is non-empty', () {
       expect(
@@ -191,8 +199,9 @@ void main() {
   group('BranchedShellRouter capture / restore', () {
     test('captureConfig reflects the active branch and its stack', () async {
       final home = GateRouter<_HomeRoute>(initial: const _HomeRoot());
-      final discover =
-          GateRouter<_DiscoverRoute>(initial: const _DiscoverRoot());
+      final discover = GateRouter<_DiscoverRoute>(
+        initial: const _DiscoverRoot(),
+      );
       final shell = BranchedShellRouter(branches: [home, discover]);
       addTearDown(shell.dispose);
       addTearDown(home.dispose);
@@ -213,8 +222,9 @@ void main() {
 
     test('restoreFromConfig replays the captured snapshot', () async {
       final home = GateRouter<_HomeRoute>(initial: const _HomeRoot());
-      final discover =
-          GateRouter<_DiscoverRoute>(initial: const _DiscoverRoot());
+      final discover = GateRouter<_DiscoverRoute>(
+        initial: const _DiscoverRoot(),
+      );
       final shell = BranchedShellRouter(branches: [home, discover]);
       addTearDown(shell.dispose);
       addTearDown(home.dispose);
@@ -233,8 +243,9 @@ void main() {
 
     test('restoreFromConfig leaves inactive branches alone', () async {
       final home = GateRouter<_HomeRoute>(initial: const _HomeRoot());
-      final discover =
-          GateRouter<_DiscoverRoute>(initial: const _DiscoverRoot());
+      final discover = GateRouter<_DiscoverRoute>(
+        initial: const _DiscoverRoot(),
+      );
       final shell = BranchedShellRouter(branches: [home, discover]);
       addTearDown(shell.dispose);
       addTearDown(home.dispose);
@@ -274,8 +285,9 @@ void main() {
 
     test('restoreFromConfig with a route of the wrong type throws', () async {
       final home = GateRouter<_HomeRoute>(initial: const _HomeRoot());
-      final discover =
-          GateRouter<_DiscoverRoute>(initial: const _DiscoverRoot());
+      final discover = GateRouter<_DiscoverRoute>(
+        initial: const _DiscoverRoot(),
+      );
       final shell = BranchedShellRouter(branches: [home, discover]);
       addTearDown(shell.dispose);
       addTearDown(home.dispose);
@@ -295,8 +307,9 @@ void main() {
 
     test('capture-then-restore round-trip yields the same state', () async {
       final home = GateRouter<_HomeRoute>(initial: const _HomeRoot());
-      final discover =
-          GateRouter<_DiscoverRoute>(initial: const _DiscoverRoot());
+      final discover = GateRouter<_DiscoverRoute>(
+        initial: const _DiscoverRoot(),
+      );
       final shell = BranchedShellRouter(branches: [home, discover]);
       addTearDown(shell.dispose);
       addTearDown(home.dispose);

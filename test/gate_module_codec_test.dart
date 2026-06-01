@@ -57,18 +57,18 @@ class _CheckoutCodec extends ModuleStackCodec<_CheckoutRoute> {
 
   @override
   List<String> encode(List<_CheckoutRoute> stack) => switch (stack.last) {
-        _Cart() => const [],
-        _Shipping() => const ['shipping'],
-        _Confirm() => const ['confirm'],
-      };
+    _Cart() => const [],
+    _Shipping() => const ['shipping'],
+    _Confirm() => const ['confirm'],
+  };
 
   @override
   List<_CheckoutRoute>? decode(List<String> segments) => switch (segments) {
-        [] => const [_Cart()],
-        ['shipping'] => const [_Cart(), _Shipping()],
-        ['confirm'] => const [_Cart(), _Shipping(), _Confirm()],
-        _ => null,
-      };
+    [] => const [_Cart()],
+    ['shipping'] => const [_Cart(), _Shipping()],
+    ['confirm'] => const [_Cart(), _Shipping(), _Confirm()],
+    _ => null,
+  };
 }
 
 class _AccountCodec extends ModuleStackCodec<_AccountRoute> {
@@ -76,16 +76,16 @@ class _AccountCodec extends ModuleStackCodec<_AccountRoute> {
 
   @override
   List<String> encode(List<_AccountRoute> stack) => switch (stack.last) {
-        _Profile() => const [],
-        _PaymentMethods() => const ['payment-methods'],
-      };
+    _Profile() => const [],
+    _PaymentMethods() => const ['payment-methods'],
+  };
 
   @override
   List<_AccountRoute>? decode(List<String> segments) => switch (segments) {
-        [] => const [_Profile()],
-        ['payment-methods'] => const [_Profile(), _PaymentMethods()],
-        _ => null,
-      };
+    [] => const [_Profile()],
+    ['payment-methods'] => const [_Profile(), _PaymentMethods()],
+    _ => null,
+  };
 }
 
 // A bare base codec. Handles main-stack routes only.
@@ -94,19 +94,19 @@ class _MainCodec implements GateConfigCodec<_AppRoute> {
 
   @override
   Uri encode(GateConfig<_AppRoute> config) => switch (config.mainStack.last) {
-        _Home() => Uri(path: '/'),
-        _Settings() => Uri(path: '/settings'),
-        // Mount routes shouldn't reach here when wrapped by a composer.
-        // Defensive fallback.
-        _CheckoutMount() || _AccountMount() => Uri(path: '/'),
-      };
+    _Home() => Uri(path: '/'),
+    _Settings() => Uri(path: '/settings'),
+    // Mount routes shouldn't reach here when wrapped by a composer.
+    // Defensive fallback.
+    _CheckoutMount() || _AccountMount() => Uri(path: '/'),
+  };
 
   @override
   GateConfig<_AppRoute>? decode(Uri uri) => switch (uri.pathSegments) {
-        [] || [''] => GateConfig(mainStack: const [_Home()]),
-        ['settings'] => GateConfig(mainStack: const [_Settings()]),
-        _ => null,
-      };
+    [] || [''] => GateConfig(mainStack: const [_Home()]),
+    ['settings'] => GateConfig(mainStack: const [_Settings()]),
+    _ => null,
+  };
 }
 
 // Tests
@@ -249,9 +249,7 @@ void main() {
       final uri = codec.encode(
         GateConfig(
           mainStack: const [_CheckoutMount()],
-          nestedState: GateModuleConfig(
-            stack: const [_Cart(), _Shipping()],
-          ),
+          nestedState: GateModuleConfig(stack: const [_Cart(), _Shipping()]),
         ),
       );
       expect(uri.pathSegments, ['checkout', 'shipping']);
@@ -275,9 +273,7 @@ void main() {
         // still produce a sensible URL for the mount itself rather
         // than falling through.
         final uri = codec.encode(
-          GateConfig(
-            mainStack: const [_CheckoutMount()],
-          ),
+          GateConfig(mainStack: const [_CheckoutMount()]),
         );
         expect(uri.pathSegments, ['checkout']);
       },

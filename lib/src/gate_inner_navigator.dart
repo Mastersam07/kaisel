@@ -36,9 +36,9 @@ class GateInnerNavigator<R extends GateRoute> extends StatefulWidget {
     this.pageWrapper,
     this.observers = const [],
   }) : assert(
-          (pageBuilder == null) != (adaptivePageBuilder == null),
-          'Provide exactly one of pageBuilder or adaptivePageBuilder',
-        );
+         (pageBuilder == null) != (adaptivePageBuilder == null),
+         'Provide exactly one of pageBuilder or adaptivePageBuilder',
+       );
 
   /// The router whose stack drives the inner navigator's pages.
   final GateRouter<R> router;
@@ -118,35 +118,33 @@ class _GateInnerNavigatorState<R extends GateRoute>
     final entries = widget.router.entries;
     final pages = switch (widget.adaptivePageBuilder) {
       final builder? => buildAdaptivePages<R>(
-          context: context,
-          entries: entries,
-          builder: builder,
-          wrap: _wrapAdaptive,
-        ),
+        context: context,
+        entries: entries,
+        builder: builder,
+        wrap: _wrapAdaptive,
+      ),
       _ => [
-          for (var i = 0; i < entries.length; i++)
-            _wrapSimple(
-              GatePageWrapperContext<R>(
+        for (var i = 0; i < entries.length; i++)
+          _wrapSimple(
+            GatePageWrapperContext<R>(
+              route: entries[i].route,
+              child: GatePageScope(
                 route: entries[i].route,
-                child: GatePageScope(
-                  route: entries[i].route,
-                  position: i,
-                  stackLength: entries.length,
-                  previous: i > 0 ? entries[i - 1].route : null,
-                  child: Builder(
-                    builder: (innerContext) => widget.pageBuilder!(
-                      innerContext,
-                      entries[i].route,
-                    ),
-                  ),
-                ),
-                key: ValueKey<int>(entries[i].id),
                 position: i,
                 stackLength: entries.length,
                 previous: i > 0 ? entries[i - 1].route : null,
+                child: Builder(
+                  builder: (innerContext) =>
+                      widget.pageBuilder!(innerContext, entries[i].route),
+                ),
               ),
+              key: ValueKey<int>(entries[i].id),
+              position: i,
+              stackLength: entries.length,
+              previous: i > 0 ? entries[i - 1].route : null,
             ),
-        ]
+          ),
+      ],
     };
 
     return HeroControllerScope(

@@ -41,13 +41,13 @@ class BranchedShellRouter extends ChangeNotifier implements GateNestedHandle {
   BranchedShellRouter({
     required List<GateNavigator> branches,
     int initialBranch = 0,
-  })  : assert(branches.isNotEmpty, 'A shell must have at least one branch.'),
-        assert(
-          initialBranch >= 0 && initialBranch < branches.length,
-          'initialBranch out of range',
-        ),
-        _branches = List<GateNavigator>.unmodifiable(branches),
-        _activeBranch = initialBranch {
+  }) : assert(branches.isNotEmpty, 'A shell must have at least one branch.'),
+       assert(
+         initialBranch >= 0 && initialBranch < branches.length,
+         'initialBranch out of range',
+       ),
+       _branches = List<GateNavigator>.unmodifiable(branches),
+       _activeBranch = initialBranch {
     for (final branch in _branches) {
       branch.addListener(notifyListeners);
     }
@@ -165,8 +165,8 @@ class GateBranch<R extends GateRoute> extends StatefulWidget {
     required GatePageBuilder<R> pageBuilder,
     this.pageWrapper,
     this.scope,
-  })  : _pageBuilder = pageBuilder,
-        _adaptivePageBuilder = null;
+  }) : _pageBuilder = pageBuilder,
+       _adaptivePageBuilder = null;
 
   /// Create a branch view bound to [router] with an adaptive
   /// [pageBuilder]. The builder receives a [GateStackContext] for
@@ -180,8 +180,8 @@ class GateBranch<R extends GateRoute> extends StatefulWidget {
     required GateAdaptivePageBuilder<R> pageBuilder,
     this.pageWrapper,
     this.scope,
-  })  : _pageBuilder = null,
-        _adaptivePageBuilder = pageBuilder;
+  }) : _pageBuilder = null,
+       _adaptivePageBuilder = pageBuilder;
 
   /// The typed router driving this branch's stack.
   final GateRouter<R> router;
@@ -204,8 +204,9 @@ class GateBranch<R extends GateRoute> extends StatefulWidget {
 }
 
 class _GateBranchState<R extends GateRoute> extends State<GateBranch<R>> {
-  late final GlobalKey<NavigatorState> _navKey =
-      GlobalKey<NavigatorState>(debugLabel: 'gate-branch-$R');
+  late final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>(
+    debugLabel: 'gate-branch-$R',
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -231,12 +232,13 @@ class _GateBranchState<R extends GateRoute> extends State<GateBranch<R>> {
 
 /// Signature for the chrome around a [GateBranchedShell] — typically a
 /// [Scaffold] with a bottom nav bar.
-typedef GateBranchedShellChromeBuilder = Widget Function(
-  BuildContext context,
-  int activeBranch,
-  Widget branchContent,
-  void Function(int branch) switchBranch,
-);
+typedef GateBranchedShellChromeBuilder =
+    Widget Function(
+      BuildContext context,
+      int activeBranch,
+      Widget branchContent,
+      void Function(int branch) switchBranch,
+    );
 
 /// A bottom-nav shell whose branches have **different** route types.
 ///

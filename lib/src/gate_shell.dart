@@ -22,19 +22,19 @@ class ShellRouter<R extends GateRoute> extends ChangeNotifier {
     required List<R> branchInitials,
     int initialBranch = 0,
     List<GateGuard<R>> guards = const [],
-  })  : assert(
-          branchInitials.isNotEmpty,
-          'A shell must have at least one branch.',
-        ),
-        assert(
-          initialBranch >= 0 && initialBranch < branchInitials.length,
-          'initialBranch out of range',
-        ),
-        _branches = [
-          for (final initial in branchInitials)
-            GateRouter<R>(initial: initial, guards: guards),
-        ],
-        _activeBranch = initialBranch {
+  }) : assert(
+         branchInitials.isNotEmpty,
+         'A shell must have at least one branch.',
+       ),
+       assert(
+         initialBranch >= 0 && initialBranch < branchInitials.length,
+         'initialBranch out of range',
+       ),
+       _branches = [
+         for (final initial in branchInitials)
+           GateRouter<R>(initial: initial, guards: guards),
+       ],
+       _activeBranch = initialBranch {
     for (final branch in _branches) {
       branch.addListener(notifyListeners);
     }
@@ -79,22 +79,20 @@ class ShellRouter<R extends GateRoute> extends ChangeNotifier {
 /// with a bottom nav bar — given the active branch index, the branch
 /// content (an [IndexedStack] of nested navigators), and a callback
 /// to switch branches.
-typedef GateShellChromeBuilder = Widget Function(
-  BuildContext context,
-  int activeBranch,
-  Widget branchContent,
-  void Function(int branch) switchBranch,
-);
+typedef GateShellChromeBuilder =
+    Widget Function(
+      BuildContext context,
+      int activeBranch,
+      Widget branchContent,
+      void Function(int branch) switchBranch,
+    );
 
 /// Optional wrapper for each branch's content — typically used to
 /// inject branch-scoped state (a `BlocProvider`, `ProviderScope`,
 /// signals scope, etc.) that should live as long as the branch is
 /// mounted. Called once per branch when the shell is built.
-typedef GateBranchScope = Widget Function(
-  BuildContext context,
-  int branchIndex,
-  Widget child,
-);
+typedef GateBranchScope =
+    Widget Function(BuildContext context, int branchIndex, Widget child);
 
 /// A multi-branch navigation widget — what you reach for to build a
 /// bottom-nav app with per-tab back stacks and scoped state.
@@ -116,8 +114,8 @@ class GateShell<R extends GateRoute> extends StatefulWidget {
     this.guards = const [],
     this.branchScope,
     this.pageWrapper,
-  })  : _pageBuilder = pageBuilder,
-        _adaptivePageBuilder = null;
+  }) : _pageBuilder = pageBuilder,
+       _adaptivePageBuilder = null;
 
   /// Create a shell whose branches use an adaptive page builder.
   /// The builder receives a [GateStackContext] for each entry so it
@@ -139,8 +137,8 @@ class GateShell<R extends GateRoute> extends StatefulWidget {
     this.guards = const [],
     this.branchScope,
     this.pageWrapper,
-  })  : _pageBuilder = null,
-        _adaptivePageBuilder = pageBuilder;
+  }) : _pageBuilder = null,
+       _adaptivePageBuilder = pageBuilder;
 
   /// One route per branch. The initial route for that branch's stack.
   final List<R> branchInitials;

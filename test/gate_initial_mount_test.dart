@@ -61,12 +61,15 @@ class _ShellHostWidget extends StatefulWidget {
 }
 
 class _ShellHostWidgetState extends State<_ShellHostWidget> {
-  late final GateRouter<_AlphaRoute> _alpha =
-      GateRouter<_AlphaRoute>(initial: const _AlphaHome());
-  late final GateRouter<_BetaRoute> _beta =
-      GateRouter<_BetaRoute>(initial: const _BetaHome());
-  late final BranchedShellRouter _shell =
-      BranchedShellRouter(branches: [_alpha, _beta]);
+  late final GateRouter<_AlphaRoute> _alpha = GateRouter<_AlphaRoute>(
+    initial: const _AlphaHome(),
+  );
+  late final GateRouter<_BetaRoute> _beta = GateRouter<_BetaRoute>(
+    initial: const _BetaHome(),
+  );
+  late final BranchedShellRouter _shell = BranchedShellRouter(
+    branches: [_alpha, _beta],
+  );
 
   @override
   void dispose() {
@@ -98,10 +101,7 @@ class _ShellHostWidgetState extends State<_ShellHostWidget> {
             onDestinationSelected: switchBranch,
             destinations: const [
               NavigationDestination(icon: Icon(Icons.home), label: 'Alpha'),
-              NavigationDestination(
-                icon: Icon(Icons.settings),
-                label: 'Beta',
-              ),
+              NavigationDestination(icon: Icon(Icons.settings), label: 'Beta'),
             ],
           ),
         );
@@ -113,8 +113,9 @@ class _ShellHostWidgetState extends State<_ShellHostWidget> {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('shell-as-initial-route mounts without setState-during-build',
-      (tester) async {
+  testWidgets('shell-as-initial-route mounts without setState-during-build', (
+    tester,
+  ) async {
     final mainRouter = GateRouter<_AppRoute>(initial: const _ShellHost());
     final delegate = GateRouterDelegate<_AppRoute>(
       router: mainRouter,

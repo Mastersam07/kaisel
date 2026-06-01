@@ -52,8 +52,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('GatePageScope (simple pipeline)', () {
-    testWidgets('descendant sees the page\'s navigation context',
-        (tester) async {
+    testWidgets('descendant sees the page\'s navigation context', (
+      tester,
+    ) async {
       final router = GateRouter<_R>(initial: const _A());
       await router.push(const _B());
       await router.push(const _C('1'));
@@ -65,14 +66,12 @@ void main() {
         builder: (context, route) => _ScopeReader(
           onBuild: (scope) {
             if (scope == null) return;
-            readings.add(
-              (
-                scope.route,
-                scope.position,
-                scope.stackLength,
-                scope.previous,
-              ),
-            );
+            readings.add((
+              scope.route,
+              scope.position,
+              scope.stackLength,
+              scope.previous,
+            ));
           },
         ),
       );
@@ -130,8 +129,7 @@ void main() {
   });
 
   group('GatePageScope (adaptive pipeline)', () {
-    testWidgets(
-        'absorbing pages report isBottom=true even when the '
+    testWidgets('absorbing pages report isBottom=true even when the '
         'router stack has multiple entries', (tester) async {
       // Stack: [_A, _B, _C('x')]. Adaptive builder absorbs _C+_B
       // into one page. After absorption, the rendered Navigator has
@@ -159,16 +157,12 @@ void main() {
         builder: (context, route, stack) {
           return switch ((route, stack.previous)) {
             (_C(), _A()) => GateAbsorbingPage(
-                widget: _ScopeReader(
-                  onBuild: (scope) => observed = scope,
-                ),
-                absorbing: 1,
-              ),
+              widget: _ScopeReader(onBuild: (scope) => observed = scope),
+              absorbing: 1,
+            ),
             _ => GateStandalonePage(
-                _ScopeReader(
-                  onBuild: (scope) => observed = scope,
-                ),
-              ),
+              _ScopeReader(onBuild: (scope) => observed = scope),
+            ),
           };
         },
       );
@@ -215,8 +209,9 @@ void main() {
       expect(observed, isNull);
     });
 
-    testWidgets('updateShouldNotify fires when context fields change',
-        (tester) async {
+    testWidgets('updateShouldNotify fires when context fields change', (
+      tester,
+    ) async {
       // Push to make position/stackLength change, then verify the
       // dependent rebuilt.
       final router = GateRouter<_R>(initial: const _A());

@@ -88,11 +88,9 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
     implements GateNavigator {
   /// Create a router with a single initial route and an optional guard
   /// pipeline.
-  GateRouter({
-    required R initial,
-    List<GateGuard<R>> guards = const [],
-  })  : _entries = [GateStackEntry<R>(initial)],
-        _guards = List<GateGuard<R>>.unmodifiable(guards);
+  GateRouter({required R initial, List<GateGuard<R>> guards = const []})
+    : _entries = [GateStackEntry<R>(initial)],
+      _guards = List<GateGuard<R>>.unmodifiable(guards);
 
   /// Create a router from an existing stack. Must not be empty.
   factory GateRouter.fromStack(
@@ -110,8 +108,8 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
   }
 
   GateRouter._empty({required List<GateGuard<R>> guards})
-      : _entries = [],
-        _guards = List<GateGuard<R>>.unmodifiable(guards);
+    : _entries = [],
+      _guards = List<GateGuard<R>>.unmodifiable(guards);
 
   final List<GateStackEntry<R>> _entries;
   final List<GateGuard<R>> _guards;
@@ -169,11 +167,11 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
   /// rather than silently coalescing.
   @override
   Future<bool> pop() => _enqueue(() async {
-        if (!canPop) return false;
-        final next = stack.sublist(0, stack.length - 1);
-        await _navigate(next);
-        return true;
-      });
+    if (!canPop) return false;
+    final next = stack.sublist(0, stack.length - 1);
+    await _navigate(next);
+    return true;
+  });
 
   /// Replace the top route on the stack. Runs through guards.
   ///
@@ -181,14 +179,14 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
   /// method only ever touches the top entry; longer-form `replaceTop`
   /// makes that immediate at the call site.
   Future<void> replaceTop(R route) => _enqueue(() {
-        final next = [...stack];
-        if (next.isEmpty) {
-          next.add(route);
-        } else {
-          next[next.length - 1] = route;
-        }
-        return _navigate(next);
-      });
+    final next = [...stack];
+    if (next.isEmpty) {
+      next.add(route);
+    } else {
+      next[next.length - 1] = route;
+    }
+    return _navigate(next);
+  });
 
   /// Push [route] onto the stack, or replace the top entry if [when]
   /// matches the current top route.
@@ -214,10 +212,7 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
   /// force a push, equivalent to calling [push] directly).
   ///
   /// New in v0.11.
-  Future<void> pushOrReplaceTop(
-    R route, {
-    bool Function(R current)? when,
-  }) {
+  Future<void> pushOrReplaceTop(R route, {bool Function(R current)? when}) {
     final predicate = when ?? ((c) => c.runtimeType == route.runtimeType);
     if (stack.isEmpty || !predicate(current)) {
       return push(route);
@@ -240,12 +235,12 @@ class GateRouter<R extends GateRoute> extends ChangeNotifier
   /// Pop routes until [predicate] returns true for the top route, or
   /// only one route remains on the stack. Runs through guards.
   Future<void> popUntil(bool Function(R route) predicate) => _enqueue(() {
-        final next = [...stack];
-        while (next.length > 1 && !predicate(next.last)) {
-          next.removeLast();
-        }
-        return _navigate(next);
-      });
+    final next = [...stack];
+    while (next.length > 1 && !predicate(next.last)) {
+      next.removeLast();
+    }
+    return _navigate(next);
+  });
 
   /// Used by the delegate to sync state when the navigator pops a page
   /// (e.g. system back). Synchronous: by the time the navigator notifies

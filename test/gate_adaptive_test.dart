@@ -61,12 +61,12 @@ class _AbsorbedMasterDetail extends StatelessWidget {
   final String detailId;
   @override
   Widget build(BuildContext context) => Column(
-        children: [
-          const Text('List'),
-          Text('Detail $detailId'),
-          const Text('SIDE-BY-SIDE'),
-        ],
-      );
+    children: [
+      const Text('List'),
+      Text('Detail $detailId'),
+      const Text('SIDE-BY-SIDE'),
+    ],
+  );
 }
 
 Widget _wrapApp(GateRouterDelegate<_AppRoute> delegate) {
@@ -85,8 +85,7 @@ class _CurrentStackParser
   @override
   Future<GateConfig<_AppRoute>> parseRouteInformation(
     RouteInformation routeInformation,
-  ) async =>
-      GateConfig<_AppRoute>(mainStack: router.stack);
+  ) async => GateConfig<_AppRoute>(mainStack: router.stack);
 }
 
 void main() {
@@ -169,21 +168,20 @@ void main() {
   });
 
   group('Adaptive rendering: standalone-only', () {
-    testWidgets('renders one page per stack entry when all are standalone',
-        (tester) async {
+    testWidgets('renders one page per stack entry when all are standalone', (
+      tester,
+    ) async {
       final router = GateRouter<_AppRoute>(initial: const _Home());
       await router.push(const _ProductList());
 
       final delegate = GateRouterDelegate<_AppRoute>.adaptive(
         router: router,
-        builder: (context, route, stack) => GateStandalonePage(
-          switch (route) {
-            _Home() => const _HomeScreen(),
-            _ProductList() => const _ListScreen(),
-            _ProductDetail(:final id) => _DetailScreen(id),
-            _Reviews(:final productId) => _ReviewsScreen(productId),
-          },
-        ),
+        builder: (context, route, stack) => GateStandalonePage(switch (route) {
+          _Home() => const _HomeScreen(),
+          _ProductList() => const _ListScreen(),
+          _ProductDetail(:final id) => _DetailScreen(id),
+          _Reviews(:final productId) => _ReviewsScreen(productId),
+        }),
       );
       addTearDown(delegate.dispose);
 
@@ -198,8 +196,9 @@ void main() {
   });
 
   group('Adaptive rendering: absorbing', () {
-    testWidgets('detail absorbing list collapses two entries into one page',
-        (tester) async {
+    testWidgets('detail absorbing list collapses two entries into one page', (
+      tester,
+    ) async {
       final router = GateRouter<_AppRoute>(initial: const _ProductList());
       await router.push(const _ProductDetail('42'));
 
@@ -208,16 +207,17 @@ void main() {
         builder: (context, route, stack) {
           return switch ((route, stack.previous)) {
             (_ProductDetail(:final id), _ProductList()) => GateAbsorbingPage(
-                widget: _AbsorbedMasterDetail(id),
-                absorbing: 1,
-              ),
+              widget: _AbsorbedMasterDetail(id),
+              absorbing: 1,
+            ),
             (_ProductDetail(:final id), _) => GateStandalonePage(
-                _DetailScreen(id),
-              ),
+              _DetailScreen(id),
+            ),
             (_ProductList(), _) => const GateStandalonePage(_ListScreen()),
             (_Home(), _) => const GateStandalonePage(_HomeScreen()),
-            (_Reviews(:final productId), _) =>
-              GateStandalonePage(_ReviewsScreen(productId)),
+            (_Reviews(:final productId), _) => GateStandalonePage(
+              _ReviewsScreen(productId),
+            ),
           };
         },
       );
@@ -237,8 +237,9 @@ void main() {
       expect(find.text('SIDE-BY-SIDE'), findsOneWidget);
     });
 
-    testWidgets('absorbing N=2 collapses three entries into one page',
-        (tester) async {
+    testWidgets('absorbing N=2 collapses three entries into one page', (
+      tester,
+    ) async {
       final router = GateRouter<_AppRoute>(initial: const _Home());
       await router.push(const _ProductList());
       await router.push(const _ProductDetail('7'));
@@ -253,14 +254,12 @@ void main() {
               absorbing: 2,
             );
           }
-          return GateStandalonePage(
-            switch (route) {
-              _Home() => const _HomeScreen(),
-              _ProductList() => const _ListScreen(),
-              _ProductDetail(:final id) => _DetailScreen(id),
-              _Reviews(:final productId) => _ReviewsScreen(productId),
-            },
-          );
+          return GateStandalonePage(switch (route) {
+            _Home() => const _HomeScreen(),
+            _ProductList() => const _ListScreen(),
+            _ProductDetail(:final id) => _DetailScreen(id),
+            _Reviews(:final productId) => _ReviewsScreen(productId),
+          });
         },
       );
       addTearDown(delegate.dispose);
@@ -289,17 +288,17 @@ void main() {
           builder: (context, route, stack) {
             return switch ((route, stack.previous)) {
               (_ProductDetail(:final id), _ProductList()) => GateAbsorbingPage(
-                  widget: _AbsorbedMasterDetail(id),
-                  absorbing: 1,
-                ),
+                widget: _AbsorbedMasterDetail(id),
+                absorbing: 1,
+              ),
               (_ProductDetail(:final id), _) => GateStandalonePage(
-                  _DetailScreen(id),
-                ),
+                _DetailScreen(id),
+              ),
               (_ProductList(), _) => const GateStandalonePage(_ListScreen()),
               (_Home(), _) => const GateStandalonePage(_HomeScreen()),
               (_Reviews(:final productId), _) => GateStandalonePage(
-                  _ReviewsScreen(productId),
-                ),
+                _ReviewsScreen(productId),
+              ),
             };
           },
         );
@@ -326,15 +325,17 @@ void main() {
           builder: (context, route, stack) {
             return switch ((route, stack.previous)) {
               (_ProductDetail(:final id), _ProductList()) => GateAbsorbingPage(
-                  widget: _AbsorbedMasterDetail(id),
-                  absorbing: 1,
-                ),
-              (_ProductDetail(:final id), _) =>
-                GateStandalonePage(_DetailScreen(id)),
+                widget: _AbsorbedMasterDetail(id),
+                absorbing: 1,
+              ),
+              (_ProductDetail(:final id), _) => GateStandalonePage(
+                _DetailScreen(id),
+              ),
               (_ProductList(), _) => const GateStandalonePage(_ListScreen()),
               (_Home(), _) => const GateStandalonePage(_HomeScreen()),
-              (_Reviews(:final productId), _) =>
-                GateStandalonePage(_ReviewsScreen(productId)),
+              (_Reviews(:final productId), _) => GateStandalonePage(
+                _ReviewsScreen(productId),
+              ),
             };
           },
         );
@@ -381,15 +382,17 @@ void main() {
           builder: (context, route, stack) {
             return switch ((route, stack.previous)) {
               (_ProductDetail(:final id), _ProductList()) => GateAbsorbingPage(
-                  widget: _AbsorbedMasterDetail(id),
-                  absorbing: 1,
-                ),
-              (_ProductDetail(:final id), _) =>
-                GateStandalonePage(_DetailScreen(id)),
+                widget: _AbsorbedMasterDetail(id),
+                absorbing: 1,
+              ),
+              (_ProductDetail(:final id), _) => GateStandalonePage(
+                _DetailScreen(id),
+              ),
               (_ProductList(), _) => const GateStandalonePage(_ListScreen()),
               (_Home(), _) => const GateStandalonePage(_HomeScreen()),
-              (_Reviews(:final productId), _) =>
-                GateStandalonePage(_ReviewsScreen(productId)),
+              (_Reviews(:final productId), _) => GateStandalonePage(
+                _ReviewsScreen(productId),
+              ),
             };
           },
         );
@@ -423,14 +426,13 @@ void main() {
 
         final delegate = GateRouterDelegate<_AppRoute>.adaptive(
           router: router,
-          builder: (context, route, stack) => GateStandalonePage(
-            switch (route) {
-              _Home() => const _HomeScreen(),
-              _ProductList() => const _ListScreen(),
-              _ProductDetail(:final id) => _DetailScreen(id),
-              _Reviews(:final productId) => _ReviewsScreen(productId),
-            },
-          ),
+          builder: (context, route, stack) =>
+              GateStandalonePage(switch (route) {
+                _Home() => const _HomeScreen(),
+                _ProductList() => const _ListScreen(),
+                _ProductDetail(:final id) => _DetailScreen(id),
+                _Reviews(:final productId) => _ReviewsScreen(productId),
+              }),
         );
         addTearDown(delegate.dispose);
 

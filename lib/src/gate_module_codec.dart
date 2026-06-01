@@ -194,13 +194,7 @@ class ConfigCodecWithModules<R extends GateRoute>
       final nested = config.nestedState;
       if (nested is GateModuleConfig) {
         final segments = mount.codec.encodeAny(nested.stack);
-        return Uri(
-          pathSegments: [
-            '',
-            ...mount._prefixSegments(),
-            ...segments,
-          ],
-        );
+        return Uri(pathSegments: ['', ...mount._prefixSegments(), ...segments]);
       }
       // Mount route is on top but no module state yet (the mount has
       // been pushed but the module widget hasn't registered yet, or a
@@ -212,8 +206,9 @@ class ConfigCodecWithModules<R extends GateRoute>
 
   @override
   GateConfig<R>? decode(Uri uri) {
-    final segments =
-        uri.pathSegments.where((s) => s.isNotEmpty).toList(growable: false);
+    final segments = uri.pathSegments
+        .where((s) => s.isNotEmpty)
+        .toList(growable: false);
 
     for (final mount in modules) {
       final prefix = mount._prefixSegments();

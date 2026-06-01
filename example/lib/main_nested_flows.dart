@@ -223,15 +223,25 @@ class _PaymentFlowScreenState extends State<_PaymentFlowScreen> {
         const SizedBox(height: 24),
         const Text('Pay with', style: TextStyle(fontSize: 12)),
         const SizedBox(height: 8),
-        for (var i = 0; i < _cards.length; i++)
-          RadioListTile<int>(
-            value: i,
-            groupValue: _selected,
-            onChanged: _busy ? null : (v) => setState(() => _selected = v!),
-            title: Text(_cards[i]),
-            contentPadding: EdgeInsets.zero,
-            dense: true,
+        RadioGroup<int>(
+          groupValue: _selected,
+          onChanged: (v) {
+            if (_busy || v == null) return;
+            setState(() => _selected = v);
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < _cards.length; i++)
+                RadioListTile<int>(
+                  value: i,
+                  title: Text(_cards[i]),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+            ],
           ),
+        ),
         const SizedBox(height: 4),
         OutlinedButton.icon(
           icon: const Icon(Icons.add),
@@ -401,7 +411,7 @@ class _NestedFlowsAppState extends State<NestedFlowsApp> {
     // Slight inset for the inner flow so both layers are visible.
     final isInner = flowRoute is AddCardFlow;
     return ColoredBox(
-      color: Colors.black.withOpacity(isInner ? 0.35 : 0.6),
+      color: Colors.black.withValues(alpha: isInner ? 0.35 : 0.6),
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: isInner ? 380 : 420),
@@ -415,7 +425,7 @@ class _NestedFlowsAppState extends State<NestedFlowsApp> {
               color: const Color(0xFF14141C),
               border: Border.all(
                 color: isInner
-                    ? const Color(0xFF00D4FF).withOpacity(0.4)
+                    ? const Color(0xFF00D4FF).withValues(alpha: 0.4)
                     : const Color(0xFF2A2A35),
               ),
               borderRadius: BorderRadius.circular(16),

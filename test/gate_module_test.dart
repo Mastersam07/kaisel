@@ -54,12 +54,8 @@ final class _OtherRoot extends _OtherRoute {
 void main() {
   group('GateModuleConfig', () {
     test('equality is value-based', () {
-      final a = GateModuleConfig(
-        stack: const [_Cart(), _Shipping()],
-      );
-      final b = GateModuleConfig(
-        stack: const [_Cart(), _Shipping()],
-      );
+      final a = GateModuleConfig(stack: const [_Cart(), _Shipping()]);
+      final b = GateModuleConfig(stack: const [_Cart(), _Shipping()]);
       expect(a, equals(b));
       expect(a.hashCode, b.hashCode);
     });
@@ -88,8 +84,9 @@ void main() {
       // The sealed GateNestedConfig type makes "shell + module" a
       // type-level impossibility — at most one nestedState can be
       // assigned. This test pins the type relationship.
-      final GateNestedConfig moduleState =
-          GateModuleConfig(stack: const [_Cart()]);
+      final GateNestedConfig moduleState = GateModuleConfig(
+        stack: const [_Cart()],
+      );
       final GateNestedConfig shellState = GateShellConfig(
         activeBranch: 0,
         activeBranchStack: const [_OtherRoot()],
@@ -211,24 +208,17 @@ void main() {
       },
     );
 
-    testWidgets(
-      'unmount disposes the internal router',
-      (tester) async {
-        await tester.pumpWidget(
-          const MaterialApp(
-            home: GateModuleMount<_CheckoutRoute>(
-              module: _TestCheckoutModule(),
-            ),
-          ),
-        );
-        // Replace with a different widget — the mount should dispose
-        // cleanly. Any disposal error would be caught by tester.
-        await tester.pumpWidget(
-          const MaterialApp(home: SizedBox()),
-        );
-        expect(find.byKey(const ValueKey('cart')), findsNothing);
-      },
-    );
+    testWidgets('unmount disposes the internal router', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: GateModuleMount<_CheckoutRoute>(module: _TestCheckoutModule()),
+        ),
+      );
+      // Replace with a different widget — the mount should dispose
+      // cleanly. Any disposal error would be caught by tester.
+      await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+      expect(find.byKey(const ValueKey('cart')), findsNothing);
+    });
   });
 }
 

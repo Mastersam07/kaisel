@@ -41,11 +41,9 @@ import 'gate_stack_codec.dart';
 class GateConfig<R extends GateRoute> {
   /// Create a configuration with a main stack and optional nested
   /// state (shell or module).
-  GateConfig({
-    required List<R> mainStack,
-    this.nestedState,
-  })  : assert(mainStack.isNotEmpty, 'mainStack must not be empty'),
-        mainStack = List<R>.unmodifiable(mainStack);
+  GateConfig({required List<R> mainStack, this.nestedState})
+    : assert(mainStack.isNotEmpty, 'mainStack must not be empty'),
+      mainStack = List<R>.unmodifiable(mainStack);
 
   /// The main router's stack — the outer navigation history.
   final List<R> mainStack;
@@ -71,7 +69,8 @@ class GateConfig<R extends GateRoute> {
   int get hashCode => Object.hash(Object.hashAll(mainStack), nestedState);
 
   @override
-  String toString() => 'GateConfig(mainStack: $mainStack, '
+  String toString() =>
+      'GateConfig(mainStack: $mainStack, '
       'nestedState: $nestedState)';
 }
 
@@ -110,12 +109,12 @@ class GateShellConfig extends GateNestedConfig {
   GateShellConfig({
     required this.activeBranch,
     required List<GateRoute> activeBranchStack,
-  })  : assert(activeBranch >= 0, 'activeBranch must be non-negative'),
-        assert(
-          activeBranchStack.isNotEmpty,
-          'activeBranchStack must not be empty',
-        ),
-        activeBranchStack = List<GateRoute>.unmodifiable(activeBranchStack);
+  }) : assert(activeBranch >= 0, 'activeBranch must be non-negative'),
+       assert(
+         activeBranchStack.isNotEmpty,
+         'activeBranchStack must not be empty',
+       ),
+       activeBranchStack = List<GateRoute>.unmodifiable(activeBranchStack);
 
   /// Index of the currently-active branch.
   final int activeBranch;
@@ -138,7 +137,8 @@ class GateShellConfig extends GateNestedConfig {
       Object.hash(activeBranch, Object.hashAll(activeBranchStack));
 
   @override
-  String toString() => 'GateShellConfig(activeBranch: $activeBranch, '
+  String toString() =>
+      'GateShellConfig(activeBranch: $activeBranch, '
       'activeBranchStack: $activeBranchStack)';
 }
 
@@ -157,8 +157,8 @@ class GateShellConfig extends GateNestedConfig {
 class GateModuleConfig extends GateNestedConfig {
   /// Create a module configuration.
   GateModuleConfig({required List<GateRoute> stack})
-      : assert(stack.isNotEmpty, 'module stack must not be empty'),
-        stack = List<GateRoute>.unmodifiable(stack);
+    : assert(stack.isNotEmpty, 'module stack must not be empty'),
+      stack = List<GateRoute>.unmodifiable(stack);
 
   /// The module's internal stack. Type-erased to [GateRoute]; the
   /// concrete [RouteModule] knows the real subtype.
