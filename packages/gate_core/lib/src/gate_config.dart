@@ -1,5 +1,6 @@
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 
+import 'gate_notifier.dart';
 import 'gate_route.dart';
 import 'gate_stack_codec.dart';
 
@@ -256,7 +257,7 @@ class StackToConfigCodec<R extends GateRoute> implements GateConfigCodec<R> {
 /// Non-generic handle a nested router (branched shell or module
 /// mount) exposes to the surrounding [GateRouterDelegate] so the URL
 /// can describe the nested router's state.
-abstract class GateNestedHandle implements Listenable {
+abstract class GateNestedHandle implements GateListenable {
   /// The runtime type of [GateNestedConfig] this handle produces and
   /// accepts. Used by the host to match a decoded URL configuration
   /// to the right registered handle.

@@ -1,8 +1,9 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 
 import 'gate_guard.dart';
+import 'gate_notifier.dart';
 import 'gate_route.dart';
 
 /// Non-generic view of a [GateRouter]'s navigation primitives.
@@ -14,7 +15,7 @@ import 'gate_route.dart';
 /// for back-button handling, plus type-erased stack capture/restore
 /// for URL round-trips in v0.5+). The typed router still does what it
 /// does; this is just the slice that's safe to call without knowing `R`.
-abstract class GateNavigator implements Listenable {
+abstract class GateNavigator implements GateListenable {
   /// Whether [pop] would actually remove a route from this router.
   bool get canPop;
 
@@ -43,8 +44,8 @@ abstract class GateNavigator implements Listenable {
 /// across navigations where the route at a given position is unchanged,
 /// so push/pop/replaceTop don't tear down sibling pages.
 @immutable
-@internal
 class GateStackEntry<R extends GateRoute> {
+  /// Wrap [route], assigning it a process-unique identity [id].
   GateStackEntry(this.route) : id = _nextId++;
 
   /// The user-facing route.
@@ -84,7 +85,7 @@ class GateStackEntry<R extends GateRoute> {
 /// Mutations are serialized: calling `push(a)` then `push(b)` without
 /// awaiting still applies them in order. Each operation waits for the
 /// previous one's guards to settle before running.
-class GateRouter<R extends GateRoute> extends ChangeNotifier
+class GateRouter<R extends GateRoute> extends GateChangeNotifier
     implements GateNavigator {
   /// Create a router with a single initial route and an optional guard
   /// pipeline.
