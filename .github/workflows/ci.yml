@@ -41,16 +41,40 @@ jobs:
       - name: Analyze
         run: flutter analyze --no-pub
 
+      - name: Test gate_core
+        working-directory: packages/gate_core
+        run: dart test --coverage=coverage
+
+      - name: Format gate_core coverage
+        working-directory: packages/gate_core
+        run: |
+          dart pub global activate coverage
+          dart pub global run coverage:format_coverage \
+            --lcov --in=coverage --out=coverage/lcov.info \
+            --report-on=lib --check-ignore
+
       - name: Generate test optimizer
+        working-directory: packages/gate
         run: dart run tool/test_optimizer.dart
 
-      - name: Run tests with coverage
+      - name: Test gate with coverage
+        working-directory: packages/gate
         run: flutter test --no-pub --coverage test/.test_optimizer.dart
 
-      - name: Upload coverage to Codecov
+      - name: Upload gate_core coverage
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: Mastersam07/gate
-          files: coverage/lcov.info
+          files: packages/gate_core/coverage/lcov.info
+          flags: gate_core
+          fail_ci_if_error: false
+
+      - name: Upload gate coverage
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: Mastersam07/gate
+          files: packages/gate/coverage/lcov.info
+          flags: gate
           fail_ci_if_error: false
