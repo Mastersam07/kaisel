@@ -1,13 +1,9 @@
 import 'package:flutter/widgets.dart';
+import 'package:gate_core/framework.dart';
 
 import 'gate_adaptive.dart';
-import 'gate_config.dart';
-import 'gate_guard.dart';
 import 'gate_inner_navigator.dart';
 import 'gate_page_wrapper.dart';
-import 'gate_module_codec.dart';
-import 'gate_route.dart';
-import 'gate_router.dart';
 import 'gate_router_delegate.dart';
 import 'gate_scope.dart';
 

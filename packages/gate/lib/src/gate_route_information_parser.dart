@@ -1,9 +1,5 @@
 import 'package:flutter/widgets.dart';
-
-import 'gate_codec.dart';
-import 'gate_config.dart';
-import 'gate_route.dart';
-import 'gate_stack_codec.dart';
+import 'package:gate_core/gate_core.dart';
 
 /// Parses incoming route information (URLs, deep links, restored state)
 /// into a [GateConfig] for the delegate to apply.

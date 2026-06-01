@@ -153,8 +153,8 @@ class GateRouter<R extends GateRoute> extends GateChangeNotifier
         _flows.map((f) => GateActiveFlow<R>._(f.route, f.router)),
       );
 
-  /// Internal view used by the delegate to key pages.
-  @internal
+  /// Framework-facing view used by the delegate to key pages. Exposed via
+  /// `package:gate_core/framework.dart`, not the public barrel.
   List<GateStackEntry<R>> get entries => List.unmodifiable(_entries);
 
   /// Push a route onto the top of the stack. Runs through guards.
@@ -248,7 +248,9 @@ class GateRouter<R extends GateRoute> extends GateChangeNotifier
   /// Guards do **not** run on this path. Pop-driven redirects should be
   /// implemented as listeners on app state (e.g. auth) that explicitly
   /// call [set] or [replaceTop], not as guards.
-  @internal
+  ///
+  /// Framework-facing: called by the delegate, exposed via
+  /// `package:gate_core/framework.dart`.
   void onPageRemoved(int id) {
     final i = _entries.indexWhere((e) => e.id == id);
     if (i == -1) return; // already removed
@@ -258,7 +260,7 @@ class GateRouter<R extends GateRoute> extends GateChangeNotifier
   }
 
   /// Called by the delegate on incoming deep links / route information.
-  @internal
+  /// Framework-facing; exposed via `package:gate_core/framework.dart`.
   Future<void> applyFromInformation(List<R> stack) =>
       _enqueue(() => _navigate(stack));
 

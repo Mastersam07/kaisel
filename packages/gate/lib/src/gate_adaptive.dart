@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:gate_core/framework.dart';
 
 import 'gate_page_scope.dart';
 import 'gate_page_wrapper.dart';
-import 'gate_route.dart';
-import 'gate_router.dart';
 
 /// The result of building a page for one stack entry in an adaptive
 /// page builder.

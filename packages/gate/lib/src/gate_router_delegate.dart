@@ -1,14 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:gate_core/framework.dart';
 
 import 'gate_adaptive.dart';
-import 'gate_config.dart';
 import 'gate_inner_navigator.dart';
 import 'gate_page_scope.dart';
 import 'gate_page_wrapper.dart';
-import 'gate_route.dart';
-import 'gate_router.dart';
 import 'gate_scope.dart';
 
 /// Signature for the function that turns a route into a screen.

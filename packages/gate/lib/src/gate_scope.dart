@@ -1,7 +1,5 @@
 import 'package:flutter/widgets.dart';
-
-import 'gate_route.dart';
-import 'gate_router.dart';
+import 'package:gate_core/gate_core.dart';
 
 /// Inherited widget that exposes the [GateRouter] in effect at a point
 /// in the widget tree.

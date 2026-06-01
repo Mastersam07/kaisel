@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
-
-import 'gate_route.dart';
+import 'package:gate_core/gate_core.dart';
 
 /// Optional signature for customising how a route becomes a [Page].
 ///

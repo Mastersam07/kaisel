@@ -1,10 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gate/gate.dart';
-// GateNestedHandle isn't part of the public barrel — most apps don't
-// need to implement it. Tests reach into src/ to fabricate fake
-// handles that exercise the delegate's registration machinery.
-import 'package:gate/src/gate_config.dart' show GateNestedHandle;
+// GateNestedHandle isn't part of the public barrel — most apps don't need
+// to implement it. It's exposed on the framework-facing library, which this
+// test imports to fabricate fake handles that exercise the delegate's
+// registration machinery.
+import 'package:gate_core/framework.dart' show GateNestedHandle;
 
 // Minimal fixtures.
 

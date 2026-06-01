@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
-
-import 'gate_route.dart';
+import 'package:gate_core/gate_core.dart';
 
 /// An [InheritedWidget] the framework injects around each rendered
 /// page's child, exposing navigational context to descendant

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:gate_core/framework.dart';
 
 import 'gate_adaptive.dart';
 import 'gate_page_scope.dart';
 import 'gate_page_wrapper.dart';
-import 'gate_route.dart';
-import 'gate_router.dart';
 import 'gate_router_delegate.dart';
 
 /// A [Navigator] driven by a [GateRouter].
