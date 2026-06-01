@@ -1,0 +1,15 @@
+name: gate_lint
+description: Custom lint rules for the gate router (e.g. prefer pushOrReplaceTop in adaptive code), built on the first-party analysis_server_plugin API. Scaffold; no rules yet.
+version: 0.0.1
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  analysis_server_plugin: ^0.3.15
+
+dev_dependencies:
+  lints: ^5.0.0
+  test: ^1.25.0

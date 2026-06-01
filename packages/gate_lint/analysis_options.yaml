@@ -1,6 +1,5 @@
-# Shared base for every workspace member. Dart-only (no Flutter include) so it
-# is safe for the pure-Dart packages; each package layers its own framework
-# lints on top via `include: ../../analysis_options.yaml`.
+include: package:lints/recommended.yaml
+
 analyzer:
   language:
     strict-casts: true
