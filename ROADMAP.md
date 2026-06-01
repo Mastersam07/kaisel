@@ -20,7 +20,7 @@ Flutter's `RestorationManager` / `RestorationMixin` / `restorationId` / `Restora
 
 ## 2. Lint package
 
-A separate `gate_lint` package using `analysis_server_plugin` to surface common misuses at write time, with quick fixes where possible. Same shape as the dot-shorthand plugin.
+A separate `gate_lint` package using `analysis_server_plugin` to surface common misuses at write time, with quick fixes where possible.
 
 **Rule candidates (initial set; expand as patterns emerge):**
 

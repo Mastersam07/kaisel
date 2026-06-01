@@ -36,28 +36,24 @@ if (confirmed == true) /* ... */
 
 The two dominant Flutter routing libraries (`go_router` and `auto_route`) were architected before Dart 3 and still organize themselves around a string-path primitive (`'/products/:id'`). Type safety is bolted on with `build_runner`. The URL becomes the source of truth for route definitions, even on mobile-only apps that don't use URLs.
 
-Dart 3 has had the type machinery to do better since 2023: sealed classes, exhaustive pattern matching, records. `gate` is what a routing library looks like when you start from those primitives instead of working around their absence.
+Dart 3 has had the type machinery to do better since 2023: sealed classes, exhaustive pattern matching, records. `gate` is what a routing library looks like when you start from those primitives instead of working around their absence:
 
-The architectural posture, in one line: **the route stack is a `List<R>`, navigation is list manipulation, the URL is an optional codec on top, guards are pure functions in a pipeline, modal flows are sub-routers with typed result completers, and features ship as composable `RouteModule`s mounted at marker routes.**
+> The route stack is a `List<R>`, navigation is list manipulation, the URL is an optional codec on top, guards are pure functions in a pipeline, modal flows are sub-routers with typed result completers, and features ship as composable `RouteModule`s mounted at marker routes.
 
-## What you get in v0.12
+## Features
 
-- **Typed route stack** as `List<R>` over your sealed class.
-- **Default value equality** via `props`. No manual `==`/`hashCode`. No codegen.
-- **Guard pipeline**: `FutureOr<List<R>> Function(current, proposed)`. Composable, async-aware, pure-Dart testable.
-- **Shells**: `GateShell<R>` (homogeneous branches) and `GateBranchedShell` (per-branch typed routes), both with per-tab back stacks, scoped state, and proper back-button handling.
-- **Composable `RouteModule`s**: package a feature's routes as a `const`-friendly unit with its own sealed subtype, page builder, guards, and (since v0.7) URL codec. Mount with `GateModuleMount<R>`.
-- **URL-addressable shell *and* module state**: a URL like `/home/products/sku-42` deep-links into a branch stack; `/checkout/confirm` deep-links into a module's stack. Inactive branches keep their in-memory state across tab switches; modules keep theirs until unmounted.
-- **Module URL composition** (since v0.7). Modules ship their own `ModuleStackCodec`; the host composes URL routing via `ConfigCodecWithModules` without duplicating each module's URL structure in its main codec. The host's main codec stays module-agnostic.
-- **Adaptive layouts** (since v0.8, extended in v0.9). At the main delegate via `GateRouterDelegate.adaptive`, inside shell branches via `GateBranch.adaptive` and `GateShell.adaptive`, and inside modules via `RouteModule.buildAdaptivePage` + `isAdaptive`. A detail route can return `GateAbsorbingPage` to collapse master+detail into a single rendered page (master-detail without changing the stack model). Page identity is keyed on the lowest absorbed entry so selecting a different detail doesn't trigger a Navigator transition.
-- **Modal sub-flows with typed results**: `await router.run<T>(SomeFlow())` returns `Future<T?>`. The flow has its own internal stack; screens call `context.completeFlow<T>(value)` to resolve the awaiter. **Flows can nest** (new in v0.10): each nested flow gets its own sub-router and modal layer, and completions unwind LIFO.
-- **Direction-aware transitions** (new in v0.11). `GatePageWrapper` receives a `GatePageWrapperContext` with `previous` (the route below in the rendered stack), `position`, `stackLength`, `isTop`, `isBottom`. Pattern-match on `(ctx.previous, ctx.route)` to pick a `Page` subclass per route-pair. Shared elements work via Flutter's `Hero` widget against the per-Navigator `HeroController` the framework installs.
-- **`GatePageScope` for descendants** (new in v0.12). The framework injects a `GatePageScope` `InheritedWidget` around every rendered page's child, exposing the page's `route`, `position`, `stackLength`, `previous`, `isTop`, and `isBottom` to deeply-nested widgets. Lets descendants make context-aware decisions ("hide my back arrow when I'm the only rendered page", "show a 'back to X' label using the route below") without prop-drilling or app-side InheritedWidgets.
-- **`GateConfigCodec<R>`**: the v0.5+ codec interface, parameterised by `GateConfig<R>` (main stack + optional shell *or* module state). A `StackToConfigCodec` adapter wraps v0.4 codecs unchanged.
-- **Unified `context.router<R>()`**: resolves to the flow router inside a modal, the branch router inside a branched shell, the module router inside a mount, the main router elsewhere.
-- **Pattern-matched page resolution** with compile-time exhaustiveness checking.
-- **Identity-preserving stack diff**: pushing one route doesn't rebuild others.
-- **Pure-Dart unit tests** for navigation state (no widget tree needed).
+- **Typed route stack** — `List<R>` over your sealed class. Pattern-matched page resolution with compile-time exhaustiveness.
+- **Value equality for free** — default `props`-based `==`/`hashCode` on `GateRoute`. No manual equality, no codegen.
+- **Guard pipeline** — composable `FutureOr<List<R>> Function(current, proposed)` functions. Async-aware and pure-Dart testable.
+- **Shells** — `GateShell<R>` (homogeneous branches) and `GateBranchedShell` (per-branch typed routes), with per-tab back stacks, scoped state, and correct back-button handling.
+- **Composable modules** — package a feature's routes, page builder, guards, and URL codec as a `const`-friendly `RouteModule`. Mount with `GateModuleMount<R>`; compose URLs with `ConfigCodecWithModules` without the host knowing the module's internal structure.
+- **URL-addressable** — deep-link into a branch stack (`/home/products/sku-42`) or a module stack (`/checkout/confirm`). Inactive branches keep in-memory state across tab switches.
+- **Modal flows with typed results** — `await router.run<T>(SomeFlow())` returns `Future<T?>`. Flows have their own sub-router and can nest, unwinding LIFO.
+- **Adaptive layouts** — at the main delegate, inside shell branches, and inside modules. A detail route can absorb its master into one rendered page (master-detail without changing the stack model).
+- **Direction-aware transitions** — pattern-match on the `(previous, current)` route pair to pick a `Page` subclass per transition. Shared elements via Flutter's `Hero`.
+- **`GatePageScope` for descendants** — deeply-nested widgets read the page's position in the rendered stack (`isTop`, `isBottom`, `previous`, …) without prop-drilling.
+- **Identity-preserving stack diff** — pushing one route doesn't rebuild the others.
+- **Pure-Dart unit tests** for navigation state — no widget tree needed.
 
 ## Usage
 
@@ -78,7 +74,7 @@ final class ProductDetail extends AppRoute {
 }
 ```
 
-No-field variants get equality automatically (`Home() == Home()`). Variants with fields override `props`. If you need different equality semantics, override `==` and `hashCode` directly. Your override wins.
+No-field variants get equality automatically (`Home() == Home()`). Variants with fields override `props`. If you need different semantics, override `==` and `hashCode` directly — your override wins.
 
 ### 2. Wire it up
 
@@ -118,15 +114,15 @@ final router = GateRouter<AppRoute>(
 );
 ```
 
-Sync or async. Async guards make the navigation async, sync ones complete synchronously. Each guard either allows (return proposed), redirects (return something different), or refuses (return current).
+Each guard either allows (return `proposed`), redirects (return something different), or refuses (return `current`). Sync guards complete synchronously; async guards make the navigation async.
 
-Guards do **not** run on system back. The pop has already animated by the time we hear about it; running guards there would cause visible jumps. State-driven redirects (e.g. force back to login on logout) should be listeners on app state that call `router.set` directly.
+Guards do **not** run on system back — the pop has already animated by the time we hear about it. State-driven redirects (e.g. force back to login on logout) should be app-state listeners that call `router.set` directly.
 
 ### 4. Shells (bottom-nav with per-tab state)
 
-Two shell flavours, picked based on how strictly you want per-tab typing.
+Two flavours, picked by how strictly you want per-tab typing.
 
-**`GateShell<R>`**: all branches share one route type. Simpler for small apps.
+**`GateShell<R>`** — all branches share one route type. Simpler for small apps.
 
 ```dart
 builder: (context, route) => switch (route) {
@@ -145,9 +141,9 @@ builder: (context, route) => switch (route) {
 },
 ```
 
-Inside a branch screen with this flavour, `context.router<AppRoute>()` returns the active branch's router and `context.shellRouter<AppRoute>()` returns the shell aggregator.
+Inside a branch screen, `context.router<AppRoute>()` returns the active branch's router and `context.shellRouter<AppRoute>()` returns the shell aggregator.
 
-**`GateBranchedShell`** (v0.4). Each branch has its own sealed type. Pushing a route from the wrong tab is a compile error.
+**`GateBranchedShell`** — each branch has its own sealed type. Pushing a route from the wrong tab is a compile error.
 
 ```dart
 sealed class HomeRoute extends GateRoute { const HomeRoute(); }
@@ -196,18 +192,16 @@ GateBranchedShell(
 Inside a Home branch screen:
 
 ```dart
-context.router<HomeRoute>().push(const ProductDetail('42'));      // typed
-context.router<AppRoute>().push(const Settings());                // main router
-context.branchedShell().switchTo(2);                              // change tab
+context.router<HomeRoute>().push(const ProductDetail('42'));  // typed
+context.router<AppRoute>().push(const Settings());            // main router
+context.branchedShell().switchTo(2);                          // change tab
 ```
 
-`context.router<HomeRoute>()` and `context.router<AppRoute>()` don't collide; `RouterScope` lookup is by exact generic type, so different `R`s shadow only their own scope.
-
-Each branch keeps its own back stack (via `IndexedStack`); Android back unwinds the active branch first; only at branch root does back fall through to the parent router.
+`RouterScope` lookup is by exact generic type, so `context.router<HomeRoute>()` and `context.router<AppRoute>()` don't collide. Each branch keeps its own back stack (via `IndexedStack`); Android back unwinds the active branch first, falling through to the parent router only at branch root.
 
 ### 5. Modal flows with typed results
 
-A modal flow is a route variant on your sealed hierarchy that *also* implements `GateModalRoute<T>` to declare its result type:
+A modal flow is a route variant that *also* implements `GateModalRoute<T>` to declare its result type:
 
 ```dart
 final class ConfirmAddToCart extends AppRoute
@@ -236,25 +230,14 @@ GateRouterDelegate<AppRoute>(
   builder: _buildPage,
   modalBuilder: (context, flowRoute, flowChild) => Material(
     color: Colors.black54,
-    child: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420, maxHeight: 520),
-        child: Material(
-          clipBehavior: Clip.hardEdge,
-          borderRadius: BorderRadius.circular(16),
-          child: flowChild,
-        ),
-      ),
-    ),
+    child: Center(child: /* your modal chrome wrapping */ flowChild),
   ),
 );
 ```
 
-Inside the flow's screens, push within the flow via `context.router<AppRoute>().push(...)` (which resolves to the flow's sub-router) and resolve the awaiter via `context.completeFlow<int>(qty)` or `context.dismissFlow()`.
+Inside the flow's screens, push within the flow via `context.router<AppRoute>().push(...)` (which resolves to the flow's sub-router) and resolve the awaiter via `context.completeFlow<int>(qty)` or `context.dismissFlow()`. Run modal flows on the **main** router — branch routers don't have a delegate to render the overlay.
 
-Run modal flows on the **main** router. Branch routers don't have a delegate to render the overlay.
-
-**Nested flows** (since v0.10): a flow can itself call `router.run<T>(...)` to launch another flow on top of it. Each nested flow gets its own sub-router and its own modal overlay layer. `context.completeFlow<T>(value)` from inside any flow resolves the topmost one. To unwind multiple layers, complete the topmost, await it, then complete the next. `router.activeFlows` exposes the full stack if you need to inspect or render based on depth.
+**Nested flows:** a flow can itself call `router.run<T>(...)` to launch another flow on top of it. Each nested flow gets its own sub-router and modal layer. `context.completeFlow<T>(value)` resolves the topmost flow; to unwind multiple layers, complete the topmost, await it, then complete the next. `router.activeFlows` exposes the full stack.
 
 ```dart
 // Inside an outer flow's screen:
@@ -266,9 +249,9 @@ if (verified == true) {
 
 ### 6. URLs (optional)
 
-If you target web or want deep links, implement a codec. Two interfaces, picked based on whether you need URLs to address state inside a branched shell.
+If you target web or want deep links, implement a codec. Two interfaces, picked by whether you need URLs to address state inside a branched shell or module. If you don't need URLs, implement neither.
 
-**`GateStackCodec<R>`**: stack-only URLs, unchanged from v0.4. Pattern-match on the main router's stack:
+**`GateStackCodec<R>`** — stack-only URLs. Pattern-match on the main router's stack:
 
 ```dart
 class AppStackCodec implements GateStackCodec<AppRoute> {
@@ -289,33 +272,29 @@ class AppStackCodec implements GateStackCodec<AppRoute> {
     _ => null,
   };
 }
-```
 
-Wire via `.fromStackCodec`:
-
-```dart
+// Wire via .fromStackCodec:
 routeInformationParser: GateRouteInformationParser<AppRoute>.fromStackCodec(
   codec: const AppStackCodec(),
   fallback: const [Home()],
 ),
 ```
 
-**`GateConfigCodec<R>`**: URLs that reach into a nested router (a `GateBranchedShell` or a `GateModuleMount`). The configuration carries the main stack plus an optional `nestedState`, which is a sealed `GateNestedConfig`, either `GateShellConfig` or `GateModuleConfig`:
+**`GateConfigCodec<R>`** — URLs that reach into a nested router (a `GateBranchedShell` or a `GateModuleMount`). The configuration carries the main stack plus an optional `nestedState`, a sealed `GateNestedConfig` that is either a `GateShellConfig` or a `GateModuleConfig`:
 
 ```dart
 class AppCodec implements GateConfigCodec<AppRoute> {
   const AppCodec();
 
   @override
-  Uri encode(GateConfig<AppRoute> config) {
-    return switch ((config.mainStack.last, config.nestedState)) {
-      (Splash(), _)   => Uri(path: '/'),
-      (Settings(), _) => Uri(path: '/settings'),
-      (MainShell(), final GateShellConfig shell) => _encodeShell(shell),
-      (MainShell(), _) => Uri(path: '/home'),
-      _ => Uri(path: '/'),
-    };
-  }
+  Uri encode(GateConfig<AppRoute> config) =>
+      switch ((config.mainStack.last, config.nestedState)) {
+        (Splash(), _)   => Uri(path: '/'),
+        (Settings(), _) => Uri(path: '/settings'),
+        (MainShell(), final GateShellConfig shell) => _encodeShell(shell),
+        (MainShell(), _) => Uri(path: '/home'),
+        _ => Uri(path: '/'),
+      };
 
   Uri _encodeShell(GateShellConfig shell) => switch (shell.activeBranch) {
     0 => switch (shell.activeBranchStack) {
@@ -347,34 +326,25 @@ class AppCodec implements GateConfigCodec<AppRoute> {
     _ => null,
   };
 }
-```
 
-Wire via the regular constructor:
-
-```dart
+// Wire via the regular constructor:
 routeInformationParser: GateRouteInformationParser<AppRoute>(
   codec: const AppCodec(),
   fallback: const [Splash()],
 ),
 ```
 
-`/home/products/sku-42` deep-links into the Home branch with `ProductDetail('sku-42')` on top of `HomeRoot()`. Switching tabs preserves each branch's stack (inactive branches stay off the URL but in memory).
-
-If you don't need URLs, don't implement either codec.
+`/home/products/sku-42` deep-links into the Home branch with `ProductDetail('sku-42')` on top of `HomeRoot()`. Switching tabs preserves each branch's stack (inactive branches stay off the URL but in memory). A `StackToConfigCodec` adapter wraps a stack-only codec unchanged if you later add shell URLs.
 
 ### 7. Modules
 
-A `RouteModule` packages a feature's routes as a `const`-friendly unit: its own sealed subtype, its own page builder, its own optional guards, and (v0.7) its own optional URL codec. The host mounts the module at a top-level route and composes URL routing via `ConfigCodecWithModules`. The module doesn't know what prefix the host will mount it at.
+A `RouteModule` packages a feature's routes as a `const`-friendly unit: its own sealed subtype, page builder, optional guards, and optional URL codec. The host mounts it at a top-level route and composes URL routing via `ConfigCodecWithModules`. The module doesn't know what prefix the host will mount it at.
 
 ```dart
 sealed class CheckoutRoute extends GateRoute { const CheckoutRoute(); }
 final class CheckoutCart extends CheckoutRoute { const CheckoutCart(); }
-final class CheckoutShipping extends CheckoutRoute {
-  const CheckoutShipping();
-}
-final class CheckoutConfirm extends CheckoutRoute {
-  const CheckoutConfirm();
-}
+final class CheckoutShipping extends CheckoutRoute { const CheckoutShipping(); }
+final class CheckoutConfirm extends CheckoutRoute { const CheckoutConfirm(); }
 
 class CheckoutModule extends RouteModule<CheckoutRoute> {
   const CheckoutModule();
@@ -383,16 +353,14 @@ class CheckoutModule extends RouteModule<CheckoutRoute> {
   List<CheckoutRoute> get initialStack => const [CheckoutCart()];
 
   @override
-  Widget buildPage(BuildContext context, CheckoutRoute route) =>
-      switch (route) {
-        CheckoutCart() => const CheckoutCartScreen(),
-        CheckoutShipping() => const CheckoutShippingScreen(),
-        CheckoutConfirm() => const CheckoutConfirmScreen(),
-      };
+  Widget buildPage(BuildContext context, CheckoutRoute route) => switch (route) {
+    CheckoutCart() => const CheckoutCartScreen(),
+    CheckoutShipping() => const CheckoutShippingScreen(),
+    CheckoutConfirm() => const CheckoutConfirmScreen(),
+  };
 
   @override
-  ModuleStackCodec<CheckoutRoute>? get codec =>
-      const CheckoutModuleCodec();
+  ModuleStackCodec<CheckoutRoute>? get codec => const CheckoutModuleCodec();
 }
 
 class CheckoutModuleCodec extends ModuleStackCodec<CheckoutRoute> {
@@ -409,9 +377,7 @@ class CheckoutModuleCodec extends ModuleStackCodec<CheckoutRoute> {
   List<CheckoutRoute>? decode(List<String> segments) => switch (segments) {
     [] => const [CheckoutCart()],
     ['shipping'] => const [CheckoutCart(), CheckoutShipping()],
-    ['confirm'] => const [
-      CheckoutCart(), CheckoutShipping(), CheckoutConfirm(),
-    ],
+    ['confirm'] => const [CheckoutCart(), CheckoutShipping(), CheckoutConfirm()],
     _ => null,
   };
 }
@@ -422,18 +388,17 @@ Mount it from the host's page builder via a marker route in your `AppRoute`:
 ```dart
 final class CheckoutMount extends AppRoute { const CheckoutMount(); }
 
-Widget _buildMainPage(BuildContext context, AppRoute route) =>
-    switch (route) {
-      CheckoutMount() => const GateModuleMount<CheckoutRoute>(
-          module: CheckoutModule(),
-        ),
-      // ... other top-level routes
-    };
+Widget _buildMainPage(BuildContext context, AppRoute route) => switch (route) {
+  CheckoutMount() => const GateModuleMount<CheckoutRoute>(
+      module: CheckoutModule(),
+    ),
+  // ... other top-level routes
+};
 ```
 
-Inside the module's screens, `context.router<CheckoutRoute>()` resolves to the module's typed router. Pushing a `CheckoutShipping` typechecks; pushing an `AppRoute` is a compile error. `context.router<AppRoute>()` bypasses this scope and finds the host router above (same lookup-by-exact-type semantics as branched shells), which is how the module exits itself: `context.router<AppRoute>().pop()` pops `CheckoutMount` off the main stack.
+Inside the module's screens, `context.router<CheckoutRoute>()` resolves to the module's typed router. Pushing a `CheckoutShipping` typechecks; pushing an `AppRoute` is a compile error. `context.router<AppRoute>()` bypasses the scope and finds the host router above — which is how the module exits itself: `context.router<AppRoute>().pop()` pops `CheckoutMount` off the main stack.
 
-Wire URLs via the composer. The host's main codec stays module-agnostic, and the module's codec handles paths under whatever prefix the host declares:
+Wire URLs via the composer. The host's main codec stays module-agnostic; the module's codec handles paths under whatever prefix the host declares:
 
 ```dart
 const appCodec = ConfigCodecWithModules<AppRoute>(
@@ -448,19 +413,15 @@ const appCodec = ConfigCodecWithModules<AppRoute>(
 );
 ```
 
-A deep link to `/checkout/confirm` restores the full module stack `[Cart, Shipping, Confirm]` so back unwinds through the flow. Adding another module means appending to `modules`. No edits to the main codec.
-
-`GateConfig<R>.nestedState` is a sealed `GateNestedConfig`, either a `GateShellConfig` or a `GateModuleConfig`. The type system guarantees you can carry at most one nested kind on top of the main stack; no runtime assertion is needed. Pattern-match in your codec's `encode` to dispatch by `(topRoute, nestedState)`.
+A deep link to `/checkout/confirm` restores the full module stack `[Cart, Shipping, Confirm]` so back unwinds through the flow. Adding another module means appending to `modules` — no edits to the main codec.
 
 ### 8. Adaptive layouts
 
 Adaptive layouts let one route render a widget that subsumes one or more entries below it on the stack. The canonical use is master-detail at wide breakpoints: the detail route absorbs the master into a single rendered page. The stack stays the same; only the rendering changes.
 
-The page builder returns a `GatePageResult`: either `GateStandalonePage(widget)` (default 1:1) or `GateAbsorbingPage(widget, absorbing: n)`, which renders a widget that subsumes `n` entries below it on the stack.
+The builder returns a `GatePageResult`: either `GateStandalonePage(widget)` (default 1:1) or `GateAbsorbingPage(widget, absorbing: n)`, which subsumes `n` entries below it. Adaptive builders run at three levels — the main delegate, shell branches, and modules — all sharing the same `GatePageResult` API and page-identity semantics. Pick the level where the master-detail lives.
 
-Adaptive builders run at three levels: the main delegate (v0.8), shell branches and modules (v0.9). All three share the same `GatePageResult` API, the same page-identity semantics, and the same back-button behaviour. Pick the level that matches where the master-detail lives.
-
-**At the main delegate (v0.8):**
+**At the main delegate:**
 
 ```dart
 GateRouterDelegate<AppRoute>.adaptive(
@@ -481,40 +442,27 @@ GateRouterDelegate<AppRoute>.adaptive(
 );
 ```
 
-**Inside a shell branch (v0.9):**
-
-Use `GateBranch.adaptive` for `GateBranchedShell` (heterogeneous branches), or `GateShell.adaptive` for the homogeneous shell. The branch's inner navigator goes through the adaptive pipeline; entries within that branch's stack can be absorbed.
+**Inside a shell branch** — use `GateBranch.adaptive` (heterogeneous branches) or `GateShell.adaptive` (homogeneous). The branch's inner navigator goes through the adaptive pipeline; entries within that branch's stack can be absorbed.
 
 ```dart
-GateBranchedShell(
-  shell: shell,
-  branches: [
-    GateBranch<HomeRoute>.adaptive(
-      router: homeRouter,
-      pageBuilder: (context, route, stack) {
-        final wide = MediaQuery.sizeOf(context).width >= 700;
-        return switch ((route, stack.previous, wide)) {
-          (ProductDetail(:final id), ProductList(), true) =>
-            GateAbsorbingPage(
-              widget: GateMasterDetailScaffold(
-                master: const ProductListScreen(),
-                detail: ProductDetailScreen(id: id),
-              ),
-            ),
-          _ => GateStandalonePage(buildSimple(route)),
-        };
-      },
-    ),
-    // Other branches stay simple if they don't need adaptive.
-    GateBranch<DiscoverRoute>(router: discoverRouter, pageBuilder: ...),
-  ],
-  chromeBuilder: ...,
+GateBranch<HomeRoute>.adaptive(
+  router: homeRouter,
+  pageBuilder: (context, route, stack) {
+    final wide = MediaQuery.sizeOf(context).width >= 700;
+    return switch ((route, stack.previous, wide)) {
+      (ProductDetail(:final id), ProductList(), true) => GateAbsorbingPage(
+        widget: GateMasterDetailScaffold(
+          master: const ProductListScreen(),
+          detail: ProductDetailScreen(id: id),
+        ),
+      ),
+      _ => GateStandalonePage(buildSimple(route)),
+    };
+  },
 );
 ```
 
-**Inside a module (v0.9):**
-
-Override `RouteModule.buildAdaptivePage` and set `isAdaptive` to `true`. The default `buildAdaptivePage` wraps `buildPage` as a standalone page, so unmodified modules behave exactly as before.
+**Inside a module** — override `RouteModule.buildAdaptivePage` and set `isAdaptive` to `true`. The default `buildAdaptivePage` wraps `buildPage` as a standalone page, so unmodified modules behave exactly as before.
 
 ```dart
 class ShopModule extends RouteModule<ShopRoute> {
@@ -549,82 +497,70 @@ class ShopModule extends RouteModule<ShopRoute> {
 }
 ```
 
-`GateStackContext` exposes `stack`, `position`, `previous`, `next`, `isTop`, `isBottom` so the builder can pattern-match on neighbours. `GateMasterDetailScaffold` is a small convenience widget that lays out master and detail with a divider; replace it with your own if you want different chrome.
+`GateStackContext` exposes `stack`, `position`, `previous`, `next`, `isTop`, `isBottom` so the builder can pattern-match on neighbours. `GateMasterDetailScaffold` is a small convenience widget laying out master and detail with a divider — replace it with your own chrome if you like.
 
-Two things worth knowing about page identity:
+Two things about page identity under absorption:
 
-- Absorbing pages are keyed by the *lowest* absorbed entry's id, not the absorbing entry's. Going from `[List, DetailA]` to `[List, DetailB]` produces pages with equal keys; the Navigator doesn't animate a transition, the detail pane content just updates. Wrap the swapping content in an `AnimatedSwitcher` if you want a fade between details. Note that the transition is `replaceTop`-shaped, not `push`-shaped: a `router.push(DetailB)` from `[List, DetailA]` produces `[List, DetailA, DetailB]` (three entries, the new top has another `Detail` below it, so the absorbing arm doesn't match and the page slides in). Use `router.pushOrReplaceTop(DetailB)` (since v0.11) so the call pushes when there's no detail on top yet and replaces when there already is.
-- The pop target is the top absorbing entry. OS back on `[List, Detail]` absorbed pops Detail, leaving `[List]`. Back means "undo the last push" regardless of visual rendering. At the main delegate, this needs a `popRoute` override because `Navigator.maybePop` declines when there's only one visible page (see v0.8 changelog). At the shell branch and module level, `PopScope` calls `router.pop()` directly, so absorbing-collapsed-to-1-page is handled by construction.
+- Absorbing pages are keyed by the *lowest* absorbed entry's id, not the absorbing entry's. Going from `[List, DetailA]` to `[List, DetailB]` produces pages with equal keys, so the Navigator doesn't animate — the detail pane just updates (wrap it in an `AnimatedSwitcher` for a fade). Note the transition is `replaceTop`-shaped, not `push`-shaped: `router.push(DetailB)` from `[List, DetailA]` produces three entries and slides in. Use `router.pushOrReplaceTop(DetailB)` so the call pushes when there's no detail on top yet and replaces when there already is.
+- The pop target is the top absorbing entry. OS back on `[List, Detail]` absorbed pops `Detail`, leaving `[List]` — back means "undo the last push" regardless of rendering. At the main delegate this needs a `popRoute` override (handled for you) because `Navigator.maybePop` declines when only one page is visible. At the shell-branch and module level, `PopScope` calls `router.pop()` directly, so it's correct by construction.
 
 ### 9. Transitions (route-pair-aware)
 
-Customise page transitions by passing a `pageWrapper`. The wrapper receives a `GatePageWrapperContext<R>` with the route, child, key, and stack context (`position`, `stackLength`, `previous`, `isTop`, `isBottom`). Pattern-match on the route pair to pick a `Page` subclass:
+Customise transitions by passing a `pageWrapper`. The wrapper receives a `GatePageWrapperContext<R>` with the route, child, key, and stack context (`position`, `stackLength`, `previous`, `isTop`, `isBottom`). Pattern-match on the route pair to pick a `Page` subclass:
 
 ```dart
 GateRouterDelegate<AppRoute>(
   router: router,
   builder: (context, route) => switch (route) { /* ... */ },
-  pageWrapper: (ctx) {
-    return switch ((ctx.previous, ctx.route)) {
-      (ProductList(), ProductDetail()) =>
-        _ZoomPage(key: ctx.key, child: ctx.child),
-      (_, Settings()) =>
-        _SlideUpPage(key: ctx.key, child: ctx.child),
-      _ => MaterialPage<Object?>(key: ctx.key, child: ctx.child),
-    };
+  pageWrapper: (ctx) => switch ((ctx.previous, ctx.route)) {
+    (ProductList(), ProductDetail()) =>
+      _ZoomPage(key: ctx.key, child: ctx.child),
+    (_, Settings()) =>
+      _SlideUpPage(key: ctx.key, child: ctx.child),
+    _ => MaterialPage<Object?>(key: ctx.key, child: ctx.child),
   },
 );
 ```
 
-The Navigator handles push/pop direction automatically (forward on add, reverse on remove). The wrapper's job is choosing the *style* of transition (which `Page` subclass to construct); the framework chooses the direction.
+The Navigator handles push/pop direction automatically (forward on add, reverse on remove). The wrapper's job is choosing the *style* of transition; the framework chooses the direction. `previous` refers to the page below in the *rendered* stack — for absorbing pages, the absorbed entries don't show up as `previous`.
 
-`previous` refers to the page below in the *rendered* stack, not the router's full stack. For absorbing pages, the absorbed entries don't show up as `previous` for the page above; the absorbing page's own route does.
-
-Shared-element transitions work via Flutter's `Hero` widget against the per-Navigator `HeroController` the framework already installs. Tag widgets with `Hero(tag: ...)` and they animate across pushes. No new framework API.
+Shared-element transitions work via Flutter's `Hero` widget against the per-Navigator `HeroController` the framework already installs. Tag widgets with `Hero(tag: ...)` and they animate across pushes — no new API.
 
 ### 10. Page scope for descendants
 
-The framework wraps every rendered page's child in a `GatePageScope` `InheritedWidget`. Deeply-nested widgets read it via `GatePageScope.maybeOf(context)` (or `.of(context)` if they're always in a gate page). The scope exposes the same fields as the wrapper context — `route`, `position`, `stackLength`, `previous`, `isTop`, `isBottom` — but to the page's content, not just to the wrapping layer.
+The framework wraps every rendered page's child in a `GatePageScope` `InheritedWidget`. Deeply-nested widgets read it via `GatePageScope.maybeOf(context)` (or `.of(context)` when always in a gate page). It exposes the same fields as the wrapper context — `route`, `position`, `stackLength`, `previous`, `isTop`, `isBottom` — but to the page's content, not just the wrapping layer.
 
 ```dart
 class BookDetailScreen extends StatelessWidget {
-  ...
   @override
   Widget build(BuildContext context) {
-    // At narrow widths the rendered stack is [List, Detail],
-    // so isBottom is false → show back arrow.
-    // At wide widths Detail absorbs List, so the rendered stack
-    // is just [Detail], isBottom is true → hide back arrow.
+    // Narrow: rendered stack is [List, Detail], isBottom false → show back arrow.
+    // Wide: Detail absorbs List, rendered stack is [Detail], isBottom true → hide it.
     final isOnly = GatePageScope.maybeOf(context)?.isBottom ?? false;
     return Scaffold(
-      appBar: AppBar(automaticallyImplyLeading: !isOnly, ...),
-      ...
+      appBar: AppBar(automaticallyImplyLeading: !isOnly),
+      // ...
     );
   }
 }
 ```
 
-Useful for:
+Useful for hiding back arrows on absorbing master-detail pages, "back to X" labels using the route below, AppBar chrome that animates on `isTop`, or pattern-matching on `scope.route` from a deeply-nested widget.
 
-- Hiding back arrows on pages that are the only rendered page (common with absorbing master-detail layouts).
-- Showing a "back to X" label using the route immediately below.
-- Animating AppBar / chrome based on `isTop` for the topmost page.
-- Pattern-matching on `scope.route` from a deeply-nested widget that doesn't already have the route in scope.
-
-The scope is injected at every wrap call site — main delegate (simple and adaptive), inner navigator (simple and adaptive). User-supplied `pageWrapper` callbacks receive `ctx.child` already wrapped in the scope, so `Page(child: ctx.child)` automatically propagates it. A wrapper that builds a Page with a different child (replacing `ctx.child` entirely) is responsible for re-wrapping in `GatePageScope` itself if it wants descendants to see it.
+A user-supplied `pageWrapper` receives `ctx.child` already wrapped in the scope, so `Page(child: ctx.child)` propagates it automatically. A wrapper that builds a Page with a *different* child is responsible for re-wrapping in `GatePageScope` itself if it wants descendants to see it.
 
 ## Why no equality codegen
 
-Routing libraries that bake in `freezed` force codegen on every consumer. `gate` provides default `props`-based equality on `GateRoute` itself, so the common case is a one-line override. If you want `freezed sealed`, that still works. Your override wins. If you want Equatable, declare your routes with `extends GateRoute with EquatableMixin`. The library doesn't impose a choice.
+Routing libraries that bake in `freezed` force codegen on every consumer. `gate` provides default `props`-based equality on `GateRoute` itself, so the common case is a one-line override. Prefer `freezed sealed`? That still works. Prefer `Equatable`? Declare your routes with `extends GateRoute with EquatableMixin`. The library doesn't impose a choice — your override always wins.
 
 ## Status
 
-v0.12 is the current development line. The core surface (routes, guards, shells in both homogeneous and per-branch typed forms, modal flows with typed results and nesting, URL-addressable shell and module state, composable modules, module URL composition, adaptive layouts at the main delegate, shell branches, and module mounts, route-pair-aware page transitions, and a `GatePageScope` for descendants) is in place. Public API is shaped for stability but not frozen.
+**v0.12, pre-1.0.** The core surface is in place: routes, guards, shells (homogeneous and per-branch typed), modal flows with typed results and nesting, URL-addressable shell and module state, composable modules with URL composition, adaptive layouts at every level, route-pair-aware transitions, and `GatePageScope`. The public API is shaped for stability but not yet frozen — expect occasional breaking changes before 1.0, each with a migration note in the [changelog](CHANGELOG.md).
 
 ## Roadmap
 
-See [`ROADMAP.md`](ROADMAP.md) for work being considered for future versions: state restoration via `RestorationManager`, a `gate_lint` analyzer plugin, a migration guide from `go_router` and `auto_route`, and a DevTools extension.
+See [`ROADMAP.md`](ROADMAP.md) for work under consideration: state restoration via `RestorationManager`, a `gate_lint` analyzer plugin, a migration guide from `go_router` and `auto_route`, and a DevTools extension.
 
-## Comparison
+## Example
 
-For a longer-form motivation, see the companion article: *Flutter Routing Is a Pre-Dart-3 Design.*
+The [`example/`](example/) app has several entry points, each demonstrating one slice of the library (branched shells, modal flows, modules, adaptive layouts, transitions). See [`example/README.md`](example/README.md) for how to run each.

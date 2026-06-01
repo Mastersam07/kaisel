@@ -1,6 +1,6 @@
 # gate example
 
-Four entry points, each demonstrating a slice of the library.
+Five entry points, each demonstrating a slice of the library.
 Pick one with `-t`:
 
 | Entry point | What it shows |

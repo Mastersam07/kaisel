@@ -146,12 +146,6 @@ The adaptive demo uses `pushOrReplaceTop` in its `_selectBook`
 helper. Run with `flutter run -t lib/main_adaptive.dart` from the
 example directory.
 
-### Nothing left deferred from earlier versions
-
-The deferred-list in v0.10 ended at "direction-aware and shared-
-element transitions". With v0.11 that's done. Future versions
-will track new work as it surfaces.
-
 ---
 
 ## 0.10.0: Nested modal flows
@@ -214,11 +208,6 @@ pops within the flow if possible, else dismisses the flow. With
 nested flows, the topmost layer's PopScope handles back first; when
 it dismisses, the layer below resumes control. Pop unwinds one flow
 at a time.
-
-### Still deferred to future versions
-
-- Direction-aware and shared-element transitions. Requires a
-  breaking change to `GatePageWrapper`'s signature.
 
 ### Example app
 
@@ -362,13 +351,6 @@ module is correctly back-poppable by construction. No
   inside a shell branch absorbs entries within that branch's
   stack, not across the host stack.
 
-### Still deferred to future versions
-
-- Direction-aware and shared-element transitions. Still requires a
-  breaking change to `GatePageWrapper`'s signature.
-- Nested modal flows (relaxing the v0.3 "one flow at a time"
-  constraint).
-
 ---
 
 ## 0.8.0: Adaptive layouts
@@ -483,17 +465,6 @@ out of the app instead of unwinding the logical stack. The simple
   If you need to know inside your wrapper, switch to standalone
   pages or contribute a `pageWrapper` API extension in v0.9.
 
-### Deferred to 0.9+
-
-- Adaptive support inside `GateBranchedShell` branches and
-  `RouteModule`s. The most common master-detail case lives inside
-  a shell tab; the v0.8 constraint forces it to live at the main
-  level.
-- Direction-aware and shared-element transitions. Still requires a
-  breaking change to `GatePageWrapper`'s signature.
-- Nested modal flows (relaxing the v0.3 "one flow at a time"
-  constraint).
-
 ---
 
 ## 0.7.0: Module URL composition
@@ -593,16 +564,6 @@ composer is just a `GateConfigCodec` like any other.
 - `modules` is searched in order. List longer prefixes first if
   you have nested-prefix collisions (`/checkout/v2` before
   `/checkout`).
-
-### Deferred to 0.8+
-
-- Adaptive layout policies (master-detail responsive). Needs more
-  design work. The natural API breaks the 1:1 stack-to-pages
-  mapping the rest of the library assumes.
-- Direction-aware and shared-element transitions. Requires a
-  breaking change to `GatePageWrapper`'s signature.
-- Nested modal flows (relaxing the v0.3 "one flow at a time"
-  constraint).
 
 ---
 
@@ -728,15 +689,6 @@ host's `AppRoute`. v0.6 closes that gap. A payments SDK, a KYC
 flow, an embedded checkout — all can ship as a `RouteModule` the
 host mounts at a top-level route, with deep-linkable URLs.
 
-### Deferred to 0.7+
-
-- Adaptive layout policies (master-detail responsive)
-- Direction-aware and shared-element transitions
-- Nested modal flows (relaxing the v0.3 "one flow at a time"
-  constraint)
-- A composition helper for prefix-based module URL routing
-  (currently the host's codec assembles module URLs by hand)
-
 ---
 
 ## 0.5.0 — Per-branch URLs reaching into shell stacks
@@ -823,13 +775,6 @@ One headline feature, one breaking change (with a one-line migration).
   To start using shell URLs, replace your `GateStackCodec` with a
   `GateConfigCodec` and pass it via the regular constructor.
 
-### Deliberately not shipped (v0.6+)
-
-- Composable `RouteModule`s mountable at URL prefixes.
-- Adaptive layout policies on routes (master-detail responsive).
-- Direction-aware and shared-element transitions.
-- Nested modal flows.
-
 ## 0.4.0 — Per-branch typed routes in shells
 
 One additive feature. No breaking changes.
@@ -889,15 +834,6 @@ One additive feature. No breaking changes.
 - **`context.branchedShell()`** — accessor for the enclosing
   [BranchedShellRouter] inside a branched shell, for programmatic
   `switchTo` etc.
-
-### Deliberately not shipped (v0.5+)
-
-- Per-branch URLs reaching into shell stacks (e.g. `/app/home/products/sku-42`).
-  Requires restructuring the configuration type beyond `List<R>`.
-- Composable `RouteModule`s mountable at URL prefixes.
-- Adaptive layout policies on routes (master-detail responsive).
-- Direction-aware and shared-element transitions.
-- Nested modal flows.
 
 ## 0.3.2 — Patch
 
@@ -1002,15 +938,6 @@ Three additions. One small breaking change in the parser constructor.
   Method names (`branchRouter`, `shellRouter`) are unchanged, so
   call sites do not need updating.
 
-### Deliberately not shipped (v0.4+)
-
-- Composable `RouteModule`s mountable at URL prefixes.
-- Adaptive layout policies on routes (master-detail responsive).
-- Direction-aware and shared-element transitions.
-- Per-branch typed route subtypes inside a shell.
-- Nested modal flows.
-- Per-branch URLs reaching into shell stacks.
-
 ## 0.2.0 — Guards, equality, and shells
 
 Three additions, one breaking change.
@@ -1057,15 +984,6 @@ Three additions, one breaking change.
   level per call, instead of silently coalescing into a single pop.
   Each operation's target is computed at task-run time, not at
   call-site time.
-
-### Deliberately not shipped (v0.3+)
-
-- Modal sub-flows with typed result returns (`await router.run<T>(...)`).
-- Composable `RouteModule`s mountable at URL prefixes.
-- Multi-route URL encoding (deep stacks like `/a/b/c` decoding to multiple frames).
-- Adaptive layout policies on routes (master-detail responsive).
-- Direction-aware and shared-element transitions.
-- Per-branch typed route subtypes inside a shell.
 
 ## 0.1.0 — Foundation
 
