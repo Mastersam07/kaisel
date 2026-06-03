@@ -566,3 +566,7 @@ See [`ROADMAP.md`](ROADMAP.md) for work under consideration: state restoration v
 ## Example
 
 The [`example/`](example/) app has several entry points, each demonstrating one slice of the library (branched shells, modal flows, modules, adaptive layouts, transitions). See [`example/README.md`](example/README.md) for how to run each.
+
+## License
+
+[Apache-2.0](LICENSE) © 2026 Codefarmer.

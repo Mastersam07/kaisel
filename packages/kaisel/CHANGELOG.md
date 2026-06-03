@@ -4,7 +4,8 @@
 
 The package was renamed from **gate** to **kaisel**. This is a
 mechanical rename with **no behavioural changes** — same router, same
-semantics — but it is a hard breaking change.
+semantics — but it is a hard breaking change. Also now licensed under
+**Apache-2.0**.
 
 ### Migration
 

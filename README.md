@@ -38,3 +38,7 @@ flutter analyze
 ## Roadmap
 
 See [`packages/kaisel/ROADMAP.md`](packages/kaisel/ROADMAP.md).
+
+## License
+
+[Apache-2.0](LICENSE) © 2026 Codefarmer.
