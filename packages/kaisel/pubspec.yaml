@@ -1,9 +1,9 @@
 name: kaisel
 description: A Dart 3-native Flutter router built on sealed routes, pattern matching, and a stack-as-state model. No string paths, no codegen.
 version: 0.13.0
-repository: https://github.com/Mastersam07/gate
-homepage: https://github.com/Mastersam07/gate
-issue_tracker: https://github.com/Mastersam07/gate/issues
+repository: https://github.com/Mastersam07/kaisel
+homepage: https://github.com/Mastersam07/kaisel
+issue_tracker: https://github.com/Mastersam07/kaisel/issues
 topics:
   - router
   - navigation

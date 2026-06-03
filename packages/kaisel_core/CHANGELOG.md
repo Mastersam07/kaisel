@@ -6,7 +6,7 @@ Renamed from `gate_core` to `kaisel_core` as part of the gate → kaisel
 rebrand. Mechanical rename, no behavioural change: every `Gate*` type is
 now `Kaisel*`, and imports move from `package:gate_core/...` to
 `package:kaisel_core/...`. See the
-[`kaisel` changelog](https://github.com/Mastersam07/gate/blob/main/packages/kaisel/CHANGELOG.md)
+[`kaisel` changelog](https://github.com/Mastersam07/kaisel/blob/main/packages/kaisel/CHANGELOG.md)
 for the full migration note.
 
 ## 0.12.0
@@ -17,5 +17,5 @@ stack container (now built on a Flutter-free change-notifier), the guard
 pipeline, and the URL codecs — with no Flutter dependency.
 
 Versioned in lockstep with `kaisel`; see the
-[`kaisel` changelog](https://github.com/Mastersam07/gate/blob/main/packages/kaisel/CHANGELOG.md)
+[`kaisel` changelog](https://github.com/Mastersam07/kaisel/blob/main/packages/kaisel/CHANGELOG.md)
 for the history of these APIs prior to the split.

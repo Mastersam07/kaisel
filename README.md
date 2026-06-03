@@ -1,7 +1,7 @@
 # kaisel — monorepo
 
-[![CI](https://github.com/Mastersam07/gate/actions/workflows/ci.yml/badge.svg)](https://github.com/Mastersam07/gate/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/Mastersam07/gate/branch/dev/graph/badge.svg?token=tHYIe4iPGo)](https://codecov.io/gh/Mastersam07/gate)
+[![CI](https://github.com/Mastersam07/kaisel/actions/workflows/ci.yml/badge.svg)](https://github.com/Mastersam07/kaisel/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Mastersam07/kaisel/branch/dev/graph/badge.svg?token=tHYIe4iPGo)](https://codecov.io/gh/Mastersam07/kaisel)
 
 A Dart 3-native Flutter router built on sealed routes, pattern matching, and a stack-as-state model. **No string paths. No codegen.**
 

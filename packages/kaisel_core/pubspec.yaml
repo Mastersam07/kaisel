@@ -1,9 +1,9 @@
 name: kaisel_core
 description: Pure-Dart navigation core for the kaisel router — sealed routes, a stack-as-state model, guards, and URL codecs. No Flutter, no codegen.
 version: 0.13.0
-repository: https://github.com/Mastersam07/gate
-homepage: https://github.com/Mastersam07/gate
-issue_tracker: https://github.com/Mastersam07/gate/issues
+repository: https://github.com/Mastersam07/kaisel
+homepage: https://github.com/Mastersam07/kaisel
+issue_tracker: https://github.com/Mastersam07/kaisel/issues
 resolution: workspace
 topics:
   - router

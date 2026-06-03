@@ -20,6 +20,6 @@ dependencies:
   kaisel: ^0.13.0
 ```
 
-Depend on `kaisel_core` directly only if you want the navigation logic without Flutter. See the [`kaisel` README](https://github.com/Mastersam07/gate/tree/main/packages/kaisel) for the full guide.
+Depend on `kaisel_core` directly only if you want the navigation logic without Flutter. See the [`kaisel` README](https://github.com/Mastersam07/kaisel/tree/main/packages/kaisel) for the full guide.
 
 > `lib/framework.dart` exposes framework-facing internals to the `kaisel` package. It is **not** part of the public API — application code should not import it.
