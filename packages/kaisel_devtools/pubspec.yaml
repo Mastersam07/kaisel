@@ -1,0 +1,19 @@
+name: kaisel_devtools
+description: DevTools extension for the kaisel router — live inspection of router stacks, branches, modules, and modal flows. Scaffold; not yet implemented.
+version: 0.0.1
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.8.0
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  kaisel_core: ^0.13.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0

@@ -1,4 +1,4 @@
-name: gate_workspace
+name: kaisel_workspace
 publish_to: none
 
 environment:
@@ -6,8 +6,8 @@ environment:
 
 # Dart pub workspace. All members share a single resolution and lockfile.
 workspace:
-  - packages/gate_core
-  - packages/gate
-  - packages/gate/example
-  - packages/gate_devtools
-  - packages/gate_lint
+  - packages/kaisel_core
+  - packages/kaisel
+  - packages/kaisel/example
+  - packages/kaisel_devtools
+  - packages/kaisel_lint

@@ -1,4 +1,4 @@
-# gate — monorepo
+# kaisel — monorepo
 
 [![CI](https://github.com/Mastersam07/gate/actions/workflows/ci.yml/badge.svg)](https://github.com/Mastersam07/gate/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/Mastersam07/gate/branch/dev/graph/badge.svg?token=tHYIe4iPGo)](https://codecov.io/gh/Mastersam07/gate)
@@ -9,21 +9,21 @@ This repository is a [pub workspace](https://dart.dev/tools/pub/workspaces) cont
 
 | Package | Description |
 | --- | --- |
-| [`packages/gate`](packages/gate) | The Flutter router — delegate, shells, modules, adaptive layouts, transitions. This is the package you depend on. Start with its [README](packages/gate/README.md). |
-| [`packages/gate_core`](packages/gate_core) | Pure-Dart navigation core — sealed routes, the router, guards, and URL codecs. No Flutter dependency. Re-exported by `gate`. |
-| [`packages/gate_devtools`](packages/gate_devtools) | DevTools extension for live router inspection. *Scaffold — not yet implemented.* |
-| [`packages/gate_lint`](packages/gate_lint) | Custom lint rules built on the first-party `analysis_server_plugin` API. *Scaffold — no rules yet.* |
+| [`packages/kaisel`](packages/kaisel) | The Flutter router — delegate, shells, modules, adaptive layouts, transitions. This is the package you depend on. Start with its [README](packages/kaisel/README.md). |
+| [`packages/kaisel_core`](packages/kaisel_core) | Pure-Dart navigation core — sealed routes, the router, guards, and URL codecs. No Flutter dependency. Re-exported by `kaisel`. |
+| [`packages/kaisel_devtools`](packages/kaisel_devtools) | DevTools extension for live router inspection. *Scaffold — not yet implemented.* |
+| [`packages/kaisel_lint`](packages/kaisel_lint) | Custom lint rules built on the first-party `analysis_server_plugin` API. *Scaffold — no rules yet.* |
 
 ## Getting started
 
-Add `gate` to your app:
+Add `kaisel` to your app:
 
 ```yaml
 dependencies:
-  gate: ^0.12.0
+  kaisel: ^0.13.0
 ```
 
-Then see the [`gate` README](packages/gate/README.md) for the full guide, and [`packages/gate/example`](packages/gate/example) for runnable examples.
+Then see the [`kaisel` README](packages/kaisel/README.md) for the full guide, and [`packages/kaisel/example`](packages/kaisel/example) for runnable examples.
 
 ## Working in this repo
 
@@ -31,10 +31,10 @@ Then see the [`gate` README](packages/gate/README.md) for the full guide, and [`
 flutter pub get                       # resolves the whole workspace (one lockfile)
 dart format --output=none --set-exit-if-changed .
 flutter analyze
-(cd packages/gate_core && dart test)  # pure-Dart core tests
-(cd packages/gate && flutter test)    # widget-layer tests
+(cd packages/kaisel_core && dart test)  # pure-Dart core tests
+(cd packages/kaisel && flutter test)    # widget-layer tests
 ```
 
 ## Roadmap
 
-See [`packages/gate/ROADMAP.md`](packages/gate/ROADMAP.md).
+See [`packages/kaisel/ROADMAP.md`](packages/kaisel/ROADMAP.md).
