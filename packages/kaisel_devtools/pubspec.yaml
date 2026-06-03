@@ -1,6 +1,9 @@
 name: kaisel_devtools
 description: DevTools extension for the kaisel router — live inspection of router stacks, branches, modules, and modal flows. Scaffold; not yet implemented.
 version: 0.0.1
+repository: https://github.com/Mastersam07/kaisel/tree/dev/packages/kaisel_devtools
+homepage: https://github.com/Mastersam07/kaisel/tree/dev/packages/kaisel_devtools
+issue_tracker: https://github.com/Mastersam07/kaisel/issues
 publish_to: none
 resolution: workspace
 

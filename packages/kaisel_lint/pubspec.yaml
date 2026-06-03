@@ -1,6 +1,9 @@
 name: kaisel_lint
 description: Custom lint rules for the kaisel router (e.g. prefer pushOrReplaceTop in adaptive code), built on the first-party analysis_server_plugin API. Scaffold; no rules yet.
 version: 0.0.1
+repository: https://github.com/Mastersam07/kaisel/tree/dev/packages/kaisel_lint
+homepage: https://github.com/Mastersam07/kaisel/tree/dev/packages/kaisel_lint
+issue_tracker: https://github.com/Mastersam07/kaisel/issues
 publish_to: none
 resolution: workspace
 
