@@ -91,9 +91,11 @@ class _SlideUpPage<T> extends Page<T> {
 ```dart
 Page<Object?> _appPageWrapper(KaiselPageWrapperContext<AppRoute> ctx) {
   return switch ((ctx.previous, ctx.route)) {
-    // Login ↔ Shell: cross-fade in both directions.
-    (ShellHost(), LoginRoute()) ||
-    (LoginRoute(), ShellHost()) =>
+    // Login ↔ Shell are full-surface auth states swapped with
+    // router.set(...), which collapses the stack to a single entry — so
+    // ctx.previous is null here. Match on the destination route type
+    // (not the pair) so the swap still cross-fades.
+    (_, LoginRoute()) || (_, ShellHost()) =>
       _FadePage<Object?>(key: ctx.key, child: ctx.child),
 
     // Settings slides up from the bottom whenever it's opened.
@@ -130,16 +132,21 @@ the route only:
 
 ### Route-pair
 
-"Only fade when going from A to B." Match the tuple:
+"Only style the transition when going from A to B." Match the tuple.
+This works when **both** routes are on the rendered stack — i.e. a
+push/pop, not a full-stack `set`:
 
 ```dart
-(LoginRoute(), ShellHost()) => _FadePage(/* ... */),
-(ShellHost(), LoginRoute()) => _FadePage(/* ... */),
+// Pushing ProductDetail on top of ProductList: previous is ProductList.
+(ProductList(), ProductDetail()) => _ZoomPage(/* ... */),
 ```
 
-Two arms, one per direction. Flutter's Navigator handles forward vs.
-reverse direction automatically — you just need to declare *that*
-this pair uses the fade style.
+`ctx.previous` is the entry directly below the new one on the *rendered*
+stack. Flutter's Navigator handles forward vs. reverse direction
+automatically — you just declare *that* this pair uses the style. If a
+mutation replaces the whole stack with one entry (`router.set([X])`),
+`previous` is `null` and a pair match won't fire; match on the route
+type alone there (see the auth example above).
 
 ### Same-type-on-top (e.g., Product → Product)
 
@@ -187,6 +194,7 @@ imposing it on the rest of the app.
 | Mistake | Fix |
 |:--------|:----|
 | Forgetting to fall through to `MaterialPage` | Without a `_` catchall in the switch, the wrapper crashes on unmatched route pairs. Always include `_ => MaterialPage(key: ctx.key, child: ctx.child)`. |
+| Pair-matching a transition performed with `set` | `set([X])` collapses the stack to one entry, so `ctx.previous` is `null` and `(A(), B())` never matches. For full-surface swaps (auth, deep-link landing) match on the destination route type, not the pair. |
 | Using a custom `Page` subclass for every route, hand-rolling slides that already exist | If the design wants Material's default slide, use `MaterialPage`. Don't reinvent the cupertino/material transitions that the SDK already provides. |
 | Reusing the same `LocalKey` across pages | The key passed in `ctx.key` is stable for the route. Don't construct a new `ValueKey` per page build — that breaks state preservation across rebuilds. |
 | Trying to gate the transition on width or other runtime context inside the wrapper | The wrapper is called per-page during stack diffing, not on every frame. If you need width-responsive transitions, do that decision inside the `transitionsBuilder` callback (which has the build context), not in the wrapper. |

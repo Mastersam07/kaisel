@@ -15,9 +15,9 @@ section" pattern.
 | `KaiselBranch<R>` | One branch with its own typed router. `KaiselBranch.adaptive(...)` for absorbing layouts. |
 | `BranchedShellRouter` | State aggregator for the branches — tracks active branch, exposes a `switchTo` API, notifies on changes. |
 | `KaiselBranchedShellChromeBuilder` | `Widget Function(BuildContext, int activeBranch, Widget branchContent, void Function(int) switchBranch)` — builds the chrome around the active branch. |
-| `KaiselShell` | Single-branch shell — wraps one router's content in chrome. Use when there's persistent chrome but no tab selection. |
-| `ShellRouter` | Single-branch shell's state container. |
-| `KaiselShellChromeBuilder` | Chrome builder for a single-branch shell. |
+| `KaiselShell` | Multi-branch shell where **all branches share one route type** `R` (homogeneous). Simpler than `KaiselBranchedShell` when per-branch typing isn't needed. Creates its own `ShellRouter` internally from `branchInitials`. |
+| `ShellRouter` | State container for a `KaiselShell` — N branches over a single `R`, plus the active index. Built internally by `KaiselShell`; you don't construct it. |
+| `KaiselShellChromeBuilder` | `Widget Function(BuildContext, int activeBranch, Widget branchContent, void Function(int) switchBranch)` — same 4-arg shape as the branched chrome builder. |
 
 ## Branched shell — the canonical pattern
 
@@ -184,32 +184,43 @@ current branch, use the branch's type.
 helpers (e.g., reading the current active branch index from any
 descendant of the shell).
 
-## Single-branch shells (`KaiselShell`)
+## Homogeneous shells (`KaiselShell`)
 
-When there's persistent chrome but only one section (no tabs), use
-`KaiselShell` + `ShellRouter`:
+`KaiselShell<R>` is the simpler sibling of `KaiselBranchedShell`: every
+branch shares **one** route type `R`, so there's no per-branch typing.
+It builds its own `ShellRouter` internally from `branchInitials` — you
+don't construct one, and there's no `shell:` parameter. Reach for it
+when all tabs draw from the same sealed route family and you don't need
+the compiler to keep them apart.
 
 ```dart
-late final _shellRouter = ShellRouter(router: _contentRouter);
-
-@override
-Widget build(BuildContext context) {
-  return KaiselShell(
-    shell: _shellRouter,
-    pageBuilder: (c, r) => switch (r) { /* ... */ },
-    chromeBuilder: (context, content) => Scaffold(
-      appBar: AppBar(title: const Text('App')),
-      body: content,
-    ),
-  );
-}
+KaiselShell<AppRoute>(
+  branchInitials: const [HomeRoot(), DiscoverRoot(), ProfileRoot()],
+  pageBuilder: (context, route) => switch (route) {
+    HomeRoot() => const HomeScreen(),
+    DiscoverRoot() => const DiscoverScreen(),
+    ProfileRoot() => const ProfileScreen(),
+    // ... every AppRoute a branch can push
+  },
+  chromeBuilder: (context, activeBranch, branchContent, switchBranch) {
+    return Scaffold(
+      body: branchContent,
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: activeBranch,
+        onTap: switchBranch,
+        items: const [/* ... */],
+      ),
+    );
+  },
+)
 ```
 
-This is rare in practice. Most apps with persistent chrome have at
-least two destinations and want `KaiselBranchedShell`. Reach for
-`KaiselShell` only when the chrome is a single-shot wrapper (e.g., an
-embedded onboarding flow with a fixed background and no internal
-sections).
+Inside a branch screen, `context.router<AppRoute>()` resolves to the
+active branch's router and `context.shellRouter<AppRoute>()` to the
+shell aggregator. The trade-off vs. `KaiselBranchedShell`: because every
+branch is typed `AppRoute`, the compiler can't stop you pushing a
+"profile" route into the "home" tab. When that matters, use
+`KaiselBranchedShell` with per-branch sealed types.
 
 ## Common mistakes
 

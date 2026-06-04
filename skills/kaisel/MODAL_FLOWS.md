@@ -207,19 +207,21 @@ There are three ways a flow can end:
 - **Dismiss.** Caller receives `null`. Use `context.dismissFlow()`,
   tap the scrim, or rely on whatever dismissal gesture the
   `modalBuilder` exposes.
-- **External cancel.** The main router calls `router.cancelFlow(flow)`
-  programmatically. Caller receives `null`. Use this when something
-  outside the flow needs to force it shut (e.g., logout while a flow
-  is open).
+- **External teardown.** Disposing the router (`router.dispose()`)
+  resolves every still-pending flow with `null`, so an awaiting
+  `run<T>` never hangs. There's no per-flow cancel API: `dismissFlow()`
+  resolves the *topmost* flow, so to force a flow shut from outside
+  (e.g. logout while a flow is open) you tear down the host, or
+  `dismissFlow()` from the top down.
 
-All three resolve the `Future<T?>`. The caller should always handle
+All of these resolve the `Future<T?>`. The caller should always handle
 `null` as a first-class outcome.
 
 ## Common mistakes
 
 | Mistake | Fix |
 |:--------|:----|
-| Pushing a `KaiselModalRoute<T>` via `push` instead of `run<T>` | Push "works" mechanically but loses the typed completion contract. There's no way to await the result. Always use `run<T>`. The `avoid_modal_route_on_main_stack` lint catches this. |
+| Pushing a `KaiselModalRoute<T>` via `push` instead of `run<T>` | Push "works" mechanically but loses the typed completion contract. There's no way to await the result. Always use `run<T>`. (A planned `avoid_modal_route_on_main_stack` lint would catch this; it's roadmapped, not yet implemented.) |
 | Forgetting to register `modalBuilder` on the delegate when using `run<T>` | `run` throws. The library can't know how to overlay a flow without a builder. |
 | Implementing `KaiselModalRoute<dynamic>` to "be flexible about return type" | Pick a concrete type. The callers of `run<T>` need to know what they're awaiting. `dynamic` defeats the type safety the library is designed for. |
 | Treating `null` from `run<T>` as an error | `null` means the user dismissed. It's a normal outcome. The flow happened, the user chose not to commit; the calling code should handle this gracefully. |

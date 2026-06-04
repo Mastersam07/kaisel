@@ -32,11 +32,12 @@ giant page-builder switch are starting to hurt.
 
 | Type | Purpose |
 |:-----|:--------|
-| `RouteModule<R>` | Abstract base. A module owns a route family and exposes a page builder + codec. |
-| `KaiselModuleMount<R>` | Describes where a module is mounted in the parent app (path prefix + module instance). |
-| `ModuleStackCodec<R>` | Codec for a single module's routes. |
-| `UntypedModuleStackCodec` | Type-erased module codec, used by the parent app's composite codec. |
-| `ConfigCodecWithModules<R>` | Parent codec that delegates URL parsing across mounted modules. |
+| `RouteModule<R>` | Abstract base. A module owns a route family and exposes `initialStack`, `buildPage`, and an optional `codec`. |
+| `KaiselModuleMount<R>` | The **widget** that mounts a `RouteModule` at a host marker route; creates the module's own typed sub-router internally. |
+| `ModuleMount<HostR>` | A URL-composition **declaration**: host marker route + URL prefix + the module's codec. Goes in `ConfigCodecWithModules.modules`. |
+| `ModuleStackCodec<R>` | Codec for a single module's routes (`encode`/`decode` over `List<String>` segments, relative to the mount prefix). |
+| `UntypedModuleStackCodec` | Type-erased module codec, used by the composer to hold modules of differing route types. |
+| `ConfigCodecWithModules<R>` | Concrete host codec — **construct** it with a `baseCodec` and a list of `ModuleMount`s; don't subclass it. |
 
 ## Defining a module
 
@@ -59,7 +60,10 @@ final class ShopProductDetail extends ShopRoute {
 
 // The module itself.
 class ShopModule extends RouteModule<ShopRoute> {
-  ShopModule();
+  const ShopModule();
+
+  @override
+  List<ShopRoute> get initialStack => const [ShopHome()];
 
   @override
   Widget buildPage(BuildContext context, ShopRoute route) => switch (route) {
@@ -101,72 +105,52 @@ A few things to notice:
 - `encode` produces relative segments, *not* the absolute path. The
   parent composite codec prepends the mount prefix.
 
-## Mounting modules in the parent app
+## Mounting a module in the parent app
+
+A module mounts at a **marker route** on the host's sealed type. The
+host's page builder renders that marker with a `KaiselModuleMount<R>`
+widget, which creates the module's own typed sub-router internally —
+the host doesn't dispatch the module's routes itself.
 
 ```dart
-final shopModule = ShopModule();
-final authModule = AuthModule();
+// Marker route on the host's AppRoute.
+final class ShopMount extends AppRoute { const ShopMount(); }
 
-class AppCodec extends ConfigCodecWithModules<AppRoute> {
-  AppCodec() : super(modules: [
-    KaiselModuleMount(prefix: 'shop', module: shopModule),
-    KaiselModuleMount(prefix: 'auth', module: authModule),
-  ]);
-
-  @override
-  KaiselConfig<AppRoute> decodeNonModule(Uri uri) {
-    // Handle non-module URIs (routes owned directly by the parent).
-    return switch (uri.pathSegments) {
-      [] || ['home'] => KaiselConfig(mainStack: [const Home()]),
-      _ => KaiselConfig(mainStack: [NotFound(uri)]),
+Widget _buildMainPage(BuildContext context, AppRoute route) =>
+    switch (route) {
+      Home() => const HomeScreen(),
+      ShopMount() => const KaiselModuleMount<ShopRoute>(module: ShopModule()),
+      // ... other host-owned routes
     };
-  }
-
-  @override
-  Uri encodeNonModule(KaiselConfig<AppRoute> config) {
-    // Encode non-module routes back to URIs.
-    final top = config.mainStack.last;
-    return switch (top) {
-      Home() => Uri(path: '/home'),
-      NotFound(:final uri) => uri,
-      _ => Uri(path: '/'),
-    };
-  }
-}
 ```
 
-The parent codec tries each mounted module in order. Whichever
-module's prefix matches the URI's first segment gets the rest of the
-segments passed to its codec. Order matters — first-matching wins.
+Inside the module's screens, `context.router<ShopRoute>()` resolves to
+the module's sub-router — pushing a `ShopRoute` typechecks; pushing an
+`AppRoute` is a compile error. `context.router<AppRoute>().pop()` pops
+the `ShopMount` off the host stack, which is how the module exits itself.
 
-## Module page builder integration
-
-The parent app's page builder delegates to the module when the top
-route belongs to it:
+URL composition is done by **constructing** a `ConfigCodecWithModules`
+(it's a concrete codec, not a base class to extend) from the host's base
+codec plus one `ModuleMount` per module:
 
 ```dart
-KaiselRouterDelegate<AppRoute>(
-  router: _router,
-  builder: (context, route) {
-    // Modules own their route types — delegate when the route is
-    // theirs.
-    if (route is ShopRoute) return shopModule.buildPage(context, route);
-    if (route is AuthRoute) return authModule.buildPage(context, route);
-
-    // Parent-owned routes fall through.
-    return switch (route as AppRoute) {
-      Home() => const HomeScreen(),
-      NotFound(:final uri) => NotFoundScreen(uri: uri),
-      _ => const SizedBox.shrink(),
-    };
-  },
+final appCodec = ConfigCodecWithModules<AppRoute>(
+  baseCodec: _MainAppCodec(),        // a KaiselConfigCodec for host routes
+  modules: [
+    ModuleMount(
+      mountRoute: const ShopMount(), // host marker route
+      prefix: '/shop',               // URL prefix the module owns
+      codec: _ShopCodec(),           // the module's ModuleStackCodec
+    ),
+  ],
 );
 ```
 
-Note that this requires `AppRoute` to be a union that includes the
-module's route types — typically by having the module routes implement
-or extend `AppRoute`, or by making `AppRoute` itself non-sealed and
-relying on the modules' own seal at their level.
+A URL under `/shop/...` is handed to the module's codec (relative to the
+prefix); everything else goes to `baseCodec`. The base codec stays
+module-agnostic — adding a module means appending a `ModuleMount`, not
+editing the base codec. Modules are tried in order; list a longer prefix
+(`/shop/v2`) before a shorter one (`/shop`) if they overlap.
 
 ## Module ownership of a shell branch
 
@@ -191,32 +175,36 @@ the branch is owned by a module:
 
 ```dart
 class AppCodec extends KaiselConfigCodec<AppRoute> {
-  AppCodec({required this.shopModule});
-  final ShopModule shopModule;
+  const AppCodec();
+
+  static const _shopCodec = _ShopCodec();
 
   @override
-  KaiselConfig<AppRoute> decode(Uri uri) {
+  KaiselConfig<AppRoute>? decode(Uri uri) {
     return switch (uri.pathSegments) {
       ['shop', ...final rest] => KaiselConfig(
         mainStack: [const ShellHost()],
-        shell: KaiselShellConfig(
-          activeBranch: 1,  // shop branch
-          branchStacks: [
-            [const HomeView()],
-            shopModule.codec.decode(rest) ?? [const ShopHome()],
-            [const SettingsHome()],
-          ],
+        // nestedState holds ONLY the active branch's stack. The shop
+        // module's codec decodes the segments after the prefix.
+        nestedState: KaiselShellConfig(
+          activeBranch: 1, // shop branch
+          activeBranchStack: _shopCodec.decode(rest) ?? const [ShopHome()],
         ),
       ),
-      // ... other URL forms
+      _ => null,
     };
   }
+
+  @override
+  Uri encode(KaiselConfig<AppRoute> config) => /* ... */;
 }
 ```
 
-The shop module's codec parses the part of the URL it owns
-(`['products', '42']` after stripping the `shop` prefix); the parent
-codec stitches the result into the shell config.
+`KaiselShellConfig` carries the active branch index and that one
+branch's stack (`activeBranchStack`), not a stack-per-branch — inactive
+branches keep their in-memory state off the URL. The module's codec
+parses the segments it owns (`['products', '42']` after the `/shop`
+prefix is stripped); the host stitches the result into the branch stack.
 
 ## Should you use modules?
 

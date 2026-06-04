@@ -72,19 +72,23 @@ class AppCodec extends KaiselConfigCodec<AppRoute> {
 }
 ```
 
-Wire it up via the route information parser:
+Wire it up by constructing a `KaiselRouteInformationParser` with your
+codec and a `fallback` stack (used when `decode` returns `null`) — no
+subclassing:
 
 ```dart
-class _Parser extends KaiselRouteInformationParser<AppRoute> {
-  _Parser(this.router) : super(codec: AppCodec());
-  @override final KaiselRouter<AppRoute> router;
-}
-
 MaterialApp.router(
   routerDelegate: _delegate,
-  routeInformationParser: _Parser(_router),
+  routeInformationParser: KaiselRouteInformationParser<AppRoute>(
+    codec: AppCodec(),
+    fallback: const [Home()],
+  ),
 );
 ```
+
+(If you only have a stack-only `KaiselStackCodec`, use
+`KaiselRouteInformationParser.fromStackCodec(codec:, fallback:)`; for a
+legacy single-route `KaiselCodec`, use `.single(codec:, fallback:)`.)
 
 ## Building the stack on deep-link land
 
@@ -163,56 +167,62 @@ each branch handles its data without dynamic casting.
 
 ## Shells and codecs
 
-When the app uses `KaiselBranchedShell`, the URL needs to address
-both the active branch and the active branch's sub-stack. The
-`KaiselConfig<R>` type carries this via `KaiselShellConfig`:
+When the app uses `KaiselBranchedShell`, the URL needs to address both
+the active branch and that branch's sub-stack. `KaiselConfig<R>` carries
+this in its **`nestedState`** field as a `KaiselShellConfig`, which holds
+the active branch index and **only the active branch's stack**
+(`activeBranchStack`). Inactive branches keep their in-memory state —
+they don't ride the URL.
 
 ```dart
 @override
-KaiselConfig<AppRoute> decode(Uri uri) {
+KaiselConfig<AppRoute>? decode(Uri uri) {
   return switch (uri.pathSegments) {
-    ['home', ...] => KaiselConfig(
+    ['home'] => KaiselConfig(
       mainStack: [const ShellHost()],
-      shell: KaiselShellConfig(
+      nestedState: KaiselShellConfig(
         activeBranch: 0,
-        branchStacks: [
-          [const HomeView()],  // home branch
-          [const ProductList()],  // product branch (initial)
-          [const SettingsHome()],  // settings branch (initial)
-        ],
+        activeBranchStack: [const HomeView()],
       ),
     ),
     ['products'] => KaiselConfig(
       mainStack: [const ShellHost()],
-      shell: KaiselShellConfig(
+      nestedState: KaiselShellConfig(
         activeBranch: 1,
-        branchStacks: [
-          [const HomeView()],
-          [const ProductList()],
-          [const SettingsHome()],
-        ],
+        activeBranchStack: [const ProductList()],
       ),
     ),
     ['products', final id] => KaiselConfig(
       mainStack: [const ShellHost()],
-      shell: KaiselShellConfig(
+      nestedState: KaiselShellConfig(
         activeBranch: 1,
-        branchStacks: [
-          [const HomeView()],
-          [const ProductList(), ProductDetail(id)],
-          [const SettingsHome()],
-        ],
+        activeBranchStack: [const ProductList(), ProductDetail(id)],
       ),
     ),
-    // ...
+    _ => null,  // unrecognised → parser uses its fallback stack
   };
 }
 ```
 
-The shell config carries per-branch stacks. On deep-link land, every
-branch gets initialised to a sensible stack — only the active branch
-typically has a deep history; the others sit at their initial state
-(`[ProductList()]`, etc.).
+`encode` reads it back by matching on `(mainStack.last, nestedState)`:
+
+```dart
+Uri encode(KaiselConfig<AppRoute> config) =>
+    switch ((config.mainStack.last, config.nestedState)) {
+      (ShellHost(), final KaiselShellConfig shell) =>
+        switch ((shell.activeBranch, shell.activeBranchStack)) {
+          (1, [ProductList(), ProductDetail(:final id)]) =>
+            Uri(path: '/products/$id'),
+          (1, _) => Uri(path: '/products'),
+          _ => Uri(path: '/home'),
+        },
+      _ => Uri(path: '/'),
+    };
+```
+
+Only the active branch's stack is in the URL by design: switching tabs
+and coming back restores each tab's in-memory history without the URL
+enumerating every branch.
 
 ## Browser back and history
 

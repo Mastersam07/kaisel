@@ -194,7 +194,7 @@ same stack model, different rendering.
 |:--------|:----|
 | Using `push` to select a different detail in adaptive | Use `pushOrReplaceTop`. Otherwise the stack grows on every selection and back has to fire repeatedly to return to the list. |
 | Showing the back arrow on the detail pane in absorbed layouts | Pass `showBack: false` (or equivalent) when the detail renders inside an absorbing page. The list is already visible; "back" is visually confusing. |
-| Forgetting `absorbing: 1` on `KaiselAbsorbingPage` | The framework needs to know how many stack entries below this page are absorbed into the single rendered page. Default behaviour without it is wrong. |
+| Setting the wrong `absorbing` count on `KaiselAbsorbingPage` | `absorbing` defaults to `1` (consume the single entry directly below) — the master-detail case — so omit it there. Set it explicitly only when one rendered page collapses *more than one* entry below it. |
 | Pattern-matching only on `route` and `isWide` (ignoring `ctx.previous`) | Absorbing depends on what's below. A `Detail` on top of a `List` absorbs differently than a `Detail` on top of another `Detail`. Match on the triple. |
 | Letting the adaptive builder be non-exhaustive | The `switch` should cover every (previous, route, isWide) combination your sealed type can produce. Use `(_, X(), _)` catchalls to keep it exhaustive without listing every cell. |
 | Using `MediaQuery.of(context).size.width` when the shell takes meaningful chrome width | Use `LayoutBuilder` inside the branch content to measure the actual available width. MediaQuery is screen-wide. |

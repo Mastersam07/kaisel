@@ -191,9 +191,9 @@ which router you mean.
 Be honest about gaps before assuming kaisel can drop into any existing
 codebase as a one-for-one replacement.
 
-- **State restoration.** Not shipped yet — roadmap for v0.13. If the
+- **State restoration.** Not shipped yet — on the roadmap. If the
   app relies on stack restoration after Android process death, wait.
-- **DevTools extension.** Not shipped yet — roadmap for v0.14. Until
+- **DevTools extension.** Not shipped yet — on the roadmap. Until
   then, debugging is `print` statements or a listener you attach to
   the router yourself.
 - **Browser back integration on the web.** Works via the codec, but less
@@ -203,7 +203,7 @@ codebase as a one-for-one replacement.
   them via the `pageWrapper` mechanism — see
   [TRANSITIONS.md](./TRANSITIONS.md).
 
-See `ROADMAP.md` at the repo root for current status of each.
+See `packages/kaisel/ROADMAP.md` for current status of each.
 
 ## 5. Adding a new screen — checklist
 
@@ -230,4 +230,4 @@ See `ROADMAP.md` at the repo root for current status of each.
 | Using `is` checks inside a switch arm instead of pattern destructuring | Replace `if (route is ProductDetail) { route.id }` with `case ProductDetail(:final id):`. The compiler enforces exhaustiveness when you do this. |
 | Calling `context.router<AppRoute>()` from inside a shell branch and expecting the branch's router | The resolver returns the *nearest* router. From inside a branch, pass the branch's specific type: `context.router<ProductRoute>()`. |
 | Holding stale references to routers after the shell disposes | Don't store `KaiselRouter` instances outside their owning `StatefulWidget`'s state. The shell's `dispose` cleans them up; references held elsewhere become stale notifiers. |
-| Trying to compose two `MaterialApp.router`s side-by-side to migrate incrementally from another router | Don't. The migration is big-bang. See `doc/migration/README.md`. |
+| Trying to compose two `MaterialApp.router`s side-by-side to migrate incrementally from another router | Don't. The migration is big-bang. See `packages/kaisel/doc/migration/README.md`. |
