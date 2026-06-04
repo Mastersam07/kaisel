@@ -16,7 +16,7 @@ Flutter's `RestorationManager` / `RestorationMixin` / `restorationId` / `Restora
 
 **Design questions.** Opt-in (an explicit `restorable: true` flag on the delegate) or opt-out (default on when a `restorationScopeId` is provided)? How does the bucket interact with guards: are guards re-evaluated during restoration, or is the restored stack trusted? Should branch-level buckets restore independently when the parent shell hasn't restored yet, or wait? These need actual design before implementation.
 
-**Probable home.** v0.13. (a) and (b) are small and can ship together; (c) is the real work and may warrant its own pass.
+**Probable home.** A future minor release. (a) and (b) are small and can ship together; (c) is the real work and may warrant its own pass.
 
 ## 2. Lint package
 
