@@ -1,0 +1,5 @@
+# Extra excludes for `dart pub publish` (additive to .gitignore).
+# These are tracked in git but not useful inside the published package.
+
+# Dev-only test optimizer (see tool/test_optimizer.dart).
+tool/

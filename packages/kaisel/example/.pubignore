@@ -1,0 +1,10 @@
+# Keep the published example lean. The native runner scaffolding is tracked
+# for local `flutter run`, but consumers can regenerate it with
+# `flutter create .`, so it only bloats the package archive. pub.dev renders
+# the example from lib/ + pubspec.yaml + README.
+ios/
+android/
+linux/
+macos/
+windows/
+web/

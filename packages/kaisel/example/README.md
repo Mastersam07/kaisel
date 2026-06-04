@@ -1,6 +1,6 @@
 # kaisel example
 
-Five entry points, each demonstrating a slice of the library.
+Six entry points, each demonstrating a slice of the library.
 Pick one with `-t`:
 
 | Entry point | What it shows |
@@ -10,6 +10,7 @@ Pick one with `-t`:
 | `lib/main_shell_adaptive.dart` | Adaptive layout *inside a shell branch* (v0.9): one tab is master-detail, the other isn't, shell stays at the bottom |
 | `lib/main_nested_flows.dart` | Nested modal flows (v0.10): a payment flow opens an "add card" flow on top of itself, both layers visible at once |
 | `lib/main_transitions.dart` | Route-pair transitions (v0.11): pageWrapper pattern-matches on `(ctx.previous, ctx.route)` to pick custom Page subclasses per route pair |
+| `lib/main_media_cataloguer.dart` | A desktop-style app: top-level auth state machine (`router.set` swaps `LoginRoute` ↔ `ShellHost`), a cross-fade `pageWrapper` between them, a branched shell with per-branch typed routes + nested stacks, and a breadcrumb driven by `KaiselListenableBuilder` |
 
 ## `lib/main.dart`
 

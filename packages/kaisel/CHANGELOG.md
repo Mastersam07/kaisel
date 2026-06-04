@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.13.1
+
+### Added
+
+- **`KaiselListenableBuilder<R>`** and **`KaiselRouter.asListenable()`**.
+  Because `kaisel_core` is Flutter-free, a `KaiselRouter` is not a Flutter
+  `Listenable` and can't be passed to `ListenableBuilder` directly. The new
+  widget rebuilds on every router notification; the `asListenable()`
+  extension returns a stateless `Listenable` pass-through for use with
+  `ListenableBuilder` / `AnimatedBuilder`.
+
 ## 0.13.0 — Renamed to kaisel
 
 The package was renamed from **gate** to **kaisel**. This is a
