@@ -32,6 +32,16 @@ Coming from another router? The [migration guides](packages/kaisel/doc/migration
 - [From go_router](packages/kaisel/doc/migration/from-go-router.md)
 - [From auto_route](packages/kaisel/doc/migration/from-auto-route.md)
 
+## Editor / AI assistance
+
+This repo ships an [agent skill](skills/kaisel) that teaches AI coding agents how kaisel works — the sealed-route model plus navigation, shells, modal flows, modules, codecs, guards, adaptive layouts, and transitions. Install it with the [`skills` CLI](https://github.com/vercel-labs/skills), which targets Claude Code, Cursor, opencode, and other agents:
+
+```sh
+npx skills add Mastersam07/kaisel
+```
+
+It lands in your agent's skills directory (e.g. `.claude/skills/`) and loads on the next session — triggering when you work with `package:kaisel` code.
+
 ## Working in this repo
 
 ```sh

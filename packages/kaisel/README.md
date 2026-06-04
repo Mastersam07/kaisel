@@ -562,6 +562,14 @@ Coming from another router? See the migration guides in [`doc/migration/`](doc/m
 - [From go_router](doc/migration/from-go-router.md)
 - [From auto_route](doc/migration/from-auto-route.md)
 
+## Editor / AI assistance
+
+An [agent skill](https://github.com/Mastersam07/kaisel/tree/main/skills/kaisel) teaches AI coding agents (Claude Code, Cursor, opencode, …) how kaisel works, so they generate idiomatic kaisel code instead of guessing. Install it with the [`skills` CLI](https://github.com/vercel-labs/skills):
+
+```sh
+npx skills add Mastersam07/kaisel
+```
+
 ## Status
 
 **v0.13, pre-1.0.** The core surface is in place: routes, guards, shells (homogeneous and per-branch typed), modal flows with typed results and nesting, URL-addressable shell and module state, composable modules with URL composition, adaptive layouts at every level, route-pair-aware transitions, and `KaiselPageScope`. The public API is shaped for stability but not yet frozen — expect occasional breaking changes before 1.0, each with a migration note in the [changelog](CHANGELOG.md).
