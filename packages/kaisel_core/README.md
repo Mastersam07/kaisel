@@ -1,4 +1,5 @@
 # kaisel_core
+[![codecov](https://codecov.io/github/Mastersam07/kaisel/branch/dev/graph/badge.svg?token=tHYIe4iPGo)](https://codecov.io/github/Mastersam07/kaisel)
 
 The pure-Dart navigation core for the [`kaisel`](https://pub.dev/packages/kaisel) router. No Flutter dependency.
 
