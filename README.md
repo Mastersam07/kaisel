@@ -25,6 +25,13 @@ dependencies:
 
 Then see the [`kaisel` README](packages/kaisel/README.md) for the full guide, and [`packages/kaisel/example`](packages/kaisel/example) for runnable examples.
 
+## Migrating from another router
+
+Coming from another router? The [migration guides](packages/kaisel/doc/migration/) cover what translates, what doesn't, and the effort involved:
+
+- [From go_router](packages/kaisel/doc/migration/from-go-router.md)
+- [From auto_route](packages/kaisel/doc/migration/from-auto-route.md)
+
 ## Working in this repo
 
 ```sh

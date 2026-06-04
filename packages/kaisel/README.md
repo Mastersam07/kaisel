@@ -555,13 +555,20 @@ A user-supplied `pageWrapper` receives `ctx.child` already wrapped in the scope,
 
 Routing libraries that bake in `freezed` force codegen on every consumer. `kaisel` provides default `props`-based equality on `KaiselRoute` itself, so the common case is a one-line override. Prefer `freezed sealed`? That still works. Prefer `Equatable`? Declare your routes with `extends KaiselRoute with EquatableMixin`. The library doesn't impose a choice — your override always wins.
 
+## Migrating
+
+Coming from another router? See the migration guides in [`doc/migration/`](doc/migration/):
+
+- [From go_router](doc/migration/from-go-router.md)
+- [From auto_route](doc/migration/from-auto-route.md)
+
 ## Status
 
 **v0.13, pre-1.0.** The core surface is in place: routes, guards, shells (homogeneous and per-branch typed), modal flows with typed results and nesting, URL-addressable shell and module state, composable modules with URL composition, adaptive layouts at every level, route-pair-aware transitions, and `KaiselPageScope`. The public API is shaped for stability but not yet frozen — expect occasional breaking changes before 1.0, each with a migration note in the [changelog](CHANGELOG.md).
 
 ## Roadmap
 
-See [`ROADMAP.md`](ROADMAP.md) for work under consideration: state restoration via `RestorationManager`, a `kaisel_lint` analyzer plugin, a migration guide from `go_router` and `auto_route`, and a DevTools extension.
+See [`ROADMAP.md`](ROADMAP.md) for work under consideration: state restoration via `RestorationManager`, a `kaisel_lint` analyzer plugin, and a DevTools extension.
 
 ## Example
 

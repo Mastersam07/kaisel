@@ -36,37 +36,7 @@ Each rule wants tests under `test/`, a quick fix where applicable, and a sample 
 
 **Probable home.** Post-state-restoration, since rules can be refined based on patterns that surface as users build real apps with the library. Realistic: v0.14 or later.
 
-## 3. Migration guide from go_router and auto_route
-
-`MIGRATION.md` showing how a typical `go_router` or `auto_route` config translates to kaisel. Side-by-side examples for every common pattern, with honest commentary on what translates cleanly and what doesn't.
-
-**Sections for go_router:**
-
-- Routes table to sealed routes. `GoRoute(path: '/products/:id', ...)` becomes a `sealed class AppRoute` with `Products(id)`.
-- Path-first to route-first mental model. `go_router` treats URLs as canonical; kaisel treats routes as canonical and lets the codec produce URLs.
-- `redirect` to guards. Different shape: a function from current and proposed stacks to a new stack, instead of a per-route redirect callback.
-- `ShellRoute` to `KaiselShell`. Same idea, different boilerplate.
-- `StatefulShellRoute` to `KaiselBranchedShell`. The closest 1:1.
-- `GoRouterState.of(context)` to `context.router<R>()`. Type parameter is the change.
-- Nested navigators to `KaiselInnerNavigator`. More explicit, more typed.
-
-**Sections for auto_route:**
-
-- `@RoutePage()` codegen to manual sealed routes. The big change: no codegen at all.
-- Type-safe args. Already free in kaisel via the sealed class constructor; no `RouteParameters` codegen needed.
-- `AutoRouter.of(context).push(...)` to `context.router<R>().push(...)`.
-- `AutoRouteObserver` to `RouteObserver` attached directly to the Navigator.
-- Nested navigation. Same structural answer as for go_router.
-
-**Hard parts to be honest about:**
-
-- kaisel doesn't have a built-in browser-history fine-tuning surface like go_router's. URL state restoration roundtrips entire configs; mid-stack URL changes require manipulating the stack directly.
-- kaisel doesn't ship pre-built page transition animations. Users wire them via the v0.11 `pageWrapper` (with the demo as reference).
-- Codegen-driven apps will need to manually rewrite routes. Tooling could help (a one-shot conversion script as part of the migration), but that's separate scope.
-
-**Probable home.** Drafted before any "1.0-ready" milestone. Useful at v0.13 or v0.14 to drive realistic try-it-out feedback.
-
-## 4. DevTools extension
+## 3. DevTools extension
 
 A Flutter DevTools extension (via `devtools_extensions` and the post-3.16 extension API) that shows the live state of all routers in a running app. Same shape as Flutter Inspector, scoped to navigation.
 
@@ -95,7 +65,6 @@ These are independent tracks. Pick whichever delivers the most value to your cur
 
 - Shipping to production where iOS background-kill matters: state restoration first.
 - Authoring a lot of code in kaisel and noticing patterns to enforce: lint package.
-- Pitching kaisel to a team that currently uses go_router or auto_route: migration guide.
 - Debugging gnarly navigation bugs in real apps: DevTools extension.
 
 The roadmap order doesn't imply a release order. v0.13 onwards picks these up as appetite allows.
