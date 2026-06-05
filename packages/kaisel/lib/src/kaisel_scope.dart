@@ -240,6 +240,12 @@ abstract interface class KaiselShellController implements Listenable {
   /// Number of branches in the shell.
   int get branchCount;
 
+  /// The active branch's router, type-erased. Lets shell chrome read the
+  /// active stack (e.g. for a breadcrumb) and pop it, without holding a
+  /// reference to the per-branch router. The controller notifies on both
+  /// branch switches and active-stack changes.
+  KaiselNavigator get current;
+
   /// Select a different branch. No-op if [branch] is already active.
   void switchTo(int branch);
 }

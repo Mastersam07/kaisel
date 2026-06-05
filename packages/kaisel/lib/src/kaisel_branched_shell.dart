@@ -64,6 +64,7 @@ class BranchedShellRouter extends ChangeNotifier
   int get activeBranch => _activeBranch;
 
   /// The currently selected branch (as the non-generic view).
+  @override
   KaiselNavigator get current => _branches[_activeBranch];
 
   /// Number of branches.
@@ -230,6 +231,81 @@ class _KaiselBranchState<R extends KaiselRoute> extends State<KaiselBranch<R>> {
   }
 }
 
+/// A declarative branch for [KaiselBranchedShell.specs]: the branch's [initial]
+/// route and its `builder`, with no [KaiselRouter] or [KaiselBranch] to wire by
+/// hand. The shell creates one router per spec, owns it (so each branch's stack
+/// survives tab switches), and disposes it.
+///
+/// Each spec keeps its own route type [R], so a heterogeneous
+/// `List<KaiselBranchSpec>` still produces correctly-typed routers and
+/// branches.
+class KaiselBranchSpec<R extends KaiselRoute> {
+  /// A branch with a simple per-route [builder].
+  const KaiselBranchSpec({
+    required this.initial,
+    required KaiselPageBuilder<R> builder,
+    this.guards = const [],
+    this.pageWrapper,
+    this.scope,
+  }) : _builder = builder,
+       _adaptiveBuilder = null;
+
+  /// A branch with an adaptive [builder] (master-detail absorption).
+  const KaiselBranchSpec.adaptive({
+    required this.initial,
+    required KaiselAdaptivePageBuilder<R> builder,
+    this.guards = const [],
+    this.pageWrapper,
+    this.scope,
+  }) : _builder = null,
+       _adaptiveBuilder = builder;
+
+  /// The branch's initial route.
+  final R initial;
+
+  /// Guards applied to this branch's router.
+  final List<KaiselGuard<R>> guards;
+
+  /// Optional per-route [Page] wrapper for this branch.
+  final KaiselPageWrapper<R>? pageWrapper;
+
+  /// Optional wrapper for the branch's content (DI containers, etc.).
+  final Widget Function(BuildContext context, Widget child)? scope;
+
+  final KaiselPageBuilder<R>? _builder;
+  final KaiselAdaptivePageBuilder<R>? _adaptiveBuilder;
+
+  /// Create this branch's router. Called once by the shell.
+  KaiselRouter<R> createRouter() =>
+      KaiselRouter<R>(initial: initial, guards: guards);
+
+  /// Build this branch's widget around [router] (the one [createRouter]
+  /// returned). Non-generic in [router] so the shell can keep a heterogeneous
+  /// list of specs; the cast is sound because the shell pairs each spec with
+  /// its own router.
+  Widget buildBranch(KaiselNavigator router) {
+    final typed = router as KaiselRouter<R>;
+    switch ((_builder, _adaptiveBuilder)) {
+      case (final builder?, _):
+        return KaiselBranch<R>(
+          router: typed,
+          pageBuilder: builder,
+          pageWrapper: pageWrapper,
+          scope: scope,
+        );
+      case (_, final adaptive?):
+        return KaiselBranch<R>.adaptive(
+          router: typed,
+          pageBuilder: adaptive,
+          pageWrapper: pageWrapper,
+          scope: scope,
+        );
+      case _:
+        throw StateError('KaiselBranchSpec has no builder.');
+    }
+  }
+}
+
 /// Signature for the chrome around a [KaiselBranchedShell] — typically a
 /// [Scaffold] with a bottom nav bar.
 typedef KaiselBranchedShellChromeBuilder =
@@ -272,24 +348,43 @@ typedef KaiselBranchedShellChromeBuilder =
 /// branch's typed router; `context.branchedShell()` resolves to the
 /// enclosing [BranchedShellRouter] for `switchTo` etc.
 class KaiselBranchedShell extends StatefulWidget {
-  /// Create a branched shell driven by [shell] with one widget per
-  /// branch in [branches]. The length of [branches] must equal
-  /// `shell.branchCount`.
+  /// Create a branched shell driven by [shell] with one widget per branch in
+  /// [branches]. The length of [branches] must equal `shell.branchCount`. Use
+  /// this when you want to hold the branch routers yourself; otherwise prefer
+  /// [KaiselBranchedShell.specs], which wires them for you.
   const KaiselBranchedShell({
     super.key,
-    required this.shell,
-    required this.branches,
+    required BranchedShellRouter this.shell,
+    required List<Widget> this.branches,
     required this.chromeBuilder,
-  });
+  }) : specs = null,
+       initialBranch = 0;
 
-  /// The shell's state aggregator. Held externally so the caller can
-  /// drive `switchTo` from elsewhere and listen for changes.
-  final BranchedShellRouter shell;
+  /// Create a branched shell from declarative [branches] — one
+  /// [KaiselBranchSpec] per branch. The shell creates, owns, and disposes the
+  /// per-branch routers for you, so you never construct a [KaiselRouter]; each
+  /// branch's stack still survives tab switches. Navigate inside a branch with
+  /// `context.push(...)`, and switch tabs with `context.shell()`.
+  const KaiselBranchedShell.specs({
+    super.key,
+    required List<KaiselBranchSpec> branches,
+    required this.chromeBuilder,
+    this.initialBranch = 0,
+  }) : specs = branches,
+       shell = null,
+       branches = null;
 
-  /// One widget per branch, in the same order as `shell.branches`.
-  /// Each entry is typically a [KaiselBranch] typed to its branch's
-  /// route subtype.
-  final List<Widget> branches;
+  /// The externally-held aggregator (explicit mode), or `null` in specs mode.
+  final BranchedShellRouter? shell;
+
+  /// One widget per branch (explicit mode), or `null` in specs mode.
+  final List<Widget>? branches;
+
+  /// Declarative branches (specs mode), or `null` in explicit mode.
+  final List<KaiselBranchSpec>? specs;
+
+  /// The branch shown first (specs mode).
+  final int initialBranch;
 
   /// Builds the chrome (scaffold, bottom nav, etc.) around the active
   /// branch's content.
@@ -300,18 +395,48 @@ class KaiselBranchedShell extends StatefulWidget {
 }
 
 class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
+  // The effective aggregator and branch widgets. In specs mode these are
+  // created and owned here; in explicit mode they mirror the widget's fields.
+  late BranchedShellRouter _shell;
+  late List<Widget> _branches;
+
+  // Routers this state created (specs mode) and must dispose. Null when the
+  // caller owns the shell (explicit mode).
+  List<KaiselRouter<KaiselRoute>>? _ownedRouters;
+
+  KaiselNestedHost? _host;
+
   @override
   void initState() {
     super.initState();
+    switch ((widget.specs, widget.shell)) {
+      case (final specs?, _):
+        final routers = [for (final spec in specs) spec.createRouter()];
+        _shell = BranchedShellRouter(
+          branches: routers,
+          initialBranch: widget.initialBranch,
+        );
+        _branches = [
+          for (var i = 0; i < specs.length; i++)
+            specs[i].buildBranch(routers[i]),
+        ];
+        _ownedRouters = routers;
+      case (_, final shell?):
+        _shell = shell;
+        _branches = widget.branches ?? const [];
+        _ownedRouters = null;
+      case _:
+        throw StateError(
+          'KaiselBranchedShell needs either specs or shell + branches.',
+        );
+    }
     assert(
-      widget.shell.branchCount == widget.branches.length,
-      'KaiselBranchedShell: shell has ${widget.shell.branchCount} branches '
-      'but ${widget.branches.length} branch widgets were provided.',
+      _shell.branchCount == _branches.length,
+      'KaiselBranchedShell: shell has ${_shell.branchCount} branches '
+      'but ${_branches.length} branch widgets were provided.',
     );
-    widget.shell.addListener(_onChange);
+    _shell.addListener(_onChange);
   }
-
-  KaiselNestedHost? _host;
 
   void _onChange() {
     if (mounted) setState(() {});
@@ -322,27 +447,39 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
     super.didChangeDependencies();
     final host = KaiselNestedHostScope.maybeOf(context);
     if (!identical(host, _host)) {
-      _host?.unregisterNested(widget.shell);
+      _host?.unregisterNested(_shell);
       _host = host;
-      _host?.registerNested(widget.shell);
+      _host?.registerNested(_shell);
     }
   }
 
   @override
   void didUpdateWidget(KaiselBranchedShell oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.shell, widget.shell)) {
-      oldWidget.shell.removeListener(_onChange);
-      widget.shell.addListener(_onChange);
-      _host?.unregisterNested(oldWidget.shell);
-      _host?.registerNested(widget.shell);
+    // Specs mode owns its shell for the State's lifetime; only explicit mode
+    // can swap an external shell instance.
+    if (_ownedRouters != null) return;
+    final newShell = widget.shell;
+    if (newShell != null && !identical(oldWidget.shell, newShell)) {
+      _shell.removeListener(_onChange);
+      _host?.unregisterNested(_shell);
+      _shell = newShell;
+      _branches = widget.branches ?? const [];
+      _shell.addListener(_onChange);
+      _host?.registerNested(_shell);
     }
   }
 
   @override
   void dispose() {
-    _host?.unregisterNested(widget.shell);
-    widget.shell.removeListener(_onChange);
+    _host?.unregisterNested(_shell);
+    _shell.removeListener(_onChange);
+    if (_ownedRouters case final routers?) {
+      _shell.dispose();
+      for (final router in routers) {
+        router.dispose();
+      }
+    }
     super.dispose();
   }
 
@@ -352,30 +489,30 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
       // canPop = true when the active branch is at root — let the
       // parent router pop the shell itself. canPop = false otherwise
       // — we handle the back by popping within the branch.
-      canPop: !widget.shell.currentCanPop,
+      canPop: !_shell.currentCanPop,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (widget.shell.currentCanPop) {
-          widget.shell.popCurrent();
+        if (_shell.currentCanPop) {
+          _shell.popCurrent();
         }
       },
       child: BranchedShellScope(
-        shell: widget.shell,
+        shell: _shell,
         child: KaiselShellScope(
-          controller: widget.shell,
+          controller: _shell,
           child: ShellChromeScope(
             accessorHint: 'context.branchedShell()',
             child: Builder(
               builder: (context) {
                 final branchContent = IndexedStack(
-                  index: widget.shell.activeBranch,
-                  children: widget.branches,
+                  index: _shell.activeBranch,
+                  children: _branches,
                 );
                 return widget.chromeBuilder(
                   context,
-                  widget.shell.activeBranch,
+                  _shell.activeBranch,
                   branchContent,
-                  widget.shell.switchTo,
+                  _shell.switchTo,
                 );
               },
             ),

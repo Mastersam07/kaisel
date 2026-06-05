@@ -202,6 +202,76 @@ void main() {
     });
   });
 
+  group('KaiselBranchedShell.specs', () {
+    testWidgets('wires the routers and preserves branch state across tab '
+        'switches', (tester) async {
+      late BuildContext branch0;
+      late void Function(int) switchTo;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: KaiselBranchedShell.specs(
+            // Declarative — no KaiselRouter constructed here.
+            branches: [
+              KaiselBranchSpec<_BranchR>(
+                initial: const _X(),
+                builder: (context, route) => switch (route) {
+                  _X() => Builder(
+                    builder: (c) {
+                      branch0 = c;
+                      return const Text(
+                        'b0-X',
+                        textDirection: TextDirection.ltr,
+                      );
+                    },
+                  ),
+                  _Y() => const Text('b0-Y', textDirection: TextDirection.ltr),
+                },
+              ),
+              KaiselBranchSpec<_R>(
+                initial: const _A(),
+                builder: (context, route) => switch (route) {
+                  _A() => const Text('b1-A', textDirection: TextDirection.ltr),
+                  _B() => const Text('b1-B', textDirection: TextDirection.ltr),
+                  _Flow() => const SizedBox(),
+                },
+              ),
+            ],
+            chromeBuilder: (context, active, content, sb) {
+              switchTo = sb;
+              return content;
+            },
+          ),
+        ),
+      );
+
+      // The shell created the branch routers from the specs.
+      expect(find.text('b0-X'), findsOneWidget);
+
+      // Push into branch 0 via context.push (resolves to the _BranchR router).
+      await branch0.push(const _Y());
+      await tester.pumpAndSettle();
+      expect(find.text('b0-Y'), findsOneWidget);
+
+      // Switch away and back — the branch's stack must survive (the routers
+      // are created once, not rebuilt per switch).
+      switchTo(1);
+      await tester.pumpAndSettle();
+      expect(find.text('b1-A'), findsOneWidget);
+
+      switchTo(0);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('b0-Y'),
+        findsOneWidget,
+        reason: 'branch 0 kept its pushed route',
+      );
+
+      // Tearing the shell down disposes the routers it owns (no errors).
+      await tester.pumpWidget(const SizedBox());
+    });
+  });
+
   group('KaiselRouterConfig', () {
     testWidgets('drives a MaterialApp.router with no manual plumbing', (
       tester,

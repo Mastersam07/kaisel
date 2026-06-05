@@ -50,6 +50,7 @@ class ShellRouter<R extends KaiselRoute> extends ChangeNotifier
   int get activeBranch => _activeBranch;
 
   /// The router for the currently selected branch.
+  @override
   KaiselRouter<R> get current => _branches[_activeBranch];
 
   /// Number of branches.

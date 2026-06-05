@@ -22,6 +22,7 @@ export 'src/kaisel_branched_shell.dart'
         BranchedShellRouter,
         BranchedShellScope,
         KaiselBranch,
+        KaiselBranchSpec,
         KaiselBranchedShell,
         KaiselBranchedShellChromeBuilder,
         KaiselBranchedShellContextX;

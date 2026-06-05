@@ -469,64 +469,38 @@ class _MasterDetailScaffold extends StatelessWidget {
 // Holds three branches, each with its own typed router. The shell's
 // own chrome (sidebar + breadcrumb) is built by the chrome builder.
 
-class _ShellHost extends StatefulWidget {
+// Declarative branches: the shell creates, owns, and disposes the per-branch
+// routers for us. (Before, this was a StatefulWidget holding three
+// `KaiselRouter`s + a `BranchedShellRouter` and disposing all four by hand, and
+// threading the routers through the chrome.)
+class _ShellHost extends StatelessWidget {
   const _ShellHost();
-  @override
-  State<_ShellHost> createState() => _ShellHostState();
-}
-
-class _ShellHostState extends State<_ShellHost> {
-  late final KaiselRouter<HomeRoute> _homeRouter = KaiselRouter<HomeRoute>(
-    initial: const HomeView(),
-  );
-  late final KaiselRouter<LibraryRoute> _libraryRouter =
-      KaiselRouter<LibraryRoute>(initial: const LibraryView());
-  late final KaiselRouter<TestRoute> _testRouter = KaiselRouter<TestRoute>(
-    initial: const TestHome(),
-  );
-
-  late final BranchedShellRouter _shell = BranchedShellRouter(
-    branches: [_homeRouter, _libraryRouter, _testRouter],
-  );
-
-  @override
-  void dispose() {
-    _shell.dispose();
-    _homeRouter.dispose();
-    _libraryRouter.dispose();
-    _testRouter.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
-    return KaiselBranchedShell(
-      shell: _shell,
+    return KaiselBranchedShell.specs(
       branches: [
-        KaiselBranch<HomeRoute>(
-          router: _homeRouter,
-          pageBuilder: (context, route) => switch (route) {
+        KaiselBranchSpec<HomeRoute>(
+          initial: const HomeView(),
+          builder: (context, route) => switch (route) {
             HomeView() => const _HomeScreen(),
           },
         ),
-        KaiselBranch<LibraryRoute>(
-          router: _libraryRouter,
-          pageBuilder: (context, route) => switch (route) {
+        KaiselBranchSpec<LibraryRoute>(
+          initial: const LibraryView(),
+          builder: (context, route) => switch (route) {
             LibraryView() => const _LibraryScreen(),
           },
         ),
-        KaiselBranch<TestRoute>.adaptive(
-          router: _testRouter,
-          pageBuilder: _testAdaptiveBuilder,
+        KaiselBranchSpec<TestRoute>.adaptive(
+          initial: const TestHome(),
+          builder: _testAdaptiveBuilder,
         ),
       ],
       chromeBuilder: (context, active, branchContent, switchBranch) {
         return _AppChrome(
           activeBranchIndex: active,
           onSwitchBranch: switchBranch,
-          homeRouter: _homeRouter,
-          libraryRouter: _libraryRouter,
-          testRouter: _testRouter,
           branchContent: branchContent,
         );
       },
@@ -540,17 +514,11 @@ class _AppChrome extends StatelessWidget {
   const _AppChrome({
     required this.activeBranchIndex,
     required this.onSwitchBranch,
-    required this.homeRouter,
-    required this.libraryRouter,
-    required this.testRouter,
     required this.branchContent,
   });
 
   final int activeBranchIndex;
   final void Function(int) onSwitchBranch;
-  final KaiselRouter<HomeRoute> homeRouter;
-  final KaiselRouter<LibraryRoute> libraryRouter;
-  final KaiselRouter<TestRoute> testRouter;
   final Widget branchContent;
 
   @override
@@ -598,14 +566,7 @@ class _AppChrome extends StatelessWidget {
                     icon: const Icon(Icons.arrow_forward_ios),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: _InnerNavBar(
-                      activeBranchIndex: activeBranchIndex,
-                      homeRouter: homeRouter,
-                      libraryRouter: libraryRouter,
-                      testRouter: testRouter,
-                    ),
-                  ),
+                  Expanded(child: const _InnerNavBar()),
                   IconButton(
                     iconSize: 14,
                     color: Colors.white70,
@@ -641,39 +602,29 @@ class _AppChrome extends StatelessWidget {
 /// Inner back/forward + breadcrumb. Hooks into the active branch's
 /// router so the back arrow pops within the current branch only.
 class _InnerNavBar extends StatelessWidget {
-  const _InnerNavBar({
-    required this.activeBranchIndex,
-    required this.homeRouter,
-    required this.libraryRouter,
-    required this.testRouter,
-  });
-
-  final int activeBranchIndex;
-  final KaiselRouter<HomeRoute> homeRouter;
-  final KaiselRouter<LibraryRoute> libraryRouter;
-  final KaiselRouter<TestRoute> testRouter;
+  const _InnerNavBar();
 
   @override
   Widget build(BuildContext context) {
-    // Pick the active router based on the active branch index. We
-    // listen to it so the breadcrumb updates when the branch's stack
-    // changes (push, pop, replaceTop).
-    final activeRouter = switch (activeBranchIndex) {
-      0 => homeRouter,
-      1 => libraryRouter,
-      _ => testRouter,
-    };
+    // The shell exposes the active branch via context.shell() — no need to
+    // hold the per-branch routers. It notifies on branch switches and on
+    // active-stack changes, so the breadcrumb stays live.
+    final shell = context.shell();
 
     return ListenableBuilder(
-      listenable: activeRouter.asListenable(),
+      listenable: shell,
       builder: (context, _) {
-        final (label, path, canPop) = _describeActive();
+        final current = shell.current;
+        final (label, path, canPop) = _describeActive(
+          shell.activeBranch,
+          current,
+        );
         return Row(
           children: [
             IconButton(
               iconSize: 16,
               color: canPop ? Colors.white : Colors.white38,
-              onPressed: canPop ? _popActive : null,
+              onPressed: canPop ? current.pop : null,
               icon: const Icon(Icons.arrow_back_ios_new),
             ),
             IconButton(
@@ -705,19 +656,19 @@ class _InnerNavBar extends StatelessWidget {
     );
   }
 
-  /// Returns (human-readable label, URL path, whether back is enabled)
-  /// based on the active branch and its current stack.
-  (String, String, bool) _describeActive() {
+  /// Returns (human-readable label, URL path, whether back is enabled) for the
+  /// active branch [activeBranchIndex] and its [current] router.
+  (String, String, bool) _describeActive(
+    int activeBranchIndex,
+    KaiselNavigator current,
+  ) {
     switch (activeBranchIndex) {
       case 0:
-        return ('Home', '/home', homeRouter.stack.length > 1);
+        return ('Home', '/home', current.canPop);
       case 1:
-        return ('Library', '/library', libraryRouter.stack.length > 1);
+        return ('Library', '/library', current.canPop);
       default:
-        final stack = testRouter.stack;
-        final top = stack.last;
-        return switch (top) {
-          TestHome() => ('Test', '/test', false),
+        return switch (current.stack.last) {
           CollectionView(:final id) => (
             'Collection - $id',
             '/collection/$id',
@@ -728,18 +679,8 @@ class _InnerNavBar extends StatelessWidget {
             '/collection/$collectionId/$fileName',
             true,
           ),
+          _ => ('Test', '/test', false),
         };
-    }
-  }
-
-  void _popActive() {
-    switch (activeBranchIndex) {
-      case 0:
-        homeRouter.pop();
-      case 1:
-        libraryRouter.pop();
-      default:
-        testRouter.pop();
     }
   }
 }
