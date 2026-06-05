@@ -588,7 +588,7 @@ npx skills add Mastersam07/kaisel
 
 ## Roadmap
 
-See [`ROADMAP.md`](ROADMAP.md) for work under consideration: state restoration via `RestorationManager`, a `kaisel_lint` analyzer plugin, and a DevTools extension.
+See [`ROADMAP.md`](ROADMAP.md) for work under consideration: state restoration via `RestorationManager` and a DevTools extension.
 
 ## Example
 

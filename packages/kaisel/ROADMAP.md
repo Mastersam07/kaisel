@@ -18,25 +18,7 @@ Flutter's `RestorationManager` / `RestorationMixin` / `restorationId` / `Restora
 
 **Probable home.** A future minor release. (a) and (b) are small and can ship together; (c) is the real work and may warrant its own pass.
 
-## 2. Lint package
-
-A separate `kaisel_lint` package using `analysis_server_plugin` to surface common misuses at write time, with quick fixes where possible.
-
-**Rule candidates (initial set; expand as patterns emerge):**
-
-- `prefer_push_or_replace_top_in_adaptive`. When code calls `router.push(X)` and the current top of the router's stack has the same runtime type as `X`, suggest `router.pushOrReplaceTop(X)` instead. This is the bug class the adaptive demo surfaced: pushing `Detail-B` onto a stack with `Detail-A` produces a third entry instead of the in-place swap that adaptive master-detail needs.
-- `exhaustive_page_builder`. Warn on a non-exhaustive switch in a `KaiselPageBuilder` or `KaiselAdaptivePageBuilder`. Dart 3 switch expressions already give compile-time exhaustiveness when returning a value, so this is mostly belt-and-suspenders for statement-form switches and helper functions that aren't returning a `Widget` directly.
-- `avoid_modal_route_on_main_stack`. Pushing a `KaiselModalRoute` onto the main stack via `push` instead of opening it via `run<T>(...)` is almost always wrong: modal routes are flow entrypoints, not main-stack entries. Quick fix: convert to `run<T>(...)` with a placeholder type argument.
-- `unused_guard_redirect`. A guard that takes a stack and returns it unchanged is a no-op. Either drop the guard or make it actually do something. (Has false-positive risk with reflective guards; lint can be off-by-default.)
-- `prefer_const_route_constructors`. Routes without instance state should be const-constructed at call sites. Helps the router's stack-diff fast path.
-
-Each rule wants tests under `test/`, a quick fix where applicable, and a sample in the package README. Some rules need cross-file analysis (e.g., to verify a route is a modal route, the analyzer needs to resolve the type's declared interfaces).
-
-**Design questions.** Ship as a separate `kaisel_lint` package or as a sub-package in a kaisel monorepo? Use `custom_lint` (community-friendlier but requires consumers to add a dev dep) or the official `analysis_server_plugin` (heavier integration but ships with the SDK)? Version-locked to `kaisel` or independent?
-
-**Probable home.** Post-state-restoration, since rules can be refined based on patterns that surface as users build real apps with the library. Realistic: v0.14 or later.
-
-## 3. DevTools extension
+## 2. DevTools extension
 
 A Flutter DevTools extension (via `devtools_extensions` and the post-3.16 extension API) that shows the live state of all routers in a running app. Same shape as Flutter Inspector, scoped to navigation.
 
@@ -64,7 +46,6 @@ Either way, the runtime side ships as a small companion package (`kaisel_devtool
 These are independent tracks. Pick whichever delivers the most value to your current use case:
 
 - Shipping to production where iOS background-kill matters: state restoration first.
-- Authoring a lot of code in kaisel and noticing patterns to enforce: lint package.
 - Debugging gnarly navigation bugs in real apps: DevTools extension.
 
 The roadmap order doesn't imply a release order. v0.13 onwards picks these up as appetite allows.
@@ -75,5 +56,6 @@ The roadmap order doesn't imply a release order. v0.13 onwards picks these up as
 - **Persistence beyond restoration.** Offline mode, sync, or background fetch that touch navigation state are app-level concerns, not router concerns.
 - **A pre-built transition animation library.** The v0.11 `pageWrapper` plus `KaiselPageWrapperContext` give users everything needed to write their own. A bundled "common transitions" pack is doable but doesn't earn its way into the core.
 - **Built-in analytics hooks.** `RouteObserver` plus standard `ChangeNotifier` listeners cover this without a dedicated API.
+- **Automatic adaptive replace-top.** In adaptive master-detail, pushing a same-type detail onto another stacks a duplicate instead of swapping in place; the answer is to call `pushOrReplaceTop` rather than `push`. Making that automatic — via a route marker, or a router/branch mode that auto-replaces — was considered and rejected. The router is pure-Dart and width-agnostic, so it can't know it's in an adaptive context; the only places to put the behavior either couple navigation policy onto route data or make `push` implicitly conditional, both of which trade away the per-call control and explicitness kaisel optimizes for. `push` vs `pushOrReplaceTop` stays an explicit, per-call choice.
 
 This list grows as things crystallize.

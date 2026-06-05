@@ -12,7 +12,7 @@ This repository is a [pub workspace](https://dart.dev/tools/pub/workspaces) cont
 | [`packages/kaisel`](packages/kaisel) | The Flutter router — delegate, shells, modules, adaptive layouts, transitions. This is the package you depend on. Start with its [README](packages/kaisel/README.md). |
 | [`packages/kaisel_core`](packages/kaisel_core) | Pure-Dart navigation core — sealed routes, the router, guards, and URL codecs. No Flutter dependency. Re-exported by `kaisel`. |
 | [`packages/kaisel_devtools`](packages/kaisel_devtools) | DevTools extension for live router inspection. *Scaffold — not yet implemented.* |
-| [`packages/kaisel_lint`](packages/kaisel_lint) | Custom lint rules built on the first-party `analysis_server_plugin` API. *Scaffold — no rules yet.* |
+| [`packages/kaisel_lint`](packages/kaisel_lint) | Custom lint rules, quick fixes, and assists for the router, built on the first-party `analysis_server_plugin` API. |
 
 ## Getting started
 

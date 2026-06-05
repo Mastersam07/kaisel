@@ -235,10 +235,12 @@ a guard means editing the `guards:` list).
 
 - API surface follows kaisel itself: until kaisel v1.0, rules may
   evolve as the library's conventions firm up.
-- The `prefer_push_or_replace_top_in_adaptive` rule fires on every
-  router push, not just adaptive contexts (we can't statically detect
-  adaptivity). It's off by default; documentation explains when to
-  enable.
+- `prefer_push_or_replace_top_in_adaptive` is **opt-in by design**.
+  Whether a push should be `pushOrReplaceTop` depends on runtime layout
+  width and the master-detail structure — a per-call decision the
+  analyzer can't make for you — so the rule fires on every non-modal
+  push. Enable it in projects using adaptive master-detail, where that
+  reminder is signal rather than noise.
 - Each rule is covered by `AnalysisRuleTest` tests, and every fix and
   assist by end-to-end `PluginServer` tests that apply the change and
   assert the rewritten source.
