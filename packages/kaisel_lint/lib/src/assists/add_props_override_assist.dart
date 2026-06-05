@@ -47,8 +47,8 @@ class AddPropsOverrideAssist extends ResolvedCorrectionProducer {
 
     final propsList = fieldNames.join(', ');
     final insertion =
-        '\n\n  @override\n'
-        '  List<Object?> get props => [$propsList];';
+        '\n  @override\n'
+        '  List<Object?> get props => [$propsList];\n';
 
     await builder.addDartFileEdit(file, (b) {
       // `classDecl.end - 1` is the offset of the class's closing `}`.

@@ -29,10 +29,12 @@ class AddPropsOverrideFix extends ResolvedCorrectionProducer {
 
   @override
   Future<void> compute(ChangeBuilder builder) async {
-    final node = this.node;
-    if (node is! ClassDeclaration) return;
+    // The diagnostic is reported on the class name token, so `node` is the
+    // identifier — walk up to the enclosing declaration.
+    final classDecl = node.thisOrAncestorOfType<ClassDeclaration>();
+    if (classDecl == null) return;
 
-    final element = node.declaredFragment?.element;
+    final element = classDecl.declaredFragment?.element;
     if (element == null) return;
 
     final fieldNames = declaredInstanceFields(element)
@@ -45,14 +47,14 @@ class AddPropsOverrideFix extends ResolvedCorrectionProducer {
 
     final propsList = fieldNames.join(', ');
     final insertion =
-        '\n\n  @override\n'
-        '  List<Object?> get props => [$propsList];';
+        '\n  @override\n'
+        '  List<Object?> get props => [$propsList];\n';
 
     await builder.addDartFileEdit(file, (b) {
-      // Insert directly before the closing brace (`node.end - 1` is the
+      // Insert directly before the closing brace (`classDecl.end - 1` is the
       // offset of the class's `}`). Two newlines and matching indent
       // produce idiomatic spacing in the generated class body.
-      b.addSimpleInsertion(node.end - 1, insertion);
+      b.addSimpleInsertion(classDecl.end - 1, insertion);
     });
   }
 }
