@@ -40,7 +40,13 @@ jobs:
         run: dart format --output=none --set-exit-if-changed .
 
       - name: Analyze
-        run: flutter analyze --no-pub
+        run: >
+          dart analyze
+          packages/kaisel_core
+          packages/kaisel
+          packages/kaisel_devtools
+          packages/kaisel_lint/lib
+          packages/kaisel_lint/test
 
       - name: Test kaisel_core
         working-directory: packages/kaisel_core
