@@ -316,6 +316,23 @@ typedef KaiselBranchedShellChromeBuilder =
       void Function(int branch) switchBranch,
     );
 
+/// Signature for overriding how a [KaiselBranchedShell] lays its branches out —
+/// given the active branch index, the per-branch widgets (in branch order), and
+/// the tab switcher.
+///
+/// Return whatever container suits your UX: a [PageView] for swipeable tabs, a
+/// custom animated switcher, etc. When omitted, the shell uses an [IndexedStack]
+/// that keeps every branch mounted so per-branch state survives tab switches —
+/// if you replace it, preserving that state becomes your responsibility (e.g. a
+/// `PageView` with `AutomaticKeepAliveClientMixin` on its children).
+typedef KaiselBranchContentBuilder =
+    Widget Function(
+      BuildContext context,
+      int activeBranch,
+      List<Widget> branches,
+      void Function(int branch) switchBranch,
+    );
+
 /// A bottom-nav shell whose branches have **different** route types.
 ///
 /// Pass a [BranchedShellRouter] and a parallel list of [KaiselBranch]
@@ -357,6 +374,7 @@ class KaiselBranchedShell extends StatefulWidget {
     required BranchedShellRouter this.shell,
     required List<Widget> this.branches,
     required this.chromeBuilder,
+    this.branchContentBuilder,
   }) : specs = null,
        initialBranch = 0;
 
@@ -370,6 +388,7 @@ class KaiselBranchedShell extends StatefulWidget {
     required List<KaiselBranchSpec> branches,
     required this.chromeBuilder,
     this.initialBranch = 0,
+    this.branchContentBuilder,
   }) : specs = branches,
        shell = null,
        branches = null;
@@ -389,6 +408,12 @@ class KaiselBranchedShell extends StatefulWidget {
   /// Builds the chrome (scaffold, bottom nav, etc.) around the active
   /// branch's content.
   final KaiselBranchedShellChromeBuilder chromeBuilder;
+
+  /// Optional override for how the branches are laid out. When `null`, the
+  /// shell uses an [IndexedStack] (all branches mounted, state preserved). Pass
+  /// one to use a [PageView] or any other container — see
+  /// [KaiselBranchContentBuilder].
+  final KaiselBranchContentBuilder? branchContentBuilder;
 
   @override
   State<KaiselBranchedShell> createState() => _KaiselBranchedShellState();
@@ -501,10 +526,14 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
         child: ShellChromeScope(
           child: Builder(
             builder: (context) {
-              final branchContent = IndexedStack(
-                index: _shell.activeBranch,
-                children: _branches,
-              );
+              final branchContent =
+                  widget.branchContentBuilder?.call(
+                    context,
+                    _shell.activeBranch,
+                    _branches,
+                    _shell.switchTo,
+                  ) ??
+                  IndexedStack(index: _shell.activeBranch, children: _branches);
               return widget.chromeBuilder(
                 context,
                 _shell.activeBranch,

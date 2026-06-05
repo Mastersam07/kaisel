@@ -32,6 +32,11 @@ deprecation cycle).
   `BranchedShellRouter`. `KaiselBranchSpec.adaptive(...)` for adaptive branches.
   The explicit `KaiselBranchedShell(shell:, branches:)` form stays for when you
   need to hold the branch routers.
+- **`KaiselBranchedShell.branchContentBuilder`** — optional override for how the
+  branches are laid out. Defaults to an `IndexedStack` (all branches mounted,
+  state preserved); pass one to use a `PageView` or any other container while
+  keeping the shell's back-button routing, scopes, and URL wiring. When you
+  override it, preserving per-branch state is yours to handle.
 
 ### Removed (breaking)
 

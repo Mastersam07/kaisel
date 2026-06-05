@@ -201,7 +201,7 @@ KaiselBranchedShell.specs(
 )
 ```
 
-Use `KaiselBranchSpec.adaptive(...)` for an adaptive branch. When you need to hold the branch routers yourself, the explicit `KaiselBranchedShell(shell: BranchedShellRouter(...), branches: [KaiselBranch<R>(...)])` form stays.
+Use `KaiselBranchSpec.adaptive(...)` for an adaptive branch. When you need to hold the branch routers yourself, the explicit `KaiselBranchedShell(shell: BranchedShellRouter(...), branches: [KaiselBranch<R>(...)])` form stays. Pass `branchContentBuilder` to swap the default `IndexedStack` for a `PageView` or any other layout (you then own per-branch state preservation).
 
 Inside a Home branch screen:
 

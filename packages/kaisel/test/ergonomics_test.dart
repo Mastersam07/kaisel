@@ -270,6 +270,44 @@ void main() {
       // Tearing the shell down disposes the routers it owns (no errors).
       await tester.pumpWidget(const SizedBox());
     });
+
+    testWidgets('branchContentBuilder overrides the default IndexedStack', (
+      tester,
+    ) async {
+      var receivedActive = -1;
+      var receivedCount = -1;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: KaiselBranchedShell.specs(
+            branches: [
+              KaiselBranchSpec<_BranchR>(
+                initial: const _X(),
+                builder: (context, route) => const Scaffold(),
+              ),
+              KaiselBranchSpec<_R>(
+                initial: const _A(),
+                builder: (context, route) => const Scaffold(),
+              ),
+            ],
+            branchContentBuilder: (context, active, branches, switchBranch) {
+              receivedActive = active;
+              receivedCount = branches.length;
+              // A PageView instead of the default IndexedStack.
+              return PageView(children: branches);
+            },
+            chromeBuilder: (context, active, content, sb) => content,
+          ),
+        ),
+      );
+
+      // The custom builder ran with the shell's active index and branch list,
+      // and a PageView is in the tree — no IndexedStack.
+      expect(receivedActive, 0);
+      expect(receivedCount, 2);
+      expect(find.byType(PageView), findsOneWidget);
+      expect(find.byType(IndexedStack), findsNothing);
+    });
   });
 
   group('KaiselRouterConfig', () {

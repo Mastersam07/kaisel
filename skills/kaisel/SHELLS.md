@@ -219,6 +219,40 @@ chromeBuilder: (context, activeBranch, branchContent, switchBranch) {
 },
 ```
 
+## Custom branch layout (`branchContentBuilder`)
+
+By default the shell lays the branches out in an `IndexedStack` — that's
+what keeps every branch mounted so the state preservation above works.
+Pass `branchContentBuilder` to swap that for any container (a `PageView`
+for swipeable tabs, a custom animated switcher, …) without giving up the
+shell's back-button routing, scopes, or URL wiring:
+
+```dart
+KaiselBranchedShell.specs(
+  branches: [/* ... */],
+  branchContentBuilder: (context, activeBranch, branches, switchBranch) {
+    return PageView(
+      controller: _pageController,         // your own, synced to activeBranch
+      onPageChanged: switchBranch,         // swipe → switch tab
+      children: branches,
+    );
+  },
+  chromeBuilder: (context, active, branchContent, switchBranch) =>
+      Scaffold(body: branchContent /* ... */),
+)
+```
+
+The builder receives the active index, the per-branch widgets (in branch
+order), and the tab switcher — the same pieces the default `IndexedStack`
+uses.
+
+> **You take over state preservation.** `IndexedStack` keeps every branch
+> alive; a plain `PageView` lazily builds and disposes off-screen pages, so
+> branch stacks reset unless you keep them mounted (e.g. `PageView` with
+> `AutomaticKeepAliveClientMixin` on the branch children, or
+> `KeepAlivePageView`-style wrappers). Keep `switchTo`/`activeBranch` and your
+> container in sync so back-button routing still targets the visible branch.
+
 ## Resolving the right router from context
 
 Inside a branch's screens, `context.router<R>()` resolves to that
