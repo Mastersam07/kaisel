@@ -14,6 +14,7 @@
 import 'package:analyzer/utilities/package_config_file_builder.dart';
 import 'package:analyzer_testing/analysis_rule/analysis_rule.dart';
 import 'package:kaisel_lint/src/rules/avoid_modal_route_on_main_stack.dart';
+import 'package:kaisel_lint/src/rules/prefer_const_route_constructors.dart';
 import 'package:kaisel_lint/src/rules/prefer_push_or_replace_top_in_adaptive.dart';
 import 'package:kaisel_lint/src/rules/require_route_props.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
@@ -23,6 +24,7 @@ void main() {
     defineReflectiveTests(AvoidModalRouteOnMainStackTest);
     defineReflectiveTests(RequireRoutePropsTest);
     defineReflectiveTests(PreferPushOrReplaceTopInAdaptiveTest);
+    defineReflectiveTests(PreferConstRouteConstructorsTest);
   });
 }
 
@@ -268,6 +270,65 @@ final class AddCardFlow extends KaiselRoute
 void open(KaiselRouter<KaiselRoute> router) {
   router.push(const AddCardFlow());
 }
+''');
+  }
+}
+
+@reflectiveTest
+class PreferConstRouteConstructorsTest extends _KaiselRuleTest {
+  @override
+  void setUp() {
+    rule = PreferConstRouteConstructors();
+    super.setUp();
+    addKaiselPackage();
+  }
+
+  Future<void> test_fires_whenConstructionCanBeConst() async {
+    await assertDiagnostics(
+      r'''
+import 'package:kaisel/kaisel.dart';
+
+final class Home extends KaiselRoute {
+  const Home();
+}
+
+final route = Home();
+''',
+      [lint(110, 6)],
+    );
+  }
+
+  Future<void> test_noFire_whenAlreadyConst() async {
+    await assertNoDiagnostics(r'''
+import 'package:kaisel/kaisel.dart';
+
+final class Home extends KaiselRoute {
+  const Home();
+}
+
+final route = const Home();
+''');
+  }
+
+  Future<void> test_noFire_whenConstructorIsNotConst() async {
+    await assertNoDiagnostics(r'''
+import 'package:kaisel/kaisel.dart';
+
+final class Mutable extends KaiselRoute {
+  Mutable();
+}
+
+final route = Mutable();
+''');
+  }
+
+  Future<void> test_noFire_whenNotARoute() async {
+    await assertNoDiagnostics(r'''
+final class Plain {
+  const Plain();
+}
+
+final value = Plain();
 ''');
   }
 }

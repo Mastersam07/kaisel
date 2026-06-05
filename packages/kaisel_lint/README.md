@@ -8,9 +8,9 @@ can't — modal routes pushed onto the main stack, route classes that
 forgot value equality, adaptive push calls that should be
 pushOrReplaceTop.
 
-## What ships in v0.1.0
+## What ships
 
-Three lint rules, three quick fixes (one per rule), three assists.
+Four lint rules, four quick fixes (one per rule), three assists.
 
 ### Lint rules
 
@@ -19,12 +19,14 @@ Three lint rules, three quick fixes (one per rule), three assists.
 | `avoid_modal_route_on_main_stack`          | enabled  | warning  | `router.push(modalRoute)` instead of `router.run<T>(modalRoute)` |
 | `require_route_props`                      | enabled  | warning  | `KaiselRoute` subclasses with fields but no `props` override |
 | `prefer_push_or_replace_top_in_adaptive`   | disabled | info     | `router.push(route)` in projects using adaptive master-detail |
+| `prefer_const_route_constructors`          | disabled | info     | a `KaiselRoute` construction that could be `const` but isn't |
 
-`avoid_modal_route_on_main_stack` and `require_route_props` are
-on by default once the plugin is enabled. The adaptive rule is
-off-by-default because we can't statically detect "this code path runs
-under an adaptive builder" — opt in per project when you know adaptive
-branches exist.
+`avoid_modal_route_on_main_stack` and `require_route_props` are the
+recommended baseline once the plugin is enabled. The adaptive rule is
+opt-in because we can't statically detect "this code path runs under an
+adaptive builder". `prefer_const_route_constructors` is opt-in too — a
+route-scoped variant of `prefer_const_constructors` for projects that
+want const-correctness on routes without enabling it project-wide.
 
 ### Quick fixes (attached to lint diagnostics)
 
@@ -37,6 +39,8 @@ When a lint fires, the IDE offers a one-click correction:
   from declared instance fields).
 - `prefer_push_or_replace_top_in_adaptive` →  **Convert `push()` to
   `pushOrReplaceTop()`**.
+- `prefer_const_route_constructors` →  **Add `const`** (inserts the
+  keyword, or replaces a leading `new`).
 
 ### Assists (cursor-driven, no lint required)
 
@@ -57,7 +61,7 @@ Add `kaisel_lint` under the `plugins` section of your project's
 
 ```yaml
 plugins:
-  kaisel_lint: ^0.1.0
+  kaisel_lint: ^0.2.0
 ```
 
 After modifying `analysis_options.yaml`, restart the Dart analysis
@@ -72,7 +76,7 @@ under the plugin's `diagnostics` section. To opt in:
 ```yaml
 plugins:
   kaisel_lint:
-    version: ^0.1.0
+    version: ^0.2.0
     diagnostics:
       avoid_modal_route_on_main_stack: true
       require_route_props: true
@@ -155,6 +159,24 @@ onTap: () => router.push(ProductDetail(item.id));
 onTap: () => router.pushOrReplaceTop(ProductDetail(item.id));
 ```
 
+### `prefer_const_route_constructors`
+
+Routes are value types the stack compares constantly, and `const`
+instances are canonicalised so equal routes share identity. This is the
+standard `prefer_const_constructors` scoped to `KaiselRoute` subtypes, so
+you can enforce const routes without const-ing every class in the
+project. It only fires when the construction can actually be const (const
+constructor, constant arguments).
+
+```dart
+// Before:
+final route = ProductDetail('sku-42');
+// → info: this KaiselRoute construction can be const
+
+// After (quick fix applied):
+final route = const ProductDetail('sku-42');
+```
+
 ## Pre-1.0 caveats
 
 - API surface follows kaisel itself: until kaisel v1.0, rules may
@@ -163,18 +185,14 @@ onTap: () => router.pushOrReplaceTop(ProductDetail(item.id));
   router push, not just adaptive contexts (we can't statically detect
   adaptivity). It's off by default; documentation explains when to
   enable.
-- Test coverage for v0.1.0 is the example project's snapshot tests
-  only. Golden-file tests using `LintRuleTest` are roadmapped for
-  v0.2.0.
+- Each rule is covered by `AnalysisRuleTest` tests, and every fix and
+  assist by end-to-end `PluginServer` tests that apply the change and
+  assert the rewritten source.
 
 ## Roadmap
 
 Additional rules being considered for future versions:
 
-- `prefer_const_route_constructors` — variant of the standard
-  `prefer_const_constructors` lint scoped only to `KaiselRoute`
-  subclasses (so projects can opt into const-correctness for routes
-  without enabling it project-wide).
 - `prefer_pattern_match_over_is_check` — flag `if (route is X)` inside
   switch arms or page builders, suggesting the pattern-destructuring
   form.

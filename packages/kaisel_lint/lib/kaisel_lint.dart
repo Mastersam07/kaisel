@@ -16,6 +16,9 @@
 ///   instance fields that don't override `props`, breaking value equality.
 /// - `prefer_push_or_replace_top_in_adaptive` (info, off by default) — flags
 ///   `router.push(route)` in projects using adaptive master-detail.
+/// - `prefer_const_route_constructors` (info) — flags a `KaiselRoute`
+///   construction that could be `const` but isn't; a route-scoped variant of
+///   `prefer_const_constructors`.
 ///
 /// ## Usage
 ///
@@ -24,11 +27,12 @@
 /// ```yaml
 /// plugins:
 ///   kaisel_lint:
-///     version: ^0.1.0
+///     version: ^0.2.0
 ///     diagnostics:
 ///       avoid_modal_route_on_main_stack: true
 ///       require_route_props: true
 ///       prefer_push_or_replace_top_in_adaptive: false # opt-in per project
+///       prefer_const_route_constructors: true
 /// ```
 ///
 /// See the package README for the full rule reference, quick fixes, and
@@ -36,5 +40,6 @@
 library;
 
 export 'src/rules/avoid_modal_route_on_main_stack.dart';
+export 'src/rules/prefer_const_route_constructors.dart';
 export 'src/rules/prefer_push_or_replace_top_in_adaptive.dart';
 export 'src/rules/require_route_props.dart';

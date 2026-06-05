@@ -122,6 +122,7 @@ plugins:
       avoid_modal_route_on_main_stack: true
       require_route_props: true
       prefer_push_or_replace_top_in_adaptive: true
+      prefer_const_route_constructors: true
 ''');
 
     pluginServer = PluginServer(
@@ -246,6 +247,32 @@ void open(KaiselRouter<KaiselRoute> router) {
       fixed,
       contains('router.pushOrReplaceTop(const ProductDetail(\'a\'));'),
     );
+  }
+
+  Future<void> test_useConstRouteConstructor() async {
+    final fixed = await _fixed(r'''
+import 'package:kaisel/kaisel.dart';
+
+final class Home extends KaiselRoute {
+  const Home();
+}
+
+final route = ^Home();
+''', 'Add const');
+    expect(fixed, contains('final route = const Home();'));
+  }
+
+  Future<void> test_useConstRouteConstructor_replacesNew() async {
+    final fixed = await _fixed(r'''
+import 'package:kaisel/kaisel.dart';
+
+final class Home extends KaiselRoute {
+  const Home();
+}
+
+final route = ^new Home();
+''', 'Add const');
+    expect(fixed, contains('final route = const Home();'));
   }
 }
 

@@ -16,8 +16,10 @@ import 'assists/convert_push_to_run_assist.dart';
 import 'fixes/add_props_override.dart';
 import 'fixes/convert_push_to_push_or_replace_top.dart';
 import 'fixes/convert_push_to_run.dart';
+import 'fixes/use_const_route_constructor.dart';
 import 'lint_codes.dart';
 import 'rules/avoid_modal_route_on_main_stack.dart';
+import 'rules/prefer_const_route_constructors.dart';
 import 'rules/prefer_push_or_replace_top_in_adaptive.dart';
 import 'rules/require_route_props.dart';
 
@@ -30,6 +32,7 @@ class KaiselLintPlugin extends Plugin {
     registry.registerLintRule(AvoidModalRouteOnMainStack());
     registry.registerLintRule(RequireRouteProps());
     registry.registerLintRule(PreferPushOrReplaceTopInAdaptive());
+    registry.registerLintRule(PreferConstRouteConstructors());
 
     registry.registerFixForRule(
       avoidModalRouteOnMainStack,
@@ -39,6 +42,10 @@ class KaiselLintPlugin extends Plugin {
     registry.registerFixForRule(
       preferPushOrReplaceTopInAdaptive,
       ConvertPushToPushOrReplaceTopFix.new,
+    );
+    registry.registerFixForRule(
+      preferConstRouteConstructors,
+      UseConstRouteConstructorFix.new,
     );
 
     registry.registerAssist(ConvertPushToRunAssist.new);

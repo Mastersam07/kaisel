@@ -54,3 +54,16 @@ const DiagnosticCode preferPushOrReplaceTopInAdaptive = LintCode(
       'an adaptive branch.',
   severity: DiagnosticSeverity.INFO,
 );
+
+/// Diagnostic emitted when a `KaiselRoute` construction could be `const`
+/// but isn't. A KaiselRoute-scoped variant of `prefer_const_constructors`:
+/// const routes are canonicalised and compared by identity, which the stack
+/// leans on, and you can enforce it for routes without const-ing every class
+/// in the project.
+const DiagnosticCode preferConstRouteConstructors = LintCode(
+  'prefer_const_route_constructors',
+  'This KaiselRoute construction can be const. Const routes are '
+      'canonicalised, which keeps route equality cheap and stable.',
+  correctionMessage: 'Add the const keyword.',
+  severity: DiagnosticSeverity.INFO,
+);

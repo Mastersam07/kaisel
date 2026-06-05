@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0
+
+### Lint rules
+
+- `prefer_const_route_constructors` (info, off by default) — flags a
+  `KaiselRoute` construction that could be `const` but isn't. A
+  route-scoped variant of `prefer_const_constructors`, so you can enforce
+  const routes without const-ing every class in the project.
+
+### Quick fixes
+
+- Add `const` for the const-route lint (inserts the keyword, or replaces
+  a leading `new`).
+
 ## 0.1.0 — Initial release
 
 First public version. Built as an analysis server plugin on

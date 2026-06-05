@@ -1,6 +1,6 @@
 name: kaisel_lint
 description: Custom lint rules, quick fixes, and assists for the kaisel router (require route props, avoid modal route on the main stack, prefer pushOrReplaceTop), built on the first-party analysis_server_plugin API.
-version: 0.1.0
+version: 0.2.0
 repository: https://github.com/Mastersam07/kaisel/tree/dev/packages/kaisel_lint
 homepage: https://github.com/Mastersam07/kaisel/tree/dev/packages/kaisel_lint
 issue_tracker: https://github.com/Mastersam07/kaisel/issues
