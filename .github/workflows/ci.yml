@@ -61,6 +61,17 @@ jobs:
         working-directory: packages/kaisel
         run: flutter test --no-pub --coverage test/.test_optimizer.dart
 
+      - name: Test kaisel_lint with coverage
+        working-directory: packages/kaisel_lint
+        run: dart test --coverage=coverage
+
+      - name: Format kaisel_lint coverage
+        working-directory: packages/kaisel_lint
+        run: |
+          dart pub global run coverage:format_coverage \
+            --lcov --in=coverage --out=coverage/lcov.info \
+            --report-on=lib --check-ignore
+
       - name: Upload kaisel_core coverage
         uses: codecov/codecov-action@v5
         with:
@@ -77,4 +88,13 @@ jobs:
           slug: Mastersam07/kaisel
           files: packages/kaisel/coverage/lcov.info
           flags: kaisel
+          fail_ci_if_error: false
+
+      - name: Upload kaisel_lint coverage
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: Mastersam07/kaisel
+          files: packages/kaisel_lint/coverage/lcov.info
+          flags: kaisel_lint
           fail_ci_if_error: false
