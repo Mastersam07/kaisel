@@ -45,7 +45,9 @@ class KaiselRoute {
   List<Object?> get props => const [];
 }
 
-abstract interface class KaiselModalRoute<T> {}
+abstract class KaiselModalRoute<T> extends KaiselRoute {
+  const KaiselModalRoute();
+}
 
 class KaiselRouter<R> {
   void push(R route) {}

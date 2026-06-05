@@ -15,6 +15,7 @@ import 'package:analyzer/utilities/package_config_file_builder.dart';
 import 'package:analyzer_testing/analysis_rule/analysis_rule.dart';
 import 'package:kaisel_lint/src/rules/avoid_modal_route_on_main_stack.dart';
 import 'package:kaisel_lint/src/rules/prefer_const_route_constructors.dart';
+import 'package:kaisel_lint/src/rules/prefer_pattern_match_over_is_check.dart';
 import 'package:kaisel_lint/src/rules/prefer_push_or_replace_top_in_adaptive.dart';
 import 'package:kaisel_lint/src/rules/require_route_props.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
@@ -25,6 +26,7 @@ void main() {
     defineReflectiveTests(RequireRoutePropsTest);
     defineReflectiveTests(PreferPushOrReplaceTopInAdaptiveTest);
     defineReflectiveTests(PreferConstRouteConstructorsTest);
+    defineReflectiveTests(PreferPatternMatchOverIsCheckTest);
   });
 }
 
@@ -35,7 +37,9 @@ class KaiselRoute {
   List<Object?> get props => const [];
 }
 
-abstract interface class KaiselModalRoute<T> {}
+abstract class KaiselModalRoute<T> extends KaiselRoute {
+  const KaiselModalRoute();
+}
 
 class KaiselRouter<R> {
   Future<void> push(R route) async {}
@@ -329,6 +333,59 @@ final class Plain {
 }
 
 final value = Plain();
+''');
+  }
+}
+
+@reflectiveTest
+class PreferPatternMatchOverIsCheckTest extends _KaiselRuleTest {
+  @override
+  void setUp() {
+    rule = PreferPatternMatchOverIsCheck();
+    super.setUp();
+    addKaiselPackage();
+  }
+
+  Future<void> test_fires_onRouteIsRouteCheck() async {
+    await assertDiagnostics(
+      r'''
+import 'package:kaisel/kaisel.dart';
+
+final class Home extends KaiselRoute {
+  const Home();
+}
+
+bool check(KaiselRoute route) => route is Home;
+''',
+      [lint(129, 13)],
+    );
+  }
+
+  Future<void> test_noFire_onNegatedCheck() async {
+    // `is!` is a narrowing guard, not "which route is this" branching.
+    await assertNoDiagnostics(r'''
+import 'package:kaisel/kaisel.dart';
+
+final class Home extends KaiselRoute {
+  const Home();
+}
+
+bool check(KaiselRoute route) => route is! Home;
+''');
+  }
+
+  Future<void> test_noFire_onCapabilityCheck() async {
+    // Testing a marker interface (not a concrete route) is legitimate.
+    await assertNoDiagnostics(r'''
+import 'package:kaisel/kaisel.dart';
+
+bool isFlow(KaiselRoute route) => route is KaiselModalRoute<String>;
+''');
+  }
+
+  Future<void> test_noFire_onNonRouteOperand() async {
+    await assertNoDiagnostics(r'''
+bool check(Object value) => value is String;
 ''');
   }
 }

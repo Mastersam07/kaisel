@@ -8,6 +8,10 @@
   `KaiselRoute` construction that could be `const` but isn't. A
   route-scoped variant of `prefer_const_constructors`, so you can enforce
   const routes without const-ing every class in the project.
+- `prefer_pattern_match_over_is_check` (info, off by default) — flags
+  `route is SomeRoute` type tests (where both sides are `KaiselRoute`
+  subtypes), which a `switch`/pattern match expresses better. No quick
+  fix — the safe rewrite is contextual.
 
 ### Quick fixes
 

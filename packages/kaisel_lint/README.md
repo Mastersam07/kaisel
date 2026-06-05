@@ -10,7 +10,7 @@ pushOrReplaceTop.
 
 ## What ships
 
-Four lint rules, four quick fixes (one per rule), three assists.
+Five lint rules, four quick fixes, three assists.
 
 ### Lint rules
 
@@ -20,13 +20,15 @@ Four lint rules, four quick fixes (one per rule), three assists.
 | `require_route_props`                      | enabled  | warning  | `KaiselRoute` subclasses with fields but no `props` override |
 | `prefer_push_or_replace_top_in_adaptive`   | disabled | info     | `router.push(route)` in projects using adaptive master-detail |
 | `prefer_const_route_constructors`          | disabled | info     | a `KaiselRoute` construction that could be `const` but isn't |
+| `prefer_pattern_match_over_is_check`       | disabled | info     | `route is SomeRoute` type tests that read better as a `switch` |
 
 `avoid_modal_route_on_main_stack` and `require_route_props` are the
-recommended baseline once the plugin is enabled. The adaptive rule is
-opt-in because we can't statically detect "this code path runs under an
-adaptive builder". `prefer_const_route_constructors` is opt-in too — a
-route-scoped variant of `prefer_const_constructors` for projects that
-want const-correctness on routes without enabling it project-wide.
+recommended baseline once the plugin is enabled. The other three are
+opt-in: the adaptive rule because we can't statically detect "this code
+path runs under an adaptive builder"; `prefer_const_route_constructors`
+and `prefer_pattern_match_over_is_check` because they're stylistic
+preferences (const-correctness on routes, and pattern matching over
+`is`) you may or may not want.
 
 ### Quick fixes (attached to lint diagnostics)
 
@@ -177,6 +179,32 @@ final route = ProductDetail('sku-42');
 final route = const ProductDetail('sku-42');
 ```
 
+### `prefer_pattern_match_over_is_check`
+
+Routes are sealed value types, so branching on which concrete route is
+held reads better as a `switch` — exhaustive, and it destructures fields
+without a cast. The rule flags a positive `is` where both the tested
+expression and the tested type are `KaiselRoute` subtypes. Capability
+checks (`route is KaiselModalRoute`) and `is!` narrowing guards are left
+alone.
+
+```dart
+// Before:
+if (route is Home) return const HomeScreen();
+if (route is ProductDetail) return ProductScreen(route.id);
+// → info: prefer a pattern match over an is-check on a route
+
+// After (your edit — there is no auto-fix):
+return switch (route) {
+  Home() => const HomeScreen(),
+  ProductDetail(:final id) => ProductScreen(id),
+};
+```
+
+There's no quick fix: the safe rewrite is contextual — a single check
+becomes an `if (route case ...)`, a chain becomes a `switch` — and naively
+rebinding the variable can collide with a body-local of the same name.
+
 ## Pre-1.0 caveats
 
 - API surface follows kaisel itself: until kaisel v1.0, rules may
@@ -193,9 +221,6 @@ final route = const ProductDetail('sku-42');
 
 Additional rules being considered for future versions:
 
-- `prefer_pattern_match_over_is_check` — flag `if (route is X)` inside
-  switch arms or page builders, suggesting the pattern-destructuring
-  form.
 - `unused_guard_redirect` — guards that return the proposed stack
   unchanged on every path. Needs data-flow analysis to be reliably
   useful.

@@ -18,7 +18,7 @@ import 'package:analyzer/dart/element/type.dart';
 const _kaiselPackagePrefixes = ['package:kaisel/', 'package:kaisel_core/'];
 
 /// Returns `true` when [element] is declared inside the kaisel packages.
-bool _isFromKaiselPackage(Element? element) {
+bool isFromKaiselPackage(Element? element) {
   if (element == null) return false;
   final uri = element.library?.uri.toString() ?? '';
   return _kaiselPackagePrefixes.any(uri.startsWith);
@@ -71,7 +71,7 @@ bool extendsKaiselRoute(InterfaceElement element) {
   ClassElement? current = element;
   final visited = <ClassElement>{};
   while (current != null && visited.add(current)) {
-    if (current.name == 'KaiselRoute' && _isFromKaiselPackage(current)) {
+    if (current.name == 'KaiselRoute' && isFromKaiselPackage(current)) {
       return true;
     }
     final supertype = current.supertype;
@@ -85,7 +85,7 @@ bool extendsKaiselRoute(InterfaceElement element) {
 
 /// True if [type] is the named kaisel type and is from the kaisel package.
 bool _isNamedKaiselType(InterfaceType type, String name) =>
-    type.element.name == name && _isFromKaiselPackage(type.element);
+    type.element.name == name && isFromKaiselPackage(type.element);
 
 /// Returns the non-static, non-synthetic instance fields declared by
 /// [element]. Used by the `require_route_props` rule and its fix.

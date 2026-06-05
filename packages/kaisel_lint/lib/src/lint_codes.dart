@@ -67,3 +67,17 @@ const DiagnosticCode preferConstRouteConstructors = LintCode(
   correctionMessage: 'Add the const keyword.',
   severity: DiagnosticSeverity.INFO,
 );
+
+/// Diagnostic emitted when a route is inspected with an `is` check against
+/// another route type — the "which concrete route is this" branching that a
+/// `switch` (pattern match) over the sealed route type expresses better.
+/// Pattern matching is exhaustive and destructures fields without a cast.
+const DiagnosticCode preferPatternMatchOverIsCheck = LintCode(
+  'prefer_pattern_match_over_is_check',
+  'Prefer a pattern match over an is-check on a route. Routes are sealed '
+      'value types; a switch is exhaustive and binds fields without a cast.',
+  correctionMessage:
+      'Replace the is-check with a switch over the route, or an '
+      'if (route case ...) pattern.',
+  severity: DiagnosticSeverity.INFO,
+);

@@ -10,3 +10,4 @@ plugins:
       require_route_props: true
       prefer_push_or_replace_top_in_adaptive: true
       prefer_const_route_constructors: true
+      prefer_pattern_match_over_is_check: true
