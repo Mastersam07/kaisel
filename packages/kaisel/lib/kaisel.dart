@@ -33,6 +33,7 @@ export 'src/kaisel_page_scope.dart' show KaiselPageScope;
 export 'src/kaisel_page_wrapper.dart'
     show KaiselPageWrapper, KaiselPageWrapperContext;
 export 'src/kaisel_route_information_parser.dart';
+export 'src/kaisel_router_config.dart' show KaiselRouterConfig;
 export 'src/kaisel_router_delegate.dart'
     show KaiselModalBuilder, KaiselPageBuilder, KaiselRouterDelegate;
 export 'src/kaisel_scope.dart';

@@ -187,7 +187,7 @@ class _LoginScreen extends StatelessWidget {
               onPressed: () {
                 // The auth state is the stack. Replace LoginRoute with
                 // ShellHost; the page wrapper cross-fades the swap.
-                context.router<AppRoute>().set(const [ShellHost()]);
+                context.set(const [ShellHost()]);
               },
               child: const Text(
                 'Go to Content View',
@@ -253,9 +253,7 @@ class _TestHomeScreen extends StatelessWidget {
             const SizedBox(height: 12),
             TextButton(
               onPressed: () {
-                context.router<TestRoute>().push(
-                  const CollectionView(_demoCollectionId),
-                );
+                context.push(const CollectionView(_demoCollectionId));
               },
               child: const Text(
                 'Open demo collection',
@@ -333,7 +331,7 @@ class _CollectionScreen extends StatelessWidget {
                     // detail is already on top. Tapping a different
                     // video updates the right pane in place instead
                     // of stacking three entries.
-                    context.router<TestRoute>().pushOrReplaceTop(
+                    context.pushOrReplaceTop(
                       VideoPlayerView(collectionId: id, fileName: fileName),
                     );
                   },
@@ -393,7 +391,7 @@ class _VideoPlayerScreen extends StatelessWidget {
               top: 8,
               left: 8,
               child: IconButton(
-                onPressed: () => context.router<TestRoute>().pop(),
+                onPressed: () => context.pop(),
                 icon: const Icon(Icons.arrow_back, color: Color(0xFF8E2C3A)),
                 tooltip: 'Back to collection',
               ),
@@ -614,7 +612,7 @@ class _AppChrome extends StatelessWidget {
                     tooltip: 'Sign out',
                     onPressed: () {
                       // Return to login surface. The page wrapper cross-fades.
-                      context.router<AppRoute>().set(const [LoginRoute()]);
+                      context.set(const [LoginRoute()]);
                     },
                     icon: const Icon(Icons.logout),
                   ),
@@ -831,41 +829,23 @@ class _SidebarItem extends StatelessWidget {
 }
 
 // App
+//
+// The whole router setup is one top-level value: no StatefulWidget, no manual
+// KaiselRouterDelegate, no hand-rolled parser, no dispose. (This replaced a
+// ~30-line StatefulWidget plus a `_NoopParser` class.)
 
-class MediaCataloguerApp extends StatefulWidget {
-  const MediaCataloguerApp({super.key});
-  @override
-  State<MediaCataloguerApp> createState() => _MediaCataloguerAppState();
-}
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const LoginRoute(),
+  builder: (context, route) => switch (route) {
+    LoginRoute() => const _LoginScreen(),
+    ShellHost() => const _ShellHost(),
+  },
+  pageWrapper: _appPageWrapper,
+);
 
-class _MediaCataloguerAppState extends State<MediaCataloguerApp> {
-  late final KaiselRouter<AppRoute> _router;
-  late final KaiselRouterDelegate<AppRoute> _delegate;
-
-  @override
-  void initState() {
-    super.initState();
-    _router = KaiselRouter<AppRoute>(initial: const LoginRoute());
-    _delegate = KaiselRouterDelegate<AppRoute>(
-      router: _router,
-      builder: (context, route) => switch (route) {
-        LoginRoute() => const _LoginScreen(),
-        ShellHost() => const _ShellHost(),
-      },
-      pageWrapper: _appPageWrapper,
-    );
-  }
-
-  @override
-  void dispose() {
-    _delegate.dispose();
-    _router.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp.router(
+void main() {
+  runApp(
+    MaterialApp.router(
       title: '[DEV] Media Cataloguer',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -875,19 +855,7 @@ class _MediaCataloguerAppState extends State<MediaCataloguerApp> {
         ),
         useMaterial3: true,
       ),
-      routerDelegate: _delegate,
-      routeInformationParser: _NoopParser(_router),
-    );
-  }
+      routerConfig: _config,
+    ),
+  );
 }
-
-class _NoopParser extends RouteInformationParser<KaiselConfig<AppRoute>> {
-  _NoopParser(this.router);
-  final KaiselRouter<AppRoute> router;
-  @override
-  Future<KaiselConfig<AppRoute>> parseRouteInformation(
-    RouteInformation routeInformation,
-  ) async => KaiselConfig<AppRoute>(mainStack: router.stack);
-}
-
-void main() => runApp(const MediaCataloguerApp());

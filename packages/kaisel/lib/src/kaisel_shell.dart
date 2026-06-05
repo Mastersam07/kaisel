@@ -14,7 +14,8 @@ import 'kaisel_scope.dart';
 /// Branches share the route type [R]; you constrain "what's valid on
 /// which tab" through your pattern-matched [KaiselPageBuilder] and your
 /// own discipline. For per-branch typed routes, see [KaiselBranchedShell].
-class ShellRouter<R extends KaiselRoute> extends ChangeNotifier {
+class ShellRouter<R extends KaiselRoute> extends ChangeNotifier
+    implements KaiselShellController {
   /// Create a shell with one router per [branchInitials].
   ShellRouter({
     required List<R> branchInitials,
@@ -45,15 +46,18 @@ class ShellRouter<R extends KaiselRoute> extends ChangeNotifier {
   List<KaiselRouter<R>> get branches => List.unmodifiable(_branches);
 
   /// Index of the currently selected branch.
+  @override
   int get activeBranch => _activeBranch;
 
   /// The router for the currently selected branch.
   KaiselRouter<R> get current => _branches[_activeBranch];
 
   /// Number of branches.
+  @override
   int get branchCount => _branches.length;
 
   /// Select a different branch. No-op if [branch] is already active.
+  @override
   void switchTo(int branch) {
     if (branch < 0 || branch >= _branches.length) {
       throw RangeError.range(branch, 0, _branches.length - 1, 'branch');
@@ -212,24 +216,27 @@ class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
       },
       child: ShellScope<R>(
         shellRouter: _shell,
-        child: ShellChromeScope(
-          accessorHint: 'context.shellRouter<$R>()',
-          child: Builder(
-            builder: (context) {
-              final branchContent = IndexedStack(
-                index: _shell.activeBranch,
-                children: [
-                  for (var i = 0; i < _shell.branchCount; i++)
-                    _buildBranch(context, i),
-                ],
-              );
-              return widget.chromeBuilder(
-                context,
-                _shell.activeBranch,
-                branchContent,
-                _shell.switchTo,
-              );
-            },
+        child: KaiselShellScope(
+          controller: _shell,
+          child: ShellChromeScope(
+            accessorHint: 'context.shellRouter<$R>()',
+            child: Builder(
+              builder: (context) {
+                final branchContent = IndexedStack(
+                  index: _shell.activeBranch,
+                  children: [
+                    for (var i = 0; i < _shell.branchCount; i++)
+                      _buildBranch(context, i),
+                  ],
+                );
+                return widget.chromeBuilder(
+                  context,
+                  _shell.activeBranch,
+                  branchContent,
+                  _shell.switchTo,
+                );
+              },
+            ),
           ),
         ),
       ),

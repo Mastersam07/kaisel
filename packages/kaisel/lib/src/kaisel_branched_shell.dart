@@ -33,7 +33,8 @@ import 'kaisel_scope.dart';
 /// (can-pop and pop on the active branch for back handling); typed
 /// pushes happen on the user's own typed router references, or via
 /// `context.router<BranchR>()` inside a branch screen.
-class BranchedShellRouter extends ChangeNotifier implements KaiselNestedHandle {
+class BranchedShellRouter extends ChangeNotifier
+    implements KaiselNestedHandle, KaiselShellController {
   /// Create a shell aggregating [branches]. Each entry is typically a
   /// `KaiselRouter<BranchR>` for some sealed `BranchR`.
   BranchedShellRouter({
@@ -59,12 +60,14 @@ class BranchedShellRouter extends ChangeNotifier implements KaiselNestedHandle {
   List<KaiselNavigator> get branches => _branches;
 
   /// Index of the currently selected branch.
+  @override
   int get activeBranch => _activeBranch;
 
   /// The currently selected branch (as the non-generic view).
   KaiselNavigator get current => _branches[_activeBranch];
 
   /// Number of branches.
+  @override
   int get branchCount => _branches.length;
 
   /// Whether `pop` on the active branch would remove a route.
@@ -75,6 +78,7 @@ class BranchedShellRouter extends ChangeNotifier implements KaiselNestedHandle {
   Future<bool> popCurrent() => current.pop();
 
   /// Select a different branch. No-op if [branch] is already active.
+  @override
   void switchTo(int branch) {
     if (branch < 0 || branch >= _branches.length) {
       throw RangeError.range(branch, 0, _branches.length - 1, 'branch');
@@ -357,21 +361,24 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
       },
       child: BranchedShellScope(
         shell: widget.shell,
-        child: ShellChromeScope(
-          accessorHint: 'context.branchedShell()',
-          child: Builder(
-            builder: (context) {
-              final branchContent = IndexedStack(
-                index: widget.shell.activeBranch,
-                children: widget.branches,
-              );
-              return widget.chromeBuilder(
-                context,
-                widget.shell.activeBranch,
-                branchContent,
-                widget.shell.switchTo,
-              );
-            },
+        child: KaiselShellScope(
+          controller: widget.shell,
+          child: ShellChromeScope(
+            accessorHint: 'context.branchedShell()',
+            child: Builder(
+              builder: (context) {
+                final branchContent = IndexedStack(
+                  index: widget.shell.activeBranch,
+                  children: widget.branches,
+                );
+                return widget.chromeBuilder(
+                  context,
+                  widget.shell.activeBranch,
+                  branchContent,
+                  widget.shell.switchTo,
+                );
+              },
+            ),
           ),
         ),
       ),
