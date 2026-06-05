@@ -20,12 +20,10 @@ export 'src/kaisel_adaptive.dart'
 export 'src/kaisel_branched_shell.dart'
     show
         BranchedShellRouter,
-        BranchedShellScope,
         KaiselBranch,
         KaiselBranchSpec,
         KaiselBranchedShell,
-        KaiselBranchedShellChromeBuilder,
-        KaiselBranchedShellContextX;
+        KaiselBranchedShellChromeBuilder;
 export 'src/kaisel_inner_navigator.dart';
 export 'src/kaisel_listenable.dart'
     show KaiselListenableBuilder, KaiselRouterListenable;
@@ -39,10 +37,4 @@ export 'src/kaisel_router_delegate.dart'
     show KaiselModalBuilder, KaiselPageBuilder, KaiselRouterDelegate;
 export 'src/kaisel_scope.dart';
 export 'src/kaisel_shell.dart'
-    show
-        KaiselBranchScope,
-        KaiselShellBuildContextX,
-        KaiselShell,
-        KaiselShellChromeBuilder,
-        ShellRouter,
-        ShellScope;
+    show KaiselBranchScope, KaiselShell, KaiselShellChromeBuilder, ShellRouter;

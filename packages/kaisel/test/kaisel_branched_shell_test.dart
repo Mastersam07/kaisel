@@ -335,7 +335,7 @@ void main() {
   group('Shell chrome router resolution', () {
     testWidgets(
       'context.router<BranchRoute>() in a KaiselBranchedShell chrome points at '
-      'context.branchedShell()',
+      'context.shell()',
       (tester) async {
         final home = KaiselRouter<_HomeRoute>(initial: const _HomeRoot());
         final discover = KaiselRouter<_DiscoverRoute>(
@@ -378,12 +378,12 @@ void main() {
         );
 
         expect(caught, isNotNull);
-        expect(caught?.message, contains('context.branchedShell()'));
+        expect(caught?.message, contains('context.shell()'));
       },
     );
 
     testWidgets('context.router<R>() in a KaiselShell chrome points at '
-        'context.shellRouter<R>()', (tester) async {
+        'context.shell()', (tester) async {
       FlutterError? caught;
       await tester.pumpWidget(
         MaterialApp(
@@ -404,7 +404,7 @@ void main() {
       );
 
       expect(caught, isNotNull);
-      expect(caught?.message, contains('context.shellRouter<'));
+      expect(caught?.message, contains('context.shell()'));
     });
 
     testWidgets(

@@ -345,8 +345,8 @@ typedef KaiselBranchedShellChromeBuilder =
 /// ```
 ///
 /// Inside a branch screen, `context.router<BranchR>()` resolves to that
-/// branch's typed router; `context.branchedShell()` resolves to the
-/// enclosing [BranchedShellRouter] for `switchTo` etc.
+/// branch's typed router; `context.shell()` resolves to the enclosing shell
+/// controller for `switchTo`, `activeBranch`, `current`, etc.
 class KaiselBranchedShell extends StatefulWidget {
   /// Create a branched shell driven by [shell] with one widget per branch in
   /// [branches]. The length of [branches] must equal `shell.branchCount`. Use
@@ -496,71 +496,25 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
           _shell.popCurrent();
         }
       },
-      child: BranchedShellScope(
-        shell: _shell,
-        child: KaiselShellScope(
-          controller: _shell,
-          child: ShellChromeScope(
-            accessorHint: 'context.branchedShell()',
-            child: Builder(
-              builder: (context) {
-                final branchContent = IndexedStack(
-                  index: _shell.activeBranch,
-                  children: _branches,
-                );
-                return widget.chromeBuilder(
-                  context,
-                  _shell.activeBranch,
-                  branchContent,
-                  _shell.switchTo,
-                );
-              },
-            ),
+      child: KaiselShellScope(
+        controller: _shell,
+        child: ShellChromeScope(
+          child: Builder(
+            builder: (context) {
+              final branchContent = IndexedStack(
+                index: _shell.activeBranch,
+                children: _branches,
+              );
+              return widget.chromeBuilder(
+                context,
+                _shell.activeBranch,
+                branchContent,
+                _shell.switchTo,
+              );
+            },
           ),
         ),
       ),
     );
   }
-}
-
-/// Inherited widget exposing the [BranchedShellRouter] to descendants.
-///
-/// Look up via `context.branchedShell()`.
-class BranchedShellScope extends InheritedWidget {
-  /// Create a scope around [child] exposing [shell].
-  const BranchedShellScope({
-    super.key,
-    required this.shell,
-    required super.child,
-  });
-
-  /// The shell exposed at this scope.
-  final BranchedShellRouter shell;
-
-  /// Look up the nearest [BranchedShellScope]. Throws if none is found.
-  static BranchedShellScope of(BuildContext context) {
-    final scope = maybeOf(context);
-    if (scope == null) {
-      throw FlutterError(
-        'BranchedShellScope not found in widget tree.\n'
-        'Ensure the calling widget is inside a KaiselBranchedShell.',
-      );
-    }
-    return scope;
-  }
-
-  /// Like [of], but returns `null` if no scope is found.
-  static BranchedShellScope? maybeOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<BranchedShellScope>();
-
-  @override
-  bool updateShouldNotify(BranchedShellScope old) =>
-      !identical(old.shell, shell);
-}
-
-/// Convenience accessor for the enclosing [BranchedShellRouter].
-extension KaiselBranchedShellContextX on BuildContext {
-  /// The enclosing branched shell. Use this to switch tabs
-  /// programmatically: `context.branchedShell().switchTo(2)`.
-  BranchedShellRouter branchedShell() => BranchedShellScope.of(this).shell;
 }
