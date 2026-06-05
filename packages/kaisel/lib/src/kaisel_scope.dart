@@ -31,9 +31,15 @@ class RouterScope<R extends KaiselRoute> extends InheritedWidget {
     final scope = maybeOf<R>(context);
     if (scope == null) {
       throw FlutterError(
-        'RouterScope<$R> not found in widget tree.\n'
-        'Ensure your widget is inside a Router whose delegate is a '
-        'KaiselRouterDelegate<$R>, or inside a KaiselShell<$R>.',
+        'RouterScope<$R> not found above this context.\n'
+        'context.router<$R>() walks up the tree for the nearest '
+        'RouterScope<$R>, which is installed inside branch screens, inside '
+        'modal flows, and at the app root.\n'
+        'If you are in a KaiselBranchedShell or KaiselShell chromeBuilder, the '
+        'per-branch RouterScope is installed BELOW the chrome, so it cannot be '
+        'seen from here. Use context.branchedShell() (or the activeBranch / '
+        'switchBranch arguments) to drive the shell, or context.router() with '
+        "your app's root route type for the main router.",
       );
     }
     return scope;

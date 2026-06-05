@@ -211,6 +211,8 @@ context.branchedShell().switchTo(2);                          // change tab
 
 `RouterScope` lookup is by exact generic type, so `context.router<HomeRoute>()` and `context.router<AppRoute>()` don't collide. Each branch keeps its own back stack (via `IndexedStack`); Android back unwinds the active branch first, falling through to the parent router only at branch root.
 
+> **Inside the `chromeBuilder`, `context.router<BranchRoute>()` does not resolve** — each branch's `RouterScope` is installed *below* the chrome, and lookups only walk up. Use the `activeBranch`/`switchBranch` arguments or `context.branchedShell()` to drive the shell, and `context.router<AppRoute>()` for the root router. The typed branch router is only reachable from that branch's own screens.
+
 ### 5. Modal flows with typed results
 
 A modal flow is a route variant that *also* implements `KaiselModalRoute<T>` to declare its result type:

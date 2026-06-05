@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaisel/kaisel.dart';
 
@@ -329,5 +330,56 @@ void main() {
       expect(shell.activeBranch, captured.activeBranch);
       expect(shell.captureConfig(), equals(captured));
     });
+  });
+
+  group('KaiselBranchedShell chrome', () {
+    testWidgets(
+      'context.router<BranchRoute>() in the chromeBuilder throws a helpful '
+      'error pointing at context.branchedShell()',
+      (tester) async {
+        final home = KaiselRouter<_HomeRoute>(initial: const _HomeRoot());
+        final discover = KaiselRouter<_DiscoverRoute>(
+          initial: const _DiscoverRoot(),
+        );
+        final shell = BranchedShellRouter(branches: [home, discover]);
+        addTearDown(shell.dispose);
+        addTearDown(home.dispose);
+        addTearDown(discover.dispose);
+
+        // The branch RouterScope<R> widgets are installed below the chrome, so
+        // resolving a branch router from the chrome must fail loudly.
+        FlutterError? caught;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: KaiselBranchedShell(
+              shell: shell,
+              branches: [
+                KaiselBranch<_HomeRoute>(
+                  router: home,
+                  pageBuilder: (context, route) =>
+                      const Scaffold(body: Text('home')),
+                ),
+                KaiselBranch<_DiscoverRoute>(
+                  router: discover,
+                  pageBuilder: (context, route) =>
+                      const Scaffold(body: Text('discover')),
+                ),
+              ],
+              chromeBuilder: (context, active, branchContent, switchBranch) {
+                try {
+                  context.router<_HomeRoute>();
+                } on FlutterError catch (error) {
+                  caught = error;
+                }
+                return branchContent;
+              },
+            ),
+          ),
+        );
+
+        expect(caught, isNotNull);
+        expect(caught?.message, contains('context.branchedShell()'));
+      },
+    );
   });
 }

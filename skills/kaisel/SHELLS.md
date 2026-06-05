@@ -184,6 +184,21 @@ current branch, use the branch's type.
 helpers (e.g., reading the current active branch index from any
 descendant of the shell).
 
+**`context.router<R>()` does NOT work inside the `chromeBuilder`.** Each
+branch's `RouterScope<R>` is installed *inside* its `KaiselBranch`, which is
+a **descendant** of the chrome — and context lookups only walk upward. There
+is also no single "branch router" at the chrome level: the chrome wraps every
+branch, each with a different `R`. From the chrome:
+
+- use the `activeBranch` / `switchBranch` arguments you're handed, or
+  `context.branchedShell()` for the full aggregator (`switchTo`, `activeBranch`,
+  `current`, `currentCanPop`, `popCurrent`);
+- `context.router<AppRoute>()` (your root route type) resolves to the **main**
+  router — it sits above the shell — so use it to push onto the root stack from
+  the chrome.
+
+`context.router<BranchR>()` only resolves inside that branch's screens.
+
 ## Homogeneous shells (`KaiselShell`)
 
 `KaiselShell<R>` is the simpler sibling of `KaiselBranchedShell`: every
