@@ -189,18 +189,28 @@ descendant of the shell).
 `KaiselShell<R>` is the simpler sibling of `KaiselBranchedShell`: every
 branch shares **one** route type `R`, so there's no per-branch typing.
 It builds its own `ShellRouter` internally from `branchInitials` — you
-don't construct one, and there's no `shell:` parameter. Reach for it
-when all tabs draw from the same sealed route family and you don't need
-the compiler to keep them apart.
+don't construct one, and there's no `shell:` parameter.
+
+**Critical: `R` must be a sealed type scoped to the shell's routes, not
+your app-wide `AppRoute`.** The `pageBuilder` switch is exhaustive over
+`R`; if `R` is `AppRoute`, the switch has to handle *every* route the app
+has, not just the tabs — which is impractical and defeats the point.
+Define a dedicated sealed type for the shell, mounted at a marker route:
 
 ```dart
-KaiselShell<AppRoute>(
+// Dedicated sealed type for the shell's branches.
+sealed class TabRoute extends KaiselRoute { const TabRoute(); }
+final class HomeRoot extends TabRoute { const HomeRoot(); }
+final class DiscoverRoot extends TabRoute { const DiscoverRoot(); }
+final class ProfileRoot extends TabRoute { const ProfileRoot(); }
+
+KaiselShell<TabRoute>(
   branchInitials: const [HomeRoot(), DiscoverRoot(), ProfileRoot()],
   pageBuilder: (context, route) => switch (route) {
     HomeRoot() => const HomeScreen(),
     DiscoverRoot() => const DiscoverScreen(),
     ProfileRoot() => const ProfileScreen(),
-    // ... every AppRoute a branch can push
+    // exhaustive over TabRoute — add a variant for anything a tab pushes
   },
   chromeBuilder: (context, activeBranch, branchContent, switchBranch) {
     return Scaffold(
@@ -215,12 +225,13 @@ KaiselShell<AppRoute>(
 )
 ```
 
-Inside a branch screen, `context.router<AppRoute>()` resolves to the
-active branch's router and `context.shellRouter<AppRoute>()` to the
-shell aggregator. The trade-off vs. `KaiselBranchedShell`: because every
-branch is typed `AppRoute`, the compiler can't stop you pushing a
-"profile" route into the "home" tab. When that matters, use
-`KaiselBranchedShell` with per-branch sealed types.
+Inside a branch screen, `context.router<TabRoute>()` resolves to the
+active branch's router and `context.shellRouter<TabRoute>()` to the
+shell aggregator. The trade-off vs. `KaiselBranchedShell`: every branch
+shares `TabRoute`, so the compiler can't stop you pushing a "profile"
+route into the "home" tab. When tabs need **different** route types (and
+that compile-time guard), use `KaiselBranchedShell` with per-branch
+sealed types.
 
 ## Common mistakes
 

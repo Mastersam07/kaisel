@@ -124,13 +124,23 @@ Guards do **not** run on system back — the pop has already animated by the tim
 
 Two flavours, picked by how strictly you want per-tab typing.
 
-**`KaiselShell<R>`** — all branches share one route type. Simpler for small apps.
+**`KaiselShell<R>`** — all branches share one route type `R`. Simpler for small apps. **`R` must be a sealed type scoped to the shell's own routes, not your app-wide `AppRoute`:** the `pageBuilder` switch is exhaustive over `R`, so switching over the whole `AppRoute` would force you to handle every variant the app has, not just the tabs.
 
 ```dart
+// A sealed type for just the shell's branches (mounted at MainShell).
+sealed class TabRoute extends KaiselRoute { const TabRoute(); }
+final class HomeRoot extends TabRoute { const HomeRoot(); }
+final class DiscoverRoot extends TabRoute { const DiscoverRoot(); }
+final class ProfileRoot extends TabRoute { const ProfileRoot(); }
+
 builder: (context, route) => switch (route) {
-  MainShell() => KaiselShell<AppRoute>(
+  MainShell() => KaiselShell<TabRoute>(
     branchInitials: const [HomeRoot(), DiscoverRoot(), ProfileRoot()],
-    pageBuilder: (context, route) => switch (route) { /* ... */ },
+    pageBuilder: (context, route) => switch (route) {
+      HomeRoot() => const HomeScreen(),
+      DiscoverRoot() => const DiscoverScreen(),
+      ProfileRoot() => const ProfileScreen(),
+    }, // exhaustive over TabRoute — add a variant here for anything a tab pushes
     chromeBuilder: (context, active, branchContent, switchBranch) => Scaffold(
       body: branchContent,
       bottomNavigationBar: NavigationBar(
@@ -143,7 +153,7 @@ builder: (context, route) => switch (route) {
 },
 ```
 
-Inside a branch screen, `context.router<AppRoute>()` returns the active branch's router and `context.shellRouter<AppRoute>()` returns the shell aggregator.
+Inside a branch screen, `context.router<TabRoute>()` returns the active branch's router and `context.shellRouter<TabRoute>()` returns the shell aggregator. (When tabs need *different* route types, reach for `KaiselBranchedShell` below instead.)
 
 **`KaiselBranchedShell`** — each branch has its own sealed type. Pushing a route from the wrong tab is a compile error.
 
