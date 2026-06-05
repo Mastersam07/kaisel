@@ -23,6 +23,7 @@ import 'rules/prefer_const_route_constructors.dart';
 import 'rules/prefer_pattern_match_over_is_check.dart';
 import 'rules/prefer_push_or_replace_top_in_adaptive.dart';
 import 'rules/require_route_props.dart';
+import 'rules/unused_guard_redirect.dart';
 
 class KaiselLintPlugin extends Plugin {
   @override
@@ -35,6 +36,7 @@ class KaiselLintPlugin extends Plugin {
     registry.registerLintRule(PreferPushOrReplaceTopInAdaptive());
     registry.registerLintRule(PreferConstRouteConstructors());
     registry.registerLintRule(PreferPatternMatchOverIsCheck());
+    registry.registerLintRule(UnusedGuardRedirect());
 
     registry.registerFixForRule(
       avoidModalRouteOnMainStack,

@@ -21,6 +21,8 @@
 ///   `prefer_const_constructors`.
 /// - `prefer_pattern_match_over_is_check` (info) — flags `route is SomeRoute`
 ///   type tests, which a `switch`/pattern match expresses better.
+/// - `unused_guard_redirect` (info) — flags a guard that returns the proposed
+///   stack unchanged on every path (a no-op).
 ///
 /// ## Usage
 ///
@@ -29,13 +31,14 @@
 /// ```yaml
 /// plugins:
 ///   kaisel_lint:
-///     version: ^0.2.0
+///     version: ^0.3.0
 ///     diagnostics:
 ///       avoid_modal_route_on_main_stack: true
 ///       require_route_props: true
 ///       prefer_push_or_replace_top_in_adaptive: false # opt-in per project
 ///       prefer_const_route_constructors: true
 ///       prefer_pattern_match_over_is_check: true
+///       unused_guard_redirect: true
 /// ```
 ///
 /// See the package README for the full rule reference, quick fixes, and
@@ -47,3 +50,4 @@ export 'src/rules/prefer_const_route_constructors.dart';
 export 'src/rules/prefer_pattern_match_over_is_check.dart';
 export 'src/rules/prefer_push_or_replace_top_in_adaptive.dart';
 export 'src/rules/require_route_props.dart';
+export 'src/rules/unused_guard_redirect.dart';

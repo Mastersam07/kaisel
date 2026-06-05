@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+### Lint rules
+
+- `unused_guard_redirect` (info, off by default) — flags a guard-shaped
+  closure that returns the proposed stack unchanged on every path (a
+  no-op). Conservative: only fires when the body is purely returns and
+  control flow, so guards kept for a side effect are left alone. No quick
+  fix.
+
 ## 0.2.0
 
 ### Lint rules

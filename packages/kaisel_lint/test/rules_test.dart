@@ -18,6 +18,7 @@ import 'package:kaisel_lint/src/rules/prefer_const_route_constructors.dart';
 import 'package:kaisel_lint/src/rules/prefer_pattern_match_over_is_check.dart';
 import 'package:kaisel_lint/src/rules/prefer_push_or_replace_top_in_adaptive.dart';
 import 'package:kaisel_lint/src/rules/require_route_props.dart';
+import 'package:kaisel_lint/src/rules/unused_guard_redirect.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
 
 void main() {
@@ -27,6 +28,7 @@ void main() {
     defineReflectiveTests(PreferPushOrReplaceTopInAdaptiveTest);
     defineReflectiveTests(PreferConstRouteConstructorsTest);
     defineReflectiveTests(PreferPatternMatchOverIsCheckTest);
+    defineReflectiveTests(UnusedGuardRedirectTest);
   });
 }
 
@@ -386,6 +388,84 @@ bool isFlow(KaiselRoute route) => route is KaiselModalRoute<String>;
   Future<void> test_noFire_onNonRouteOperand() async {
     await assertNoDiagnostics(r'''
 bool check(Object value) => value is String;
+''');
+  }
+}
+
+@reflectiveTest
+class UnusedGuardRedirectTest extends _KaiselRuleTest {
+  @override
+  void setUp() {
+    rule = UnusedGuardRedirect();
+    super.setUp();
+    addKaiselPackage();
+  }
+
+  Future<void> test_fires_onTrivialPassThrough() async {
+    await assertDiagnostics(
+      r'''
+import 'package:kaisel/kaisel.dart';
+
+final guard =
+    (List<KaiselRoute> current, List<KaiselRoute> proposed) => proposed;
+''',
+      [lint(56, 67)],
+    );
+  }
+
+  Future<void> test_fires_whenEveryBranchReturnsProposed() async {
+    await assertDiagnostics(
+      r'''
+import 'package:kaisel/kaisel.dart';
+
+final guard = (List<KaiselRoute> current, List<KaiselRoute> proposed) {
+  if (current.isEmpty) return proposed;
+  return proposed;
+};
+''',
+      [lint(52, 118)],
+    );
+  }
+
+  Future<void> test_noFire_whenABranchRedirects() async {
+    await assertNoDiagnostics(r'''
+import 'package:kaisel/kaisel.dart';
+
+final class Home extends KaiselRoute {
+  const Home();
+}
+
+final guard = (List<KaiselRoute> current, List<KaiselRoute> proposed) {
+  if (current.isEmpty) return const [Home()];
+  return proposed;
+};
+''');
+  }
+
+  Future<void> test_noFire_whenBodyHasSideEffect() async {
+    await assertNoDiagnostics(r'''
+import 'package:kaisel/kaisel.dart';
+
+final guard = (List<KaiselRoute> current, List<KaiselRoute> proposed) {
+  print(proposed.length);
+  return proposed;
+};
+''');
+  }
+
+  Future<void> test_noFire_onNonGuardShape() async {
+    await assertNoDiagnostics(r'''
+final fn = (int a, int b) => b;
+''');
+  }
+
+  Future<void> test_noFire_whenReturningACopy() async {
+    // A copy is still a no-op, but we conservatively don't flag it.
+    await assertNoDiagnostics(r'''
+import 'package:kaisel/kaisel.dart';
+
+final guard =
+    (List<KaiselRoute> current, List<KaiselRoute> proposed) => [...proposed];
 ''');
   }
 }

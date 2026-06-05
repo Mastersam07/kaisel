@@ -81,3 +81,17 @@ const DiagnosticCode preferPatternMatchOverIsCheck = LintCode(
       'if (route case ...) pattern.',
   severity: DiagnosticSeverity.INFO,
 );
+
+/// Diagnostic emitted when a `KaiselGuard` returns the proposed stack
+/// unchanged on every path — a no-op guard that has no effect on navigation.
+/// Reported only when the body is purely returns and control flow, so a guard
+/// kept for a side effect (logging, analytics) is left alone.
+const DiagnosticCode unusedGuardRedirect = LintCode(
+  'unused_guard_redirect',
+  'This guard returns the proposed stack unchanged on every path, so it '
+      'has no effect on navigation.',
+  correctionMessage:
+      'Remove the guard, or return a different stack (e.g. const [Login()]) '
+      'to redirect.',
+  severity: DiagnosticSeverity.INFO,
+);

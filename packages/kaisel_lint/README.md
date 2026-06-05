@@ -10,7 +10,7 @@ pushOrReplaceTop.
 
 ## What ships
 
-Five lint rules, four quick fixes, three assists.
+Six lint rules, four quick fixes, three assists.
 
 ### Lint rules
 
@@ -21,14 +21,16 @@ Five lint rules, four quick fixes, three assists.
 | `prefer_push_or_replace_top_in_adaptive`   | disabled | info     | `router.push(route)` in projects using adaptive master-detail |
 | `prefer_const_route_constructors`          | disabled | info     | a `KaiselRoute` construction that could be `const` but isn't |
 | `prefer_pattern_match_over_is_check`       | disabled | info     | `route is SomeRoute` type tests that read better as a `switch` |
+| `unused_guard_redirect`                    | disabled | info     | a guard that returns the proposed stack unchanged (a no-op) |
 
 `avoid_modal_route_on_main_stack` and `require_route_props` are the
-recommended baseline once the plugin is enabled. The other three are
-opt-in: the adaptive rule because we can't statically detect "this code
-path runs under an adaptive builder"; `prefer_const_route_constructors`
-and `prefer_pattern_match_over_is_check` because they're stylistic
-preferences (const-correctness on routes, and pattern matching over
-`is`) you may or may not want.
+recommended baseline once the plugin is enabled. The rest are opt-in: the
+adaptive rule because we can't statically detect "this code path runs
+under an adaptive builder"; `prefer_const_route_constructors` and
+`prefer_pattern_match_over_is_check` because they're stylistic
+preferences; and `unused_guard_redirect` because the no-op guard it
+catches is uncommon (it's cheap insurance against a redirect branch that
+silently returns the input unchanged).
 
 ### Quick fixes (attached to lint diagnostics)
 
@@ -63,7 +65,7 @@ Add `kaisel_lint` under the `plugins` section of your project's
 
 ```yaml
 plugins:
-  kaisel_lint: ^0.2.0
+  kaisel_lint: ^0.3.0
 ```
 
 After modifying `analysis_options.yaml`, restart the Dart analysis
@@ -78,7 +80,7 @@ under the plugin's `diagnostics` section. To opt in:
 ```yaml
 plugins:
   kaisel_lint:
-    version: ^0.2.0
+    version: ^0.3.0
     diagnostics:
       avoid_modal_route_on_main_stack: true
       require_route_props: true
@@ -205,6 +207,30 @@ There's no quick fix: the safe rewrite is contextual — a single check
 becomes an `if (route case ...)`, a chain becomes a `switch` — and naively
 rebinding the variable can collide with a body-local of the same name.
 
+### `unused_guard_redirect`
+
+A `KaiselGuard` is `(current, proposed) => stack`. One that returns
+`proposed` unchanged on every path does nothing — it's either dead code,
+or a redirect branch that was meant to return a different stack but
+silently returns the input.
+
+```dart
+// VIOLATION: a no-op guard.
+final guard = (current, proposed) => proposed;
+
+// CORRECT: actually redirects on one path.
+final authGuard = (current, proposed) {
+  if (!loggedIn) return const [Login()];
+  return proposed;
+};
+```
+
+To stay safe it's conservative: it only fires on a guard-shaped closure
+(two `List<R>` parameters) whose body is purely returns and control flow.
+A guard kept for a side effect — logging the navigation, say — has another
+statement in its body, so it's left alone. There's no quick fix (removing
+a guard means editing the `guards:` list).
+
 ## Pre-1.0 caveats
 
 - API surface follows kaisel itself: until kaisel v1.0, rules may
@@ -219,10 +245,6 @@ rebinding the variable can collide with a body-local of the same name.
 
 ## Roadmap
 
-Additional rules being considered for future versions:
-
-- `unused_guard_redirect` — guards that return the proposed stack
-  unchanged on every path. Needs data-flow analysis to be reliably
-  useful.
-
-See [`ROADMAP.md`](../kaisel/ROADMAP.md) in the kaisel repo for tracking.
+The rules originally scoped for the plugin have all shipped. Further rules
+track kaisel's own conventions as they firm up toward v1.0; see
+[`ROADMAP.md`](../kaisel/ROADMAP.md) in the kaisel repo.
