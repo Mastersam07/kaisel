@@ -65,10 +65,10 @@ class _SlideUpPage extends Page<Object?> {
   Route<Object?> createRoute(BuildContext context) {
     return PageRouteBuilder<Object?>(
       settings: this,
-      pageBuilder: (_, __, ___) => child,
+      pageBuilder: (_, _, _) => child,
       transitionDuration: const Duration(milliseconds: 320),
       reverseTransitionDuration: const Duration(milliseconds: 240),
-      transitionsBuilder: (_, anim, __, child) {
+      transitionsBuilder: (_, anim, _, child) {
         return SlideTransition(
           position: Tween<Offset>(
             begin: const Offset(0, 1),
@@ -92,10 +92,10 @@ class _FadePage extends Page<Object?> {
   Route<Object?> createRoute(BuildContext context) {
     return PageRouteBuilder<Object?>(
       settings: this,
-      pageBuilder: (_, __, ___) => child,
+      pageBuilder: (_, _, _) => child,
       transitionDuration: const Duration(milliseconds: 260),
       reverseTransitionDuration: const Duration(milliseconds: 200),
-      transitionsBuilder: (_, anim, __, child) {
+      transitionsBuilder: (_, anim, _, child) {
         return FadeTransition(opacity: anim, child: child);
       },
     );

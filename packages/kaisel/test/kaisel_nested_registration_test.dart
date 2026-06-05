@@ -136,7 +136,7 @@ void main() {
       router = KaiselRouter<_TestRoute>(initial: const _TestRoot());
       delegate = KaiselRouterDelegate<_TestRoute>(
         router: router,
-        builder: (_, __) => const SizedBox.shrink(),
+        builder: (_, _) => const SizedBox.shrink(),
       );
     });
 

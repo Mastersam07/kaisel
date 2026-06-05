@@ -155,7 +155,7 @@ class BookListScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Bookshelf')),
       body: ListView.separated(
         itemCount: _books.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
+        separatorBuilder: (_, _) => const Divider(height: 1),
         itemBuilder: (context, i) {
           final book = _books[i];
           return ListTile(
@@ -293,7 +293,7 @@ class BookReviewsScreen extends StatelessWidget {
           : ListView.separated(
               padding: const EdgeInsets.symmetric(vertical: 8),
               itemCount: reviews.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, i) => Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(reviews[i]),

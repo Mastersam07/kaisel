@@ -149,7 +149,7 @@ class _FilmsListScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Films')),
       body: ListView.separated(
         itemCount: _films.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
+        separatorBuilder: (_, _) => const Divider(height: 1),
         itemBuilder: (context, i) {
           final film = _films[i];
           final selected = film.id == selectedId;

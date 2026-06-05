@@ -1,4 +1,5 @@
 # kaisel_lint
+[![codecov](https://codecov.io/github/Mastersam07/kaisel/branch/dev/graph/badge.svg?token=tHYIe4iPGo)](https://codecov.io/github/Mastersam07/kaisel)
 
 Static analysis rules, quick fixes, and assists for the
 [kaisel](https://pub.dev/packages/kaisel) Flutter router, built as an

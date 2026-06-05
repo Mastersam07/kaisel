@@ -142,10 +142,10 @@ class _FadePage<T> extends Page<T> {
   Route<T> createRoute(BuildContext context) {
     return PageRouteBuilder<T>(
       settings: this,
-      pageBuilder: (_, __, ___) => child,
+      pageBuilder: (_, _, _) => child,
       transitionDuration: const Duration(milliseconds: 320),
       reverseTransitionDuration: const Duration(milliseconds: 320),
-      transitionsBuilder: (_, anim, __, child) =>
+      transitionsBuilder: (_, anim, _, child) =>
           FadeTransition(opacity: anim, child: child),
     );
   }
@@ -298,7 +298,7 @@ class _CollectionScreen extends StatelessWidget {
             child: ListView.separated(
               padding: EdgeInsets.zero,
               itemCount: _demoMedia.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (_, _) =>
                   const Divider(height: 1, color: Colors.black12),
               itemBuilder: (context, i) {
                 final fileName = _demoMedia[i];
