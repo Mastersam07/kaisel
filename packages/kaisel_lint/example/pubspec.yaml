@@ -1,0 +1,24 @@
+name: kaisel_lint_example
+description: >-
+  Demonstrates each kaisel_lint rule firing on intentionally-violating
+  code. Each file in lib/ corresponds to one rule and is marked up with
+  expected diagnostics in comments.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.10.0
+  flutter: ">=3.38.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  kaisel:
+    path: ../../kaisel
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+  flutter_test:
+    sdk: flutter
+  kaisel_lint:
+    path: ../

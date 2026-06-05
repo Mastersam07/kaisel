@@ -1,0 +1,12 @@
+include: package:flutter_lints/flutter.yaml
+
+# Enable the kaisel_lint plugin and turn on all three of its rules,
+# including the off-by-default adaptive one (so the example file
+# demonstrates it firing).
+plugins:
+  kaisel_lint:
+    path: ../
+    diagnostics:
+      avoid_modal_route_on_main_stack: true
+      require_route_props: true
+      prefer_push_or_replace_top_in_adaptive: true

@@ -2,7 +2,7 @@ name: kaisel_workspace
 publish_to: none
 
 environment:
-  sdk: ^3.8.0
+  sdk: ^3.10.0
 
 # Dart pub workspace. All members share a single resolution and lockfile.
 workspace:
