@@ -357,19 +357,22 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
       },
       child: BranchedShellScope(
         shell: widget.shell,
-        child: Builder(
-          builder: (context) {
-            final branchContent = IndexedStack(
-              index: widget.shell.activeBranch,
-              children: widget.branches,
-            );
-            return widget.chromeBuilder(
-              context,
-              widget.shell.activeBranch,
-              branchContent,
-              widget.shell.switchTo,
-            );
-          },
+        child: ShellChromeScope(
+          accessorHint: 'context.branchedShell()',
+          child: Builder(
+            builder: (context) {
+              final branchContent = IndexedStack(
+                index: widget.shell.activeBranch,
+                children: widget.branches,
+              );
+              return widget.chromeBuilder(
+                context,
+                widget.shell.activeBranch,
+                branchContent,
+                widget.shell.switchTo,
+              );
+            },
+          ),
         ),
       ),
     );

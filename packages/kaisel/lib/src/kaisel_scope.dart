@@ -30,17 +30,27 @@ class RouterScope<R extends KaiselRoute> extends InheritedWidget {
   static RouterScope<R> of<R extends KaiselRoute>(BuildContext context) {
     final scope = maybeOf<R>(context);
     if (scope == null) {
-      throw FlutterError(
-        'RouterScope<$R> not found above this context.\n'
-        'context.router<$R>() walks up the tree for the nearest '
-        'RouterScope<$R>, which is installed inside branch screens, inside '
-        'modal flows, and at the app root.\n'
-        'If you are in a KaiselBranchedShell or KaiselShell chromeBuilder, the '
-        'per-branch RouterScope is installed BELOW the chrome, so it cannot be '
-        'seen from here. Use context.branchedShell() (or the activeBranch / '
-        'switchBranch arguments) to drive the shell, or context.router() with '
-        "your app's root route type for the main router.",
-      );
+      final chrome = ShellChromeScope.maybeOf(context);
+      switch (chrome) {
+        case final chrome?:
+          throw FlutterError(
+            'RouterScope<$R> not found above this context.\n'
+            'You are inside a shell chromeBuilder, where each branch installs '
+            'its RouterScope BELOW the chrome — so context.router<$R>() cannot '
+            'resolve a branch router from here.\n'
+            'Use ${chrome.accessorHint} to drive the shell (or the activeBranch '
+            '/ switchBranch arguments), or context.router() with your app root '
+            'route type for the main router.',
+          );
+        case _:
+          throw FlutterError(
+            'RouterScope<$R> not found above this context.\n'
+            'context.router<$R>() walks up the tree for the nearest '
+            'RouterScope<$R>, installed at the app root, inside shell branch '
+            'screens, and inside modal flows. Ensure this widget is mounted under '
+            'a KaiselRouterDelegate<$R> (or the appropriate branch / flow).',
+          );
+      }
     }
     return scope;
   }
@@ -51,6 +61,35 @@ class RouterScope<R extends KaiselRoute> extends InheritedWidget {
 
   @override
   bool updateShouldNotify(RouterScope<R> old) => !identical(old.router, router);
+}
+
+/// Marks the chrome subtree of a shell — the `chromeBuilder` output of
+/// `KaiselShell` / `KaiselBranchedShell`.
+///
+/// Each branch installs its [RouterScope] *below* the chrome, so a
+/// `context.router<R>()` call from the chrome can't resolve a branch router.
+/// This marker lets [RouterScope.of] detect that case and point at the shell's
+/// own accessor ([accessorHint]) instead of a generic "not found".
+class ShellChromeScope extends InheritedWidget {
+  /// Create a chrome marker around [child] advertising [accessorHint].
+  const ShellChromeScope({
+    super.key,
+    required this.accessorHint,
+    required super.child,
+  });
+
+  /// The accessor to suggest in the error — e.g. `context.branchedShell()`
+  /// or `context.shellRouter<R>()`.
+  final String accessorHint;
+
+  /// The nearest enclosing chrome marker, or `null`. Uses a non-dependent
+  /// lookup — it is only consulted while composing an error message.
+  static ShellChromeScope? maybeOf(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<ShellChromeScope>();
+
+  @override
+  bool updateShouldNotify(ShellChromeScope old) =>
+      old.accessorHint != accessorHint;
 }
 
 /// Unified router accessors. `context.router<R>()` resolves to the

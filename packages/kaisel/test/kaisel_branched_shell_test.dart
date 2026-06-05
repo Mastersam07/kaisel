@@ -332,10 +332,10 @@ void main() {
     });
   });
 
-  group('KaiselBranchedShell chrome', () {
+  group('Shell chrome router resolution', () {
     testWidgets(
-      'context.router<BranchRoute>() in the chromeBuilder throws a helpful '
-      'error pointing at context.branchedShell()',
+      'context.router<BranchRoute>() in a KaiselBranchedShell chrome points at '
+      'context.branchedShell()',
       (tester) async {
         final home = KaiselRouter<_HomeRoute>(initial: const _HomeRoot());
         final discover = KaiselRouter<_DiscoverRoute>(
@@ -379,6 +379,57 @@ void main() {
 
         expect(caught, isNotNull);
         expect(caught?.message, contains('context.branchedShell()'));
+      },
+    );
+
+    testWidgets('context.router<R>() in a KaiselShell chrome points at '
+        'context.shellRouter<R>()', (tester) async {
+      FlutterError? caught;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: KaiselShell<_HomeRoute>(
+            branchInitials: const [_HomeRoot(), _ProductDetail('x')],
+            pageBuilder: (context, route) =>
+                const Scaffold(body: Text('branch')),
+            chromeBuilder: (context, active, branchContent, switchBranch) {
+              try {
+                context.router<_HomeRoute>();
+              } on FlutterError catch (error) {
+                caught = error;
+              }
+              return branchContent;
+            },
+          ),
+        ),
+      );
+
+      expect(caught, isNotNull);
+      expect(caught?.message, contains('context.shellRouter<'));
+    });
+
+    testWidgets(
+      'context.router<R>() outside any shell gives the generic error, not the '
+      'chrome hint',
+      (tester) async {
+        FlutterError? caught;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) {
+                try {
+                  context.router<_HomeRoute>();
+                } on FlutterError catch (error) {
+                  caught = error;
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        );
+
+        expect(caught, isNotNull);
+        expect(caught?.message, isNot(contains('chromeBuilder')));
+        expect(caught?.message, contains('walks up the tree'));
       },
     );
   });

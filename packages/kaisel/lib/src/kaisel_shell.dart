@@ -212,22 +212,25 @@ class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
       },
       child: ShellScope<R>(
         shellRouter: _shell,
-        child: Builder(
-          builder: (context) {
-            final branchContent = IndexedStack(
-              index: _shell.activeBranch,
-              children: [
-                for (var i = 0; i < _shell.branchCount; i++)
-                  _buildBranch(context, i),
-              ],
-            );
-            return widget.chromeBuilder(
-              context,
-              _shell.activeBranch,
-              branchContent,
-              _shell.switchTo,
-            );
-          },
+        child: ShellChromeScope(
+          accessorHint: 'context.shellRouter<$R>()',
+          child: Builder(
+            builder: (context) {
+              final branchContent = IndexedStack(
+                index: _shell.activeBranch,
+                children: [
+                  for (var i = 0; i < _shell.branchCount; i++)
+                    _buildBranch(context, i),
+                ],
+              );
+              return widget.chromeBuilder(
+                context,
+                _shell.activeBranch,
+                branchContent,
+                _shell.switchTo,
+              );
+            },
+          ),
         ),
       ),
     );
