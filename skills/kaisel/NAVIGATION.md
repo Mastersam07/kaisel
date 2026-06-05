@@ -1,9 +1,29 @@
 # Navigation methods
 
 Reference for choosing between `push`, `pop`, `set`, `replaceTop`,
-`pushOrReplaceTop`, and `run<T>` on a `KaiselRouter<R>`. Each method
-mutates the stack differently and is appropriate for a different
-situation.
+`pushOrReplaceTop`, and `run<T>`. Each method mutates the stack
+differently and is appropriate for a different situation.
+
+## Two ways to call them
+
+Every verb has two surfaces:
+
+- **Terse `context.*` verbs** — the idiomatic default. `context.push(...)`,
+  `context.pop()`, `context.replaceTop(...)`,
+  `context.pushOrReplaceTop(...)`, `context.set(...)`,
+  `context.run<T>(...)`. These resolve the *nearest* router whose route
+  type **accepts** the argument, walking up the widget tree at runtime.
+  `push`/`pop`/`replaceTop`/`pushOrReplaceTop`/`set` are non-generic;
+  only `run<T>` carries a result type.
+- **Typed `context.router<R>().<verb>`** — the equivalent explicit form.
+  `context.router<R>()` resolves the nearest router of route family `R`,
+  and the verb is then a compile-checked call against that family. Reach
+  for it when typed/explicit router access is the point.
+
+The trade-off: a `context.*` verb given a route from the wrong family
+throws at **runtime**, whereas `context.router<R>().<verb>` makes the
+same mistake a **compile error**. Both lead the verbs in the sections
+below.
 
 ## Quick reference
 
@@ -22,6 +42,8 @@ applying. A guard can reject or transform any proposed stack.
 ## push
 
 ```dart
+context.push(const ProductDetail('sku-42'));
+// Typed equivalent:
 context.router<AppRoute>().push(const ProductDetail('sku-42'));
 ```
 
@@ -42,6 +64,8 @@ sub-screen.
 ## pop
 
 ```dart
+final didPop = await context.pop();
+// Typed equivalent:
 final didPop = await context.router<AppRoute>().pop();
 ```
 
@@ -63,6 +87,8 @@ without a typed result.
 ## replaceTop
 
 ```dart
+context.replaceTop(const ProductDetail('sku-42'));
+// Typed equivalent:
 context.router<AppRoute>().replaceTop(const ProductDetail('sku-42'));
 ```
 
@@ -82,6 +108,8 @@ already below. If you want the user to be able to go back to the
 ## pushOrReplaceTop
 
 ```dart
+context.pushOrReplaceTop(ProductDetail(productId));
+// Typed equivalent:
 context.router<AppRoute>().pushOrReplaceTop(
   ProductDetail(productId),
 );
@@ -112,6 +140,8 @@ items.
 ## set
 
 ```dart
+context.set(const [Home(), ProductList()]);
+// Typed equivalent:
 context.router<AppRoute>().set(const [Home(), ProductList()]);
 ```
 
@@ -137,6 +167,8 @@ changes.
 ## run
 
 ```dart
+final cardId = await context.run<CardId>(const AddCardFlow());
+// Typed equivalent:
 final cardId = await context.router<AppRoute>().run<CardId>(
   const AddCardFlow(),
 );
@@ -169,7 +201,9 @@ sub-flow has a clean entry, multi-step middle, and typed exit.
 
 ## Decision aid
 
-A short decision tree for picking the right method:
+A short decision tree for picking the right method. Reach for the terse
+`context.<verb>` by default; switch to `context.router<R>().<verb>` when
+you want the typed, compile-checked call:
 
 - **Going forward to a new screen?** `push`
 - **Going back?** `pop`
@@ -187,3 +221,4 @@ A short decision tree for picking the right method:
 | Forgetting to handle the `null` result from `run<T>` | `null` means the user dismissed the flow. Treat it as a first-class outcome, not an edge case. |
 | Pop loops to clear deep-link state | Use `set` to atomically replace the stack instead of popping repeatedly. |
 | Pop'ing past the root | `pop` returns `false` when the stack is at one entry. It doesn't throw. Use the return value if you need to know. |
+| Passing a wrong-family route to a terse `context.*` verb | The terse verbs resolve by *accepted argument type* at runtime, so a route from the wrong family throws at runtime. Use `context.router<R>().<verb>` to turn that into a compile error. |

@@ -72,9 +72,29 @@ class AppCodec extends KaiselConfigCodec<AppRoute> {
 }
 ```
 
-Wire it up by constructing a `KaiselRouteInformationParser` with your
-codec and a `fallback` stack (used when `decode` returns `null`) — no
-subclassing:
+The modern wiring is to hand the codec to `KaiselRouterConfig` via
+`codec:` (plus an optional `fallback:` stack, used when `decode` returns
+`null`). The config builds the parser and a
+`PlatformRouteInformationProvider` for you — passing `codec:` is what
+makes the app URL-addressable:
+
+```dart
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
+  builder: (context, route) => switch (route) { /* ... */ },
+  codec: AppCodec(),
+  fallback: const [Home()],
+);
+
+// build: MaterialApp.router(routerConfig: _config, theme: ...)
+```
+
+Omit `codec:` and the app is URL-less; pass it and the parser +
+provider are wired automatically.
+
+The explicit path stays valid as the lower tier — construct a
+`KaiselRouteInformationParser` with your codec and `fallback` stack (no
+subclassing) and hand it to `MaterialApp.router` yourself:
 
 ```dart
 MaterialApp.router(

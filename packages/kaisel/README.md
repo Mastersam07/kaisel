@@ -45,9 +45,10 @@ Dart 3 has had the type machinery to do better since 2023: sealed classes, exhau
 ## Features
 
 - **Typed route stack** — `List<R>` over your sealed class. Pattern-matched page resolution with compile-time exhaustiveness.
+- **One-line setup, terse navigation** — `KaiselRouterConfig` collapses the router, delegate, and parser into a single `routerConfig:`; navigate with `context.push` / `pop` / `replaceTop` / `pushOrReplaceTop` / `set` / `run<T>`, with `context.router<R>()` as the typed escape hatch.
 - **Value equality for free** — default `props`-based `==`/`hashCode` on `KaiselRoute`. No manual equality, no codegen.
 - **Guard pipeline** — composable `FutureOr<List<R>> Function(current, proposed)` functions. Async-aware and pure-Dart testable.
-- **Shells** — `KaiselShell<R>` (homogeneous branches) and `KaiselBranchedShell` (per-branch typed routes), with per-tab back stacks, scoped state, and correct back-button handling.
+- **Shells** — `KaiselShell<R>` (homogeneous branches) and `KaiselBranchedShell` (per-branch typed routes; `.specs` declares branches without wiring routers), with per-tab back stacks, scoped state, and correct back-button handling. One `context.shell()` accessor drives either.
 - **Composable modules** — package a feature's routes, page builder, guards, and URL codec as a `const`-friendly `RouteModule`. Mount with `KaiselModuleMount<R>`; compose URLs with `ConfigCodecWithModules` without the host knowing the module's internal structure.
 - **URL-addressable** — deep-link into a branch stack (`/home/products/sku-42`) or a module stack (`/checkout/confirm`). Inactive branches keep in-memory state across tab switches.
 - **Modal flows with typed results** — `await router.run<T>(SomeFlow())` returns `Future<T?>`. Flows have their own sub-router and can nest, unwinding LIFO.
@@ -80,22 +81,24 @@ No-field variants get equality automatically (`Home() == Home()`). Variants with
 
 ### 2. Wire it up
 
+Bundle the router into a `KaiselRouterConfig` and hand it to `MaterialApp.router` — no `StatefulWidget`, no manual delegate or parser, no `dispose`:
+
 ```dart
-void main() {
-  final router = KaiselRouter<AppRoute>(initial: const Home());
-  runApp(MaterialApp.router(
-    routerDelegate: KaiselRouterDelegate<AppRoute>(
-      router: router,
-      builder: (context, route) => switch (route) {
-        Home() => const HomeScreen(),
-        ProductDetail(:final id) => ProductDetailScreen(id: id),
-      },
-    ),
-  ));
-}
+// Hold it as a top-level `final` for an app-lifetime router.
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
+  builder: (context, route) => switch (route) {
+    Home() => const HomeScreen(),
+    ProductDetail(:final id) => ProductDetailScreen(id: id),
+  },
+);
+
+void main() => runApp(MaterialApp.router(routerConfig: _config));
 ```
 
 Add a variant and the switch fails to compile until you handle it. That's the entire point.
+
+`_config.router` is the underlying `KaiselRouter<AppRoute>` for imperative navigation outside the tree; pass `codec:` to make the app URL-addressable ([§6](#6-urls-optional)). For full control you can still construct the `KaiselRouterDelegate` and parser yourself — `KaiselRouterConfig` is the convenience layer over them.
 
 ### 3. Guards
 
@@ -170,24 +173,21 @@ final class ProductDetail extends HomeRoute {
 sealed class DiscoverRoute extends KaiselRoute { const DiscoverRoute(); }
 // ...
 
-// In your shell widget's state:
-final homeRouter = KaiselRouter<HomeRoute>(initial: const HomeRoot());
-final discoverRouter = KaiselRouter<DiscoverRoute>(initial: const DiscoverRoot());
-final shell = BranchedShellRouter(branches: [homeRouter, discoverRouter]);
-
-KaiselBranchedShell(
-  shell: shell,
+// Declare the branches — the shell creates, owns, and disposes one router per
+// branch. You never construct a KaiselRouter, and each branch's stack still
+// survives tab switches.
+KaiselBranchedShell.specs(
   branches: [
-    KaiselBranch<HomeRoute>(
-      router: homeRouter,
-      pageBuilder: (context, route) => switch (route) {
+    KaiselBranchSpec<HomeRoute>(
+      initial: const HomeRoot(),
+      builder: (context, route) => switch (route) {
         HomeRoot() => const HomeScreen(),
         ProductDetail(:final id) => ProductDetailScreen(id: id),
       },
     ),
-    KaiselBranch<DiscoverRoute>(
-      router: discoverRouter,
-      pageBuilder: (context, route) => switch (route) { /* ... */ },
+    KaiselBranchSpec<DiscoverRoute>(
+      initial: const DiscoverRoot(),
+      builder: (context, route) => switch (route) { /* ... */ },
     ),
   ],
   chromeBuilder: (context, active, branchContent, switchBranch) => Scaffold(
@@ -201,12 +201,17 @@ KaiselBranchedShell(
 )
 ```
 
+Use `KaiselBranchSpec.adaptive(...)` for an adaptive branch. When you need to hold the branch routers yourself, the explicit `KaiselBranchedShell(shell: BranchedShellRouter(...), branches: [KaiselBranch<R>(...)])` form stays.
+
 Inside a Home branch screen:
 
 ```dart
-context.router<HomeRoute>().push(const ProductDetail('42'));  // typed
-context.router<AppRoute>().push(const Settings());            // main router
-context.shell().switchTo(2);                                 // change tab
+context.push(const ProductDetail('42'));  // terse — nearest router that accepts it
+context.push(const Settings());           // resolves up to the main router
+context.shell().switchTo(2);              // change tab
+
+// Or the typed form, when you want the wrong-family check at compile time:
+context.router<HomeRoute>().push(const ProductDetail('42'));
 ```
 
 `RouterScope` lookup is by exact generic type, so `context.router<HomeRoute>()` and `context.router<AppRoute>()` don't collide. Each branch keeps its own back stack (via `IndexedStack`); Android back unwinds the active branch first, falling through to the parent router only at branch root.
@@ -292,6 +297,17 @@ routeInformationParser: KaiselRouteInformationParser<AppRoute>.fromStackCodec(
   codec: const AppStackCodec(),
   fallback: const [Home()],
 ),
+```
+
+With `KaiselRouterConfig` you skip the parser entirely — pass the codec as `codec:` (and an optional `fallback:`) and it wires the parser plus a `PlatformRouteInformationProvider` for you:
+
+```dart
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
+  builder: _buildPage,
+  codec: StackToConfigCodec<AppRoute>(const AppStackCodec()),
+  fallback: const [Home()],
+);
 ```
 
 **`KaiselConfigCodec<R>`** — URLs that reach into a nested router (a `KaiselBranchedShell` or a `KaiselModuleMount`). The configuration carries the main stack plus an optional `nestedState`, a sealed `KaiselNestedConfig` that is either a `KaiselShellConfig` or a `KaiselModuleConfig`:

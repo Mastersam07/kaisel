@@ -18,6 +18,16 @@ gap between these mental models is wider than the gap from auto_route
 to kaisel, and the migration is correspondingly more philosophical
 in places.
 
+The *surface*, though, is now close. kaisel has a
+`KaiselRouterConfig` that drops into `MaterialApp.router(routerConfig:)`
+exactly where `GoRouter` does, declared as a top-level `final` with
+no `StatefulWidget` or hand-rolled delegate. And it has terse
+`context.*` verbs — `context.push(const ProductDetail('42'))`,
+`context.pop()`, `context.set([...])` — that mirror go_router's
+`context.push('/path')` shape. So the day-to-day call sites read
+almost the same; what changes is what flows through them (typed
+values instead of strings).
+
 The mechanical translation is straightforward for simple apps. The
 work concentrates in three areas: the global `redirect:` callback
 (becomes a guard pipeline), `ShellRoute` / `StatefulShellRoute`
@@ -57,18 +67,20 @@ codec entirely.
 
 | go_router                                       | kaisel                                              |
 | ----------------------------------------------- | --------------------------------------------------- |
+| `final _router = GoRouter(...)`                 | `final _config = KaiselRouterConfig<AppRoute>(...)` |
+| `MaterialApp.router(routerConfig: _router)`     | `MaterialApp.router(routerConfig: _config)`         |
 | `GoRoute(path: '/products/:id', builder: ...)`  | `final class ProductDetail extends AppRoute` + a switch arm |
 | Path params `:id` parsed to `state.params['id']`| Constructor field `final String id`                 |
 | Query params `state.uri.queryParameters`        | Constructor fields on the route                     |
 | `extra: nonSerializableObject`                  | Another field on the route                          |
 | Global `redirect: (ctx, state) => ...`          | Guard function `(current, proposed) → stack` in the pipeline |
 | Per-route `redirect:`                           | Same pipeline; pattern-match on the route           |
-| `ShellRoute`                                    | A single-branch `KaiselBranchedShell` or custom     |
-| `StatefulShellRoute.indexedStack`               | `KaiselBranchedShell` with N branches               |
-| `context.go('/products/42')`                    | `context.router<AppRoute>().set([const Home(), ProductDetail('42')])` |
-| `context.push('/products/42')`                  | `context.router<AppRoute>().push(const ProductDetail('42'))` |
-| `context.pop()`                                 | `context.router<AppRoute>().pop()`                  |
-| `context.replace('/login')`                     | `context.router<AppRoute>().replaceTop(const Login())` |
+| `ShellRoute`                                    | `KaiselBranchedShell.specs` with one branch         |
+| `StatefulShellRoute.indexedStack`               | `KaiselBranchedShell.specs` with N branches         |
+| `context.push('/products/42')`                  | `context.push(const ProductDetail('42'))`           |
+| `context.go('/products/42')`                    | `context.set([const Home(), ProductDetail('42')])` (replace stack) or `context.replaceTop(...)` |
+| `context.pop()`                                 | `context.pop()`                                     |
+| `context.replace('/login')`                     | `context.replaceTop(const Login())`                 |
 | `go_router_builder` (optional codegen)          | Sealed types; no build step                         |
 | `errorBuilder:`                                 | An error route variant in your sealed type          |
 
@@ -94,6 +106,60 @@ Swap go_router for kaisel in `pubspec.yaml`:
 If you used `go_router_builder` for typed routes, drop both that and
 `build_runner` (if it isn't being used by something else). Delete
 any generated `*.g.dart` files associated with routing.
+
+Then replace the `GoRouter` instance itself. Where go_router has a
+top-level `final _router = GoRouter(...)` plugged into
+`MaterialApp.router(routerConfig:)`, kaisel has a top-level
+`final _config = KaiselRouterConfig<AppRoute>(...)` that fills the
+exact same slot:
+
+**Before** (go_router):
+
+```dart
+final _router = GoRouter(
+  initialLocation: '/home',
+  routes: [/* GoRoutes */],
+);
+
+class App extends StatelessWidget {
+  const App({super.key});
+  @override
+  Widget build(BuildContext context) =>
+      MaterialApp.router(routerConfig: _router);
+}
+```
+
+**After** (kaisel):
+
+```dart
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
+  builder: (context, route) => switch (route) {
+    Home() => const HomeScreen(),
+    ProductList() => const ProductListScreen(),
+    ProductDetail(:final id) => ProductDetailScreen(id: id),
+    // ... other routes
+  },
+  // optional: guards:, pageWrapper:, modalBuilder:, codec:, fallback:
+);
+
+class App extends StatelessWidget {
+  const App({super.key});
+  @override
+  Widget build(BuildContext context) =>
+      MaterialApp.router(routerConfig: _config);
+}
+```
+
+Like `GoRouter`, `KaiselRouterConfig` is app-lifetime: a top-level
+`final`, no `StatefulWidget`, no manual `KaiselRouterDelegate`, no
+hand-rolled parser, no `dispose`. Omit `codec:` and the app is
+URL-less; pass `codec:` (and optionally `fallback:`) and it wires the
+route-information parser and `PlatformRouteInformationProvider` for
+you (step 6). `_config.router` exposes the bundled `KaiselRouter` if
+you need imperative access to the stack. The explicit
+delegate-plus-parser form still works as a lower tier when you want
+to assemble the pieces by hand.
 
 ### 2. Translate GoRoute definitions to sealed routes
 
@@ -125,9 +191,9 @@ final class ProductDetail extends AppRoute {
   List<Object?> get props => [id];
 }
 
-// 2. Handle it in the page builder.
-KaiselRouterDelegate<AppRoute>(
-  router: router,
+// 2. Handle it in the config's page builder (the `builder:` from step 1).
+KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
   builder: (context, route) => switch (route) {
     Home() => const HomeScreen(),
     ProductDetail(:final id) => ProductDetailScreen(id: id),
@@ -235,8 +301,9 @@ List<AppRoute> authGuard(List<AppRoute> current, List<AppRoute> proposed) {
   return proposed;
 }
 
-final router = KaiselRouter<AppRoute>(
+final _config = KaiselRouterConfig<AppRoute>(
   initial: isLoggedIn ? const Home() : const Login(),
+  builder: (context, route) => switch (route) { /* ... */ },
   guards: [authGuard],
 );
 ```
@@ -245,8 +312,9 @@ Multiple cross-cutting concerns compose as a list of guards, each
 receiving the output of the previous:
 
 ```dart
-KaiselRouter<AppRoute>(
+KaiselRouterConfig<AppRoute>(
   initial: const Home(),
+  builder: (context, route) => switch (route) { /* ... */ },
   guards: [authGuard, featureFlagGuard, entitlementGuard],
 )
 ```
@@ -300,52 +368,52 @@ final class ProductDetail extends ProductRoute {
   List<Object?> get props => [id];
 }
 
-// Shell host widget.
-class _AppShellState extends State<AppShell> {
-  late final _homeRouter = KaiselRouter<HomeRoute>(initial: const HomeView());
-  late final _productRouter = KaiselRouter<ProductRoute>(initial: const ProductList());
-  late final _shell = BranchedShellRouter(branches: [_homeRouter, _productRouter]);
-
-  @override
-  Widget build(BuildContext context) {
-    return KaiselBranchedShell(
-      shell: _shell,
-      branches: [
-        KaiselBranch<HomeRoute>(
-          router: _homeRouter,
-          pageBuilder: (c, r) => switch (r) {
-            HomeView() => const HomeScreen(),
-          },
-        ),
-        KaiselBranch<ProductRoute>(
-          router: _productRouter,
-          pageBuilder: (c, r) => switch (r) {
-            ProductList() => const ProductListScreen(),
-            ProductDetail(:final id) => ProductDetailScreen(id: id),
-          },
-        ),
-      ],
-      chromeBuilder: (context, activeBranch, branchContent, switchBranch) {
-        return Scaffold(
-          body: branchContent,
-          bottomNavigationBar: BottomNavigationBar(
-            currentIndex: activeBranch,
-            onTap: switchBranch,
-            items: const [/* ... */],
-          ),
-        );
+// Declarative branched shell — the shell owns the per-branch routers.
+KaiselBranchedShell.specs(
+  branches: [
+    KaiselBranchSpec<HomeRoute>(
+      initial: const HomeView(),
+      builder: (c, r) => switch (r) {
+        HomeView() => const HomeScreen(),
       },
+    ),
+    KaiselBranchSpec<ProductRoute>(
+      initial: const ProductList(),
+      builder: (c, r) => switch (r) {
+        ProductList() => const ProductListScreen(),
+        ProductDetail(:final id) => ProductDetailScreen(id: id),
+      },
+    ),
+  ],
+  chromeBuilder: (context, activeBranch, branchContent, switchBranch) {
+    return Scaffold(
+      body: branchContent,
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: activeBranch,
+        onTap: switchBranch,
+        items: const [/* ... */],
+      ),
     );
-  }
-}
+  },
+);
 ```
 
-Per-branch typing is doing real work here. Each tab's `KaiselRouter`
-is typed to that tab's sealed family. The compiler will reject
-`_homeRouter.push(const ProductDetail('x'))` as a type error —
-you can't accidentally push a product route into the home tab's
-stack. This is the type safety go_router's table can't give you
-even with codegen.
+`KaiselBranchedShell.specs` is the natural target for migrating
+`StatefulShellRoute`: you declare each branch's initial route and
+builder, and the shell owns the per-branch routers for you — no
+manual `KaiselRouter` or `BranchedShellRouter` to wire. (The
+explicit `KaiselBranchedShell(shell:, branches: [KaiselBranch(...)])`
+form is still available as the lower tier when you need to hold the
+routers yourself.)
+
+Per-branch typing is doing real work here. Each `KaiselBranchSpec`
+is typed to that tab's sealed family, so the branch's own router is
+too — the compiler will reject pushing a `ProductDetail` into the
+home branch as a type error. This is the type safety go_router's
+table can't give you even with codegen. From inside a branch, reach
+the shell with `context.shell()` (a `KaiselShellController`:
+`.switchTo(i)`, `.activeBranch`, `.branchCount`, `.current`).
+For an adaptive branch, use `KaiselBranchSpec.adaptive(initial:, builder:)`.
 
 ### 6. Wire up the codec
 
@@ -354,23 +422,14 @@ auto_route already has typed routes and a codegen-driven parser.
 go_router migration almost always needs this step because you
 likely have deep links to maintain.
 
-If you don't use deep links at all, use a no-op parser:
+If you don't use deep links at all, omit `codec:` from
+`KaiselRouterConfig` entirely — the app stays URL-less and there's no
+parser to write.
 
-```dart
-class _NoopParser extends RouteInformationParser<KaiselConfig<AppRoute>> {
-  _NoopParser(this.router);
-  final KaiselRouter<AppRoute> router;
-  @override
-  Future<KaiselConfig<AppRoute>> parseRouteInformation(
-    RouteInformation routeInformation,
-  ) async {
-    return KaiselConfig<AppRoute>(mainStack: router.stack);
-  }
-}
-```
-
-If you do, write a real codec. The codec maps `Uri ↔ KaiselConfig`,
-and you register it with the parser:
+If you do, write a real codec and pass it as `codec:` (with an
+optional `fallback:`). `KaiselRouterConfig` wires the
+route-information parser and `PlatformRouteInformationProvider` for
+you. The codec maps `Uri ↔ KaiselConfig`:
 
 ```dart
 class AppCodec extends KaiselConfigCodec<AppRoute> {
@@ -430,6 +489,27 @@ The codec only handles `ProductDetailById`. The other variant is
 in-app only, and the screen pattern-matches on which it received.
 This replaces go_router's `extra` field with something type-checked.
 
+## What's now at parity
+
+A few things that used to be on this list have landed, and they're
+the ones that mattered most for go_router users:
+
+**`context.push` ergonomics.** The terse `context.*` verbs —
+`context.push`, `context.pop`, `context.replaceTop`,
+`context.pushOrReplaceTop`, `context.set`, and `await context.run<T>(...)`
+— give you go_router-shaped call sites. They resolve the nearest
+router whose route type accepts the argument at runtime, so
+`context.push(const ProductDetail('42'))` "just works" from anywhere
+in the tree, the way `context.push('/products/42')` does. The trade
+is that a wrong-family route throws at runtime instead of compile
+time; `context.router<AppRoute>()` remains the typed escape hatch
+when you want the error at compile time.
+
+**`routerConfig` setup.** `KaiselRouterConfig` is a `RouterConfig`
+you hand to `MaterialApp.router(routerConfig:)`, declared as a
+top-level `final` — the exact shape of `final _router = GoRouter(...)`.
+No `StatefulWidget`, no manual delegate or parser. See step 1.
+
 ## What kaisel doesn't yet do at parity
 
 Be honest with yourself about whether these matter before migrating.
@@ -486,7 +566,8 @@ main, do the rewrite, regression-test, ship.
 
 The reason big-bang is the right answer is that route-related code
 in your app is more interconnected than you remember. Every screen
-that uses `context.go(...)` is coupled to your route table. Every
+that uses `context.go(...)` / `context.push(...)` is coupled to your
+route table. Every
 guard touches the redirect callback. Every deep link touches the
 parser. Switching the router under any of these means switching
 them all. There's no clean line to draw across the codebase that

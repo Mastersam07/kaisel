@@ -1,16 +1,33 @@
 # kaisel example
 
-Six entry points, each demonstrating a slice of the library.
+Seven entry points, each demonstrating a slice of the library.
 Pick one with `-t`:
 
 | Entry point | What it shows |
 | --- | --- |
+| `lib/main_terse.dart` | The terse ergonomics layer: a minimal before/after app wiring `KaiselRouterConfig` into `MaterialApp.router` and navigating with `context.push`/`context.pop` |
 | `lib/main.dart` | The main example: bottom-nav `KaiselBranchedShell` with per-tab typed routes, modal flows, modules, and URL deep-linking via codec |
 | `lib/main_adaptive.dart` | Adaptive layouts at the main delegate (v0.8) with `pushOrReplaceTop` (v0.11) for in-place master-detail swaps |
 | `lib/main_shell_adaptive.dart` | Adaptive layout *inside a shell branch* (v0.9): one tab is master-detail, the other isn't, shell stays at the bottom |
 | `lib/main_nested_flows.dart` | Nested modal flows (v0.10): a payment flow opens an "add card" flow on top of itself, both layers visible at once |
 | `lib/main_transitions.dart` | Route-pair transitions (v0.11): pageWrapper pattern-matches on `(ctx.previous, ctx.route)` to pick custom Page subclasses per route pair |
-| `lib/main_media_cataloguer.dart` | A desktop-style app: top-level auth state machine (`router.set` swaps `LoginRoute` ↔ `ShellHost`), a cross-fade `pageWrapper` between them, a branched shell with per-branch typed routes + nested stacks, and a breadcrumb driven by `KaiselListenableBuilder` |
+| `lib/main_media_cataloguer.dart` | A desktop-style app: top-level auth state machine (`router.set` swaps `LoginRoute` ↔ `ShellHost`), a cross-fade `pageWrapper` between them, a branched shell with per-branch typed routes + nested stacks, and a breadcrumb driven by `KaiselListenableBuilder`. Wired with `KaiselRouterConfig` + `KaiselBranchedShell.specs` + `context.shell()` |
+
+## `lib/main_terse.dart`
+
+The terse ergonomics layer. A minimal before/after app: a top-level
+`final KaiselRouterConfig<R>` handed straight to `MaterialApp.router`
+(`routerConfig:`) — no `StatefulWidget`, no manual delegate, parser, or
+`dispose`. Call sites use the terse `context.*` nav: `context.push(route)`
+and `context.pop()`.
+
+```sh
+flutter run -t lib/main_terse.dart
+```
+
+`KaiselRouterConfig` takes an optional `codec:` for URL deep-linking;
+`context.router<R>()` stays available as the typed escape hatch when you
+need the router directly.
 
 ## `lib/main.dart`
 
