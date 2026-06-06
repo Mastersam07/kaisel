@@ -334,32 +334,30 @@ const appCodec = ConfigCodecWithModules<AppRoute>(
 
 // 5. Wire it up.
 //
-// The main router is global. Branch routers are created in
+// The main router is global, bundled in _config. Branch routers are created in
 // _MainShellScreen's State so they're tied to the shell's lifecycle.
-
-final router = KaiselRouter<AppRoute>(
+//
+// One value bundles the router, delegate, and URL parser (appCodec is a
+// KaiselConfigCodec, so it passes straight in). Hold it as a top-level final.
+final _config = KaiselRouterConfig<AppRoute>(
   initial: const Splash(),
   guards: [splashRedirectGuard(auth), authGuard(auth)],
+  builder: _buildMainPage,
+  modalBuilder: _buildModal,
+  codec: appCodec,
+  fallback: const [Splash()],
 );
 
 void main() {
   auth.addListener(() {
-    if (!auth.value) router.set(const [Login()]);
+    if (!auth.value) _config.router.set(const [Login()]);
   });
 
   runApp(
     MaterialApp.router(
       title: 'Kaisel v0.4 example',
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.indigo),
-      routerDelegate: KaiselRouterDelegate<AppRoute>(
-        router: router,
-        builder: _buildMainPage,
-        modalBuilder: _buildModal,
-      ),
-      routeInformationParser: KaiselRouteInformationParser<AppRoute>(
-        codec: appCodec,
-        fallback: const [Splash()],
-      ),
+      routerConfig: _config,
     ),
   );
 }
@@ -418,7 +416,7 @@ class _SplashScreenState extends State<_SplashScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      router.replaceTop(const Splash());
+      _config.router.replaceTop(const Splash());
     });
   }
 
@@ -437,7 +435,7 @@ class _LoginScreen extends StatelessWidget {
         child: FilledButton(
           onPressed: () {
             auth.logIn();
-            router.set(const [MainShell()]);
+            _config.router.set(const [MainShell()]);
           },
           child: const Text('Log in'),
         ),
@@ -638,7 +636,7 @@ class _ProductDetailScreen extends StatelessWidget {
                 // Run a typed modal flow on the MAIN router.
                 // Branch routers don't have a delegate to render
                 // overlays, so flows always go through the main.
-                final qty = await router.run(ConfirmAddToCart(id));
+                final qty = await _config.router.run(ConfirmAddToCart(id));
                 if (qty != null && context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Added $qty × $id to cart.')),

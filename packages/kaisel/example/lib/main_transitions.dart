@@ -276,65 +276,42 @@ class _ActionTile extends StatelessWidget {
   }
 }
 
-class TransitionsApp extends StatefulWidget {
-  const TransitionsApp({super.key});
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
+  builder: (context, route) => switch (route) {
+    Home() => const _HomeScreen(),
+    Product(:final id) => _ProductScreen(id: id),
+    Settings() => const _SettingsScreen(),
+    About() => const _AboutScreen(),
+  },
+  pageWrapper: _pageWrapper,
+);
 
-  @override
-  State<TransitionsApp> createState() => _TransitionsAppState();
+// The wrapper. Pattern-matches on `(ctx.previous, ctx.route)` to
+// pick a Page subclass per route pair. The Navigator handles the
+// push/pop direction; the wrapper picks the transition style.
+Page<Object?> _pageWrapper(KaiselPageWrapperContext<AppRoute> ctx) {
+  return switch ((ctx.previous, ctx.route)) {
+    // Settings always slides up, regardless of where it was opened
+    // from. Destination-only matching.
+    (_, Settings()) => _SlideUpPage(key: ctx.key, child: ctx.child),
+
+    // About always fades in. Destination-only matching.
+    (_, About()) => _FadePage(key: ctx.key, child: ctx.child),
+
+    // Product pushing onto Product (e.g., a "Related product"
+    // link) cross-fades. Route-pair matching: the new page's
+    // `previous` is also a Product.
+    (Product(), Product()) => _FadePage(key: ctx.key, child: ctx.child),
+
+    // Everything else: default Material slide.
+    _ => MaterialPage<Object?>(key: ctx.key, child: ctx.child),
+  };
 }
 
-class _TransitionsAppState extends State<TransitionsApp> {
-  late final KaiselRouter<AppRoute> _router;
-  late final KaiselRouterDelegate<AppRoute> _delegate;
-
-  @override
-  void initState() {
-    super.initState();
-    _router = KaiselRouter<AppRoute>(initial: const Home());
-    _delegate = KaiselRouterDelegate<AppRoute>(
-      router: _router,
-      builder: (context, route) => switch (route) {
-        Home() => const _HomeScreen(),
-        Product(:final id) => _ProductScreen(id: id),
-        Settings() => const _SettingsScreen(),
-        About() => const _AboutScreen(),
-      },
-      pageWrapper: _pageWrapper,
-    );
-  }
-
-  // The wrapper. Pattern-matches on `(ctx.previous, ctx.route)` to
-  // pick a Page subclass per route pair. The Navigator handles the
-  // push/pop direction; the wrapper picks the transition style.
-  Page<Object?> _pageWrapper(KaiselPageWrapperContext<AppRoute> ctx) {
-    return switch ((ctx.previous, ctx.route)) {
-      // Settings always slides up, regardless of where it was opened
-      // from. Destination-only matching.
-      (_, Settings()) => _SlideUpPage(key: ctx.key, child: ctx.child),
-
-      // About always fades in. Destination-only matching.
-      (_, About()) => _FadePage(key: ctx.key, child: ctx.child),
-
-      // Product pushing onto Product (e.g., a "Related product"
-      // link) cross-fades. Route-pair matching: the new page's
-      // `previous` is also a Product.
-      (Product(), Product()) => _FadePage(key: ctx.key, child: ctx.child),
-
-      // Everything else: default Material slide.
-      _ => MaterialPage<Object?>(key: ctx.key, child: ctx.child),
-    };
-  }
-
-  @override
-  void dispose() {
-    _delegate.dispose();
-    _router.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp.router(
+void main() {
+  runApp(
+    MaterialApp.router(
       title: 'kaisel transitions demo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -346,25 +323,7 @@ class _TransitionsAppState extends State<TransitionsApp> {
         cardColor: const Color(0xFF14141C),
         useMaterial3: true,
       ),
-      routerDelegate: _delegate,
-      routeInformationParser: _NoopParser(_router),
-    );
-  }
-}
-
-class _NoopParser extends RouteInformationParser<KaiselConfig<AppRoute>> {
-  _NoopParser(this.router);
-
-  final KaiselRouter<AppRoute> router;
-
-  @override
-  Future<KaiselConfig<AppRoute>> parseRouteInformation(
-    RouteInformation routeInformation,
-  ) async => KaiselConfig<AppRoute>(mainStack: _router.stack);
-
-  KaiselRouter<AppRoute> get _router => router;
-}
-
-void main() {
-  runApp(const TransitionsApp());
+      routerConfig: _config,
+    ),
+  );
 }

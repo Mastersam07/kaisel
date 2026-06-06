@@ -406,6 +406,49 @@ void main() {
       expect(config.router.stack, const [_B()]);
       expect(find.text('B'), findsOneWidget);
     });
+
+    testWidgets('.adaptive drives an adaptive main delegate — absorbs '
+        'master-detail at wide widths', (tester) async {
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final config = KaiselRouterConfig<_R>.adaptive(
+        initial: const _A(),
+        builder: (context, route, stack) {
+          final wide = MediaQuery.sizeOf(context).width >= 600;
+          return switch ((route, stack.previous, wide)) {
+            // Detail (_B) over master (_A) at wide width → one absorbed page.
+            (_B(), _A(), true) => const KaiselAbsorbingPage(
+              widget: Row(
+                textDirection: TextDirection.ltr,
+                children: [Text('master-A'), Text('detail-B')],
+              ),
+            ),
+            _ => KaiselStandalonePage(
+              Text(switch (route) {
+                _A() => 'A',
+                _B() => 'B',
+                _Flow() => 'flow',
+              }, textDirection: TextDirection.ltr),
+            ),
+          };
+        },
+      );
+      addTearDown(config.dispose);
+
+      await tester.pumpWidget(MaterialApp.router(routerConfig: config));
+      expect(find.text('A'), findsOneWidget); // master alone
+
+      await config.router.push(const _B());
+      await tester.pumpAndSettle();
+
+      // Absorbed into one page: both master and detail render, and the
+      // standalone master page is gone.
+      expect(find.text('master-A'), findsOneWidget);
+      expect(find.text('detail-B'), findsOneWidget);
+      expect(find.text('A'), findsNothing);
+    });
   });
 
   group('context.run', () {

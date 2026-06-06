@@ -351,39 +351,22 @@ class _ShellHostState extends State<_ShellHost> {
 }
 
 // App
+//
+// The main router never leaves `ShellHost` (the shell is the host), and
+// the demo is URL-less, so a plain non-adaptive `KaiselRouterConfig`
+// bundles the router + delegate. The adaptivity lives inside the shell
+// branches (`_filmsRouter`), not the main delegate.
 
-class ShellAdaptiveApp extends StatefulWidget {
-  const ShellAdaptiveApp({super.key});
-  @override
-  State<ShellAdaptiveApp> createState() => _ShellAdaptiveAppState();
-}
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const ShellHost(),
+  builder: (context, route) => switch (route) {
+    ShellHost() => const _ShellHost(),
+  },
+);
 
-class _ShellAdaptiveAppState extends State<ShellAdaptiveApp> {
-  late final KaiselRouter<AppRoute> _router;
-  late final KaiselRouterDelegate<AppRoute> _delegate;
-
-  @override
-  void initState() {
-    super.initState();
-    _router = KaiselRouter<AppRoute>(initial: const ShellHost());
-    _delegate = KaiselRouterDelegate<AppRoute>(
-      router: _router,
-      builder: (context, route) => switch (route) {
-        ShellHost() => const _ShellHost(),
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _delegate.dispose();
-    _router.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp.router(
+void main() {
+  runApp(
+    MaterialApp.router(
       title: 'kaisel shell-adaptive demo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -395,23 +378,7 @@ class _ShellAdaptiveAppState extends State<ShellAdaptiveApp> {
         cardColor: const Color(0xFF14141C),
         useMaterial3: true,
       ),
-      routerDelegate: _delegate,
-      routeInformationParser: _NoopParser(_router),
-    );
-  }
-}
-
-class _NoopParser extends RouteInformationParser<KaiselConfig<AppRoute>> {
-  _NoopParser(this.router);
-  final KaiselRouter<AppRoute> router;
-  @override
-  Future<KaiselConfig<AppRoute>> parseRouteInformation(
-    RouteInformation routeInformation,
-  ) async {
-    return KaiselConfig<AppRoute>(mainStack: router.stack);
-  }
-}
-
-void main() {
-  runApp(const ShellAdaptiveApp());
+      routerConfig: _config,
+    ),
+  );
 }

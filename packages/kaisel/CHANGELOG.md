@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.14.1
+
+### Added
+
+- **`KaiselRouterConfig.adaptive`** — a `KaiselRouterConfig` constructor that
+  takes an adaptive page builder (the `(context, route, stack)` form), for apps
+  whose **main** router is a top-level adaptive master-detail. Mirrors
+  `KaiselRouterDelegate.adaptive`, which the default `KaiselRouterConfig`
+  constructor didn't cover. (Adaptive layouts *inside* a shell branch use
+  `KaiselBranch.adaptive` / `KaiselBranchSpec.adaptive` and don't need this.)
+
+### Examples
+
+- All example entry points now use `KaiselRouterConfig` for setup — previously
+  the flagship `main.dart` and four others still demonstrated the manual
+  `KaiselRouterDelegate` + hand-rolled parser the config replaces.
+
 ## 0.14.0
 
 Navigation ergonomics — terser setup and call sites, and a single shell

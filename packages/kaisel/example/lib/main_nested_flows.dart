@@ -372,81 +372,59 @@ class _AddCardFlowScreenState extends State<_AddCardFlowScreen> {
   }
 }
 
-class NestedFlowsApp extends StatefulWidget {
-  const NestedFlowsApp({super.key});
-  @override
-  State<NestedFlowsApp> createState() => _NestedFlowsAppState();
-}
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
+  builder: (context, route) => switch (route) {
+    Home() => const _HomeScreen(),
+    PaymentFlow(:final amountCents) => _PaymentFlowScreen(
+      amountCents: amountCents,
+    ),
+    AddCardFlow() => const _AddCardFlowScreen(),
+  },
+  modalBuilder: _modalBuilder,
+);
 
-class _NestedFlowsAppState extends State<NestedFlowsApp> {
-  late final KaiselRouter<AppRoute> _router;
-  late final KaiselRouterDelegate<AppRoute> _delegate;
-
-  @override
-  void initState() {
-    super.initState();
-    _router = KaiselRouter<AppRoute>(initial: const Home());
-    _delegate = KaiselRouterDelegate<AppRoute>(
-      router: _router,
-      builder: (context, route) => switch (route) {
-        Home() => const _HomeScreen(),
-        PaymentFlow(:final amountCents) => _PaymentFlowScreen(
-          amountCents: amountCents,
-        ),
-        AddCardFlow() => const _AddCardFlowScreen(),
-      },
-      modalBuilder: _modalBuilder,
-    );
-  }
-
-  // Modal builder. Called once per active flow. The outer
-  // PaymentFlow renders first; when AddCardFlow is opened on top,
-  // both modal layers are mounted simultaneously and stack
-  // visually (the inner one drawn over the outer).
-  Widget _modalBuilder(
-    BuildContext context,
-    KaiselModalRoute<Object?> flowRoute,
-    Widget flowChild,
-  ) {
-    // Slight inset for the inner flow so both layers are visible.
-    final isInner = flowRoute is AddCardFlow;
-    return ColoredBox(
-      color: Colors.black.withValues(alpha: isInner ? 0.35 : 0.6),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: isInner ? 380 : 420),
-          child: Container(
-            margin: EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: isInner ? 48 : 24,
-            ),
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-            decoration: BoxDecoration(
-              color: const Color(0xFF14141C),
-              border: Border.all(
-                color: isInner
-                    ? const Color(0xFF00D4FF).withValues(alpha: 0.4)
-                    : const Color(0xFF2A2A35),
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: SingleChildScrollView(child: flowChild),
+// Modal builder. Called once per active flow. The outer
+// PaymentFlow renders first; when AddCardFlow is opened on top,
+// both modal layers are mounted simultaneously and stack
+// visually (the inner one drawn over the outer).
+Widget _modalBuilder(
+  BuildContext context,
+  KaiselModalRoute<Object?> flowRoute,
+  Widget flowChild,
+) {
+  // Slight inset for the inner flow so both layers are visible.
+  final isInner = flowRoute is AddCardFlow;
+  return ColoredBox(
+    color: Colors.black.withValues(alpha: isInner ? 0.35 : 0.6),
+    child: Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: isInner ? 380 : 420),
+        child: Container(
+          margin: EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: isInner ? 48 : 24,
           ),
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          decoration: BoxDecoration(
+            color: const Color(0xFF14141C),
+            border: Border.all(
+              color: isInner
+                  ? const Color(0xFF00D4FF).withValues(alpha: 0.4)
+                  : const Color(0xFF2A2A35),
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: SingleChildScrollView(child: flowChild),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  @override
-  void dispose() {
-    _delegate.dispose();
-    _router.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp.router(
+void main() {
+  runApp(
+    MaterialApp.router(
       title: 'kaisel nested flows demo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -458,23 +436,7 @@ class _NestedFlowsAppState extends State<NestedFlowsApp> {
         cardColor: const Color(0xFF14141C),
         useMaterial3: true,
       ),
-      routerDelegate: _delegate,
-      routeInformationParser: _NoopParser(_router),
-    );
-  }
-}
-
-class _NoopParser extends RouteInformationParser<KaiselConfig<AppRoute>> {
-  _NoopParser(this.router);
-  final KaiselRouter<AppRoute> router;
-  @override
-  Future<KaiselConfig<AppRoute>> parseRouteInformation(
-    RouteInformation routeInformation,
-  ) async {
-    return KaiselConfig<AppRoute>(mainStack: router.stack);
-  }
-}
-
-void main() {
-  runApp(const NestedFlowsApp());
+      routerConfig: _config,
+    ),
+  );
 }

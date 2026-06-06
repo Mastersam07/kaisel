@@ -153,7 +153,7 @@ packages:
       path: "../../kaisel"
       relative: true
     source: path
-    version: "0.14.0"
+    version: "0.14.1"
   kaisel_core:
     dependency: transitive
     description:
