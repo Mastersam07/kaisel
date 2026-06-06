@@ -212,6 +212,83 @@ void main() {
       expect(r.depth, 1);
       expect(r.stack, [const _A()]);
     });
+
+    test('entries exposes identity-stable stack entries', () async {
+      final r = KaiselRouter<_R>(initial: const _A());
+      await r.push(const _B('x'));
+
+      final entries = r.entries;
+      expect(entries.length, 2);
+      expect(entries.map((e) => e.route), [const _A(), const _B('x')]);
+      // Ids are distinct per entry.
+      expect(entries.first.id == entries.last.id, isFalse);
+    });
+
+    test(
+      'onPageRemoved removes the entry whose id matches and notifies',
+      () async {
+        final r = KaiselRouter<_R>(initial: const _A());
+        await r.push(const _B('x'));
+        expect(r.depth, 2);
+
+        var notifications = 0;
+        r.addListener(() => notifications++);
+
+        final topId = r.entries.last.id;
+        r.onPageRemoved(topId);
+
+        expect(r.stack, [const _A()]);
+        expect(r.depth, 1);
+        expect(notifications, 1);
+      },
+    );
+
+    test('onPageRemoved is a no-op for an unknown id', () async {
+      final r = KaiselRouter<_R>(initial: const _A());
+      await r.push(const _B('x'));
+
+      var notifications = 0;
+      r.addListener(() => notifications++);
+
+      r.onPageRemoved(999999);
+
+      expect(r.stack, [const _A(), const _B('x')]);
+      expect(r.depth, 2);
+      expect(notifications, 0);
+    });
+
+    test('onPageRemoved refuses to remove when only one entry remains', () {
+      final r = KaiselRouter<_R>(initial: const _A());
+      expect(r.depth, 1);
+
+      var notifications = 0;
+      r.addListener(() => notifications++);
+
+      final onlyId = r.entries.single.id;
+      r.onPageRemoved(onlyId);
+
+      // Won't pop to empty.
+      expect(r.stack, [const _A()]);
+      expect(r.depth, 1);
+      expect(notifications, 0);
+    });
+
+    test(
+      'applyFromInformation applies the given stack to the router',
+      () async {
+        final r = KaiselRouter<_R>(initial: const _A());
+
+        await r.applyFromInformation([
+          const _A(),
+          const _B('deep'),
+          const _C(),
+        ]);
+
+        expect(r.stack, [const _A(), const _B('deep'), const _C()]);
+        expect(r.depth, 3);
+        expect(r.current, const _C());
+      },
+    );
   });
 
   group('KaiselRouter equality default', () {

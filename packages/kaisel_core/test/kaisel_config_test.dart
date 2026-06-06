@@ -87,6 +87,17 @@ void main() {
       expect(a, isNot(equals(b)));
     });
 
+    test('stackOnly builds a config with that stack and no nested state', () {
+      final c = KaiselConfig<_Top>.stackOnly(const [_Shell(), _Settings()]);
+      expect(c.mainStack, const [_Shell(), _Settings()]);
+      expect(c.nestedState, isNull);
+    });
+
+    test('stackOnly mainStack is unmodifiable', () {
+      final c = KaiselConfig<_Top>.stackOnly([const _Splash()]);
+      expect(() => c.mainStack.add(const _Shell()), throwsUnsupportedError);
+    });
+
     test('mainStack is unmodifiable', () {
       final c = KaiselConfig<_Top>(mainStack: [const _Splash()]);
       expect(() => c.mainStack.add(const _Shell()), throwsUnsupportedError);
@@ -114,6 +125,30 @@ void main() {
       expect(a.hashCode, b.hashCode);
     });
 
+    test('differs when activeBranch differs', () {
+      final a = KaiselShellConfig(
+        activeBranch: 0,
+        activeBranchStack: const [_HomeRoot()],
+      );
+      final b = KaiselShellConfig(
+        activeBranch: 1,
+        activeBranchStack: const [_HomeRoot()],
+      );
+      expect(a, isNot(equals(b)));
+    });
+
+    test('differs when activeBranchStack differs', () {
+      final a = KaiselShellConfig(
+        activeBranch: 0,
+        activeBranchStack: const [_HomeRoot()],
+      );
+      final b = KaiselShellConfig(
+        activeBranch: 0,
+        activeBranchStack: const [_HomeRoot(), _Product('x')],
+      );
+      expect(a, isNot(equals(b)));
+    });
+
     test('rejects an empty activeBranchStack', () {
       expect(
         () => KaiselShellConfig(activeBranch: 0, activeBranchStack: const []),
@@ -127,6 +162,37 @@ void main() {
           activeBranch: -1,
           activeBranchStack: const [_HomeRoot()],
         ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+  });
+
+  group('KaiselModuleConfig', () {
+    test('equality is value-based', () {
+      final a = KaiselModuleConfig(stack: const [_HomeRoot(), _Product('x')]);
+      final b = KaiselModuleConfig(stack: const [_HomeRoot(), _Product('x')]);
+      expect(a, equals(b));
+      expect(a.hashCode, b.hashCode);
+    });
+
+    test('differs when stack differs', () {
+      final a = KaiselModuleConfig(stack: const [_HomeRoot()]);
+      final b = KaiselModuleConfig(stack: const [_HomeRoot(), _Product('x')]);
+      expect(a, isNot(equals(b)));
+    });
+
+    test('a module config is never equal to a shell config', () {
+      final module = KaiselModuleConfig(stack: const [_HomeRoot()]);
+      final shell = KaiselShellConfig(
+        activeBranch: 0,
+        activeBranchStack: const [_HomeRoot()],
+      );
+      expect(module, isNot(equals(shell)));
+    });
+
+    test('rejects an empty stack', () {
+      expect(
+        () => KaiselModuleConfig(stack: const []),
         throwsA(isA<AssertionError>()),
       );
     });
