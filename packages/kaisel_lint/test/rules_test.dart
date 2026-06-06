@@ -427,6 +427,23 @@ final guard = (List<KaiselRoute> current, List<KaiselRoute> proposed) {
     );
   }
 
+  Future<void> test_fires_whenIfElseBothReturnProposed() async {
+    await assertDiagnostics(
+      r'''
+import 'package:kaisel/kaisel.dart';
+
+final guard = (List<KaiselRoute> current, List<KaiselRoute> proposed) {
+  if (current.isEmpty) {
+    return proposed;
+  } else {
+    return proposed;
+  }
+};
+''',
+      [lint(52, 141)],
+    );
+  }
+
   Future<void> test_noFire_whenABranchRedirects() async {
     await assertNoDiagnostics(r'''
 import 'package:kaisel/kaisel.dart';

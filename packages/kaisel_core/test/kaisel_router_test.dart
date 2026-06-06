@@ -1,8 +1,6 @@
 import 'package:kaisel_core/kaisel_core.dart';
 import 'package:test/test.dart';
 
-// Test fixtures: a tiny sealed route type using v0.2's default
-// props-based equality. No manual == / hashCode needed.
 sealed class _R extends KaiselRoute {
   const _R();
 }
@@ -57,7 +55,6 @@ void main() {
       expect(r.stack, [const _A()]);
       expect(notifications, 1);
 
-      // Root: refuses to pop and does not notify.
       expect(await r.pop(), isFalse);
       expect(r.stack, [const _A()]);
       expect(notifications, 1);
@@ -107,12 +104,11 @@ void main() {
     });
 
     test('pushOrReplaceTop with empty stack pushes', () async {
-      // A pre-disposed-ish corner case: route stack should never be
-      // empty in normal operation, but verify the branch.
+      // The route stack should never be empty in normal operation, and it
+      // can't be constructed empty via the public API; this verifies that the
+      // non-empty default path with an always-true predicate triggers
+      // replaceTop.
       final r = KaiselRouter<_R>(initial: const _A());
-      // We can't construct an empty stack via public API, so this
-      // mainly verifies that the non-empty default path with a
-      // predicate that returns true still triggers replaceTop.
       await r.pushOrReplaceTop(const _A());
       expect(r.stack, [const _A()]);
     });
@@ -176,7 +172,6 @@ void main() {
         r.push(const _B('1'));
         r.push(const _B('2'));
         r.push(const _C());
-        // Await the final operation to flush the queue.
         await r.push(const _B('end'));
         expect(r.stack, [
           const _A(),
@@ -212,6 +207,81 @@ void main() {
       expect(r.depth, 1);
       expect(r.stack, [const _A()]);
     });
+
+    test('entries exposes identity-stable stack entries', () async {
+      final r = KaiselRouter<_R>(initial: const _A());
+      await r.push(const _B('x'));
+
+      final entries = r.entries;
+      expect(entries.length, 2);
+      expect(entries.map((e) => e.route), [const _A(), const _B('x')]);
+      expect(entries.first.id == entries.last.id, isFalse);
+    });
+
+    test(
+      'onPageRemoved removes the entry whose id matches and notifies',
+      () async {
+        final r = KaiselRouter<_R>(initial: const _A());
+        await r.push(const _B('x'));
+        expect(r.depth, 2);
+
+        var notifications = 0;
+        r.addListener(() => notifications++);
+
+        final topId = r.entries.last.id;
+        r.onPageRemoved(topId);
+
+        expect(r.stack, [const _A()]);
+        expect(r.depth, 1);
+        expect(notifications, 1);
+      },
+    );
+
+    test('onPageRemoved is a no-op for an unknown id', () async {
+      final r = KaiselRouter<_R>(initial: const _A());
+      await r.push(const _B('x'));
+
+      var notifications = 0;
+      r.addListener(() => notifications++);
+
+      r.onPageRemoved(999999);
+
+      expect(r.stack, [const _A(), const _B('x')]);
+      expect(r.depth, 2);
+      expect(notifications, 0);
+    });
+
+    test('onPageRemoved refuses to remove when only one entry remains', () {
+      final r = KaiselRouter<_R>(initial: const _A());
+      expect(r.depth, 1);
+
+      var notifications = 0;
+      r.addListener(() => notifications++);
+
+      final onlyId = r.entries.single.id;
+      r.onPageRemoved(onlyId);
+
+      expect(r.stack, [const _A()]);
+      expect(r.depth, 1);
+      expect(notifications, 0);
+    });
+
+    test(
+      'applyFromInformation applies the given stack to the router',
+      () async {
+        final r = KaiselRouter<_R>(initial: const _A());
+
+        await r.applyFromInformation([
+          const _A(),
+          const _B('deep'),
+          const _C(),
+        ]);
+
+        expect(r.stack, [const _A(), const _B('deep'), const _C()]);
+        expect(r.depth, 3);
+        expect(r.current, const _C());
+      },
+    );
   });
 
   group('KaiselRouter equality default', () {

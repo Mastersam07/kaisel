@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaisel/kaisel.dart';
 
-// Routes for testing wrapper context.
 sealed class _R extends KaiselRoute {
   const _R();
 }
@@ -33,6 +32,28 @@ class _Parser extends RouteInformationParser<KaiselConfig<_R>> {
   }
 }
 
+// A second branch route type, so the shell has two heterogeneous
+// branches like a real bottom-nav app.
+sealed class _Tab extends KaiselRoute {
+  const _Tab();
+}
+
+final class _TabRoot extends _Tab {
+  const _TabRoot();
+}
+
+/// A distinctive marker the branch's pageWrapper injects around the
+/// page's child. Its presence in the tree proves the inner navigator
+/// actually invoked the branch's wrapper rather than its default.
+class _WrapperMarker extends StatelessWidget {
+  const _WrapperMarker({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => child;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -44,7 +65,6 @@ void main() {
       await router.push(const _B());
       await router.push(const _C('1'));
 
-      // Record every wrapper call so the test can inspect them.
       final captured = <KaiselPageWrapperContext<_R>>[];
 
       final delegate = KaiselRouterDelegate<_R>(
@@ -74,7 +94,6 @@ void main() {
       // Take the most recent build's invocations: the last 3.
       final lastBuild = captured.sublist(captured.length - 3);
 
-      // Bottom: A
       expect(lastBuild[0].route, const _A());
       expect(lastBuild[0].position, 0);
       expect(lastBuild[0].stackLength, 3);
@@ -82,7 +101,6 @@ void main() {
       expect(lastBuild[0].isBottom, isTrue);
       expect(lastBuild[0].isTop, isFalse);
 
-      // Middle: B
       expect(lastBuild[1].route, const _B());
       expect(lastBuild[1].position, 1);
       expect(lastBuild[1].stackLength, 3);
@@ -90,7 +108,6 @@ void main() {
       expect(lastBuild[1].isBottom, isFalse);
       expect(lastBuild[1].isTop, isFalse);
 
-      // Top: C('1')
       expect(lastBuild[2].route, const _C('1'));
       expect(lastBuild[2].position, 2);
       expect(lastBuild[2].stackLength, 3);
@@ -146,7 +163,6 @@ void main() {
       expect(captured, hasLength(greaterThanOrEqualTo(2)));
       final lastBuild = captured.sublist(captured.length - 2);
 
-      // Bottom rendered page: A.
       expect(lastBuild[0].route, const _A());
       expect(lastBuild[0].position, 0);
       expect(lastBuild[0].stackLength, 2);
@@ -161,6 +177,116 @@ void main() {
       expect(lastBuild[1].stackLength, 2);
       expect(lastBuild[1].previous, const _A());
       expect(lastBuild[1].isTop, isTrue);
+    });
+  });
+
+  group('KaiselBranch pageWrapper (inner navigator)', () {
+    testWidgets('a branch pageWrapper wraps the initial page', (tester) async {
+      // A two-branch shell where the home branch supplies a custom
+      // pageWrapper. The inner navigator must route the branch's
+      // initial page through that wrapper (the _wrapSimple `if
+      // (wrapper != null)` path), so the marker is in the tree.
+      final home = KaiselRouter<_R>(initial: const _A());
+      final tab = KaiselRouter<_Tab>(initial: const _TabRoot());
+      final shell = BranchedShellRouter(branches: [home, tab]);
+      addTearDown(shell.dispose);
+      addTearDown(home.dispose);
+      addTearDown(tab.dispose);
+
+      var wrapperCalls = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: KaiselBranchedShell(
+            shell: shell,
+            branches: [
+              KaiselBranch<_R>(
+                router: home,
+                pageBuilder: (context, route) =>
+                    Scaffold(body: Text('home:$route')),
+                pageWrapper: (ctx) {
+                  wrapperCalls++;
+                  return MaterialPage<Object?>(
+                    key: ctx.key,
+                    child: _WrapperMarker(
+                      key: const ValueKey('branch-wrapper'),
+                      child: ctx.child,
+                    ),
+                  );
+                },
+              ),
+              KaiselBranch<_Tab>(
+                router: tab,
+                pageBuilder: (context, route) =>
+                    const Scaffold(body: Text('tab')),
+              ),
+            ],
+            chromeBuilder: (context, active, branchContent, switchBranch) =>
+                branchContent,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(wrapperCalls, greaterThan(0));
+      expect(find.byKey(const ValueKey('branch-wrapper')), findsOneWidget);
+      expect(find.text('home:${const _A()}'), findsOneWidget);
+    });
+
+    testWidgets('a branch pageWrapper wraps a pushed page too', (tester) async {
+      final home = KaiselRouter<_R>(initial: const _A());
+      final tab = KaiselRouter<_Tab>(initial: const _TabRoot());
+      final shell = BranchedShellRouter(branches: [home, tab]);
+      addTearDown(shell.dispose);
+      addTearDown(home.dispose);
+      addTearDown(tab.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: KaiselBranchedShell(
+            shell: shell,
+            branches: [
+              KaiselBranch<_R>(
+                router: home,
+                pageBuilder: (context, route) =>
+                    Scaffold(body: Text('home:$route')),
+                pageWrapper: (ctx) => MaterialPage<Object?>(
+                  key: ctx.key,
+                  child: _WrapperMarker(
+                    // A per-position key so we can count how many
+                    // pages went through the wrapper.
+                    key: ValueKey('branch-wrapper-${ctx.position}'),
+                    child: ctx.child,
+                  ),
+                ),
+              ),
+              KaiselBranch<_Tab>(
+                router: tab,
+                pageBuilder: (context, route) =>
+                    const Scaffold(body: Text('tab')),
+              ),
+            ],
+            chromeBuilder: (context, active, branchContent, switchBranch) =>
+                branchContent,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('branch-wrapper-0')), findsOneWidget);
+
+      await home.push(const _B());
+      await tester.pumpAndSettle();
+
+      // Both the bottom (_A) and the pushed top (_B) pages went
+      // through the branch's wrapper. The bottom page is offstage
+      // once _B covers it, so look past offstage for it.
+      expect(
+        find.byKey(const ValueKey('branch-wrapper-0'), skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('branch-wrapper-1')), findsOneWidget);
+      expect(find.text('home:${const _B()}'), findsOneWidget);
     });
   });
 }

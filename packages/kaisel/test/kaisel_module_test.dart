@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaisel/kaisel.dart';
-
-// Fixture: a small module under test.
+import 'package:kaisel/src/kaisel_router_delegate.dart'
+    show KaiselNestedHostScope;
+import 'package:kaisel_core/framework.dart'
+    show KaiselNestedHandle, KaiselNestedHost;
 
 sealed class _CheckoutRoute extends KaiselRoute {
   const _CheckoutRoute();
@@ -141,10 +143,8 @@ void main() {
 
     test('buildPage pattern-matches over the sealed type', () {
       const module = _TestCheckoutModule();
-      // We can't easily check returned widget identity without a
-      // BuildContext, but we can check the resolver doesn't throw.
-      // Use a fake context via a Builder to get a real one would be
-      // overkill; just hit the switch with each case.
+      // A real BuildContext isn't needed: the resolver doesn't dereference
+      // it, so a fake context lets us hit each switch case directly.
       final widgets = <Widget>[
         module.buildPage(_FakeContext(), const _Cart()),
         module.buildPage(_FakeContext(), const _Shipping()),
@@ -166,7 +166,6 @@ void main() {
           ),
         );
 
-        // The Cart screen is the initial page.
         expect(find.byKey(const ValueKey('cart')), findsOneWidget);
         expect(find.byKey(const ValueKey('ship')), findsNothing);
       },
@@ -183,7 +182,6 @@ void main() {
           ),
         );
 
-        // The shipping screen (top of initialStack) is shown.
         expect(find.byKey(const ValueKey('ship')), findsOneWidget);
       },
     );
@@ -216,12 +214,150 @@ void main() {
           ),
         ),
       );
-      // Replace with a different widget — the mount should dispose
-      // cleanly. Any disposal error would be caught by tester.
       await tester.pumpWidget(const MaterialApp(home: SizedBox()));
       expect(find.byKey(const ValueKey('cart')), findsNothing);
     });
+
+    testWidgets(
+      'the mount rebuilds and renders the new top when its router pushes',
+      (tester) async {
+        late KaiselRouter<_CheckoutRoute> router;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: KaiselModuleMount<_CheckoutRoute>(
+              module: _CaptureRouterModule(onBuild: (r) => router = r),
+            ),
+          ),
+        );
+
+        await router.push(const _Shipping());
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const ValueKey('ship')), findsOneWidget);
+      },
+    );
+
+    testWidgets('back inside a module pops the module stack before the host', (
+      tester,
+    ) async {
+      late KaiselRouter<_CheckoutRoute> router;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: KaiselModuleMount<_CheckoutRoute>(
+            module: _CaptureRouterModule(onBuild: (r) => router = r),
+          ),
+        ),
+      );
+
+      await router.push(const _Shipping());
+      await tester.pumpAndSettle();
+      expect(router.stack, const [_Cart(), _Shipping()]);
+
+      final popScope = tester.widget<PopScope<Object?>>(
+        find.byWidgetPredicate((w) => w is PopScope<Object?>),
+      );
+      final cb = popScope.onPopInvokedWithResult;
+      expect(cb, isNotNull);
+      cb?.call(false, null);
+      await tester.pumpAndSettle();
+
+      expect(router.stack, const [_Cart()]);
+      expect(find.byKey(const ValueKey('cart')), findsOneWidget);
+      expect(find.byKey(const ValueKey('ship')), findsNothing);
+    });
+
+    testWidgets(
+      'swapping in a different module instance rewires to the new router',
+      (tester) async {
+        late KaiselRouter<_CheckoutRoute> firstRouter;
+        late KaiselRouter<_CheckoutRoute> secondRouter;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: KaiselModuleMount<_CheckoutRoute>(
+              module: _CaptureRouterModule(onBuild: (r) => firstRouter = r),
+            ),
+          ),
+        );
+
+        // A distinct (non-identical) module instance fires didUpdateWidget,
+        // which disposes the old router and builds a fresh one.
+        await tester.pumpWidget(
+          MaterialApp(
+            home: KaiselModuleMount<_CheckoutRoute>(
+              module: _CaptureRouterModule(onBuild: (r) => secondRouter = r),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(identical(firstRouter, secondRouter), isFalse);
+
+        await secondRouter.push(const _Confirm());
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('confirm')), findsOneWidget);
+
+        // The rewire disposed the old router, so it can no longer be used.
+        expect(
+          () => firstRouter.push(const _Shipping()),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
+
+    testWidgets(
+      'restoreFromConfig replays a captured stack; a foreign config is a no-op',
+      (tester) async {
+        late KaiselRouter<_CheckoutRoute> router;
+        final host = _CapturingHost();
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: KaiselNestedHostScope(
+              host: host,
+              child: KaiselModuleMount<_CheckoutRoute>(
+                module: _CaptureRouterModule(onBuild: (r) => router = r),
+              ),
+            ),
+          ),
+        );
+
+        final handle = host.registered;
+        expect(handle, isNotNull);
+        expect(router.stack, const [_Cart()]);
+
+        await handle?.restoreFromConfig(
+          KaiselModuleConfig(stack: const [_Cart(), _Shipping(), _Confirm()]),
+        );
+        await tester.pumpAndSettle();
+        expect(router.stack, const [_Cart(), _Shipping(), _Confirm()]);
+        expect(find.byKey(const ValueKey('confirm')), findsOneWidget);
+
+        await handle?.restoreFromConfig(
+          KaiselShellConfig(
+            activeBranch: 0,
+            activeBranchStack: const [_OtherRoot()],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(router.stack, const [_Cart(), _Shipping(), _Confirm()]);
+      },
+    );
   });
+}
+
+// A minimal nested host that records the handle the module mount
+// registers, so a test can drive the real handle's restoreFromConfig.
+class _CapturingHost implements KaiselNestedHost {
+  KaiselNestedHandle? registered;
+
+  @override
+  void registerNested(KaiselNestedHandle handle) => registered = handle;
+
+  @override
+  void unregisterNested(KaiselNestedHandle handle) {
+    if (identical(registered, handle)) registered = null;
+  }
 }
 
 // A tiny fake-context for resolver smoke tests. We only need it to
@@ -245,6 +381,12 @@ class _CaptureRouterModule extends RouteModule<_CheckoutRoute> {
   @override
   Widget buildPage(BuildContext context, _CheckoutRoute route) {
     onBuild(context.router<_CheckoutRoute>());
-    return const SizedBox();
+    // Render the same keyed boxes as _TestCheckoutModule so tests can
+    // assert which route is on top while still capturing the router.
+    return switch (route) {
+      _Cart() => const SizedBox(key: ValueKey('cart')),
+      _Shipping() => const SizedBox(key: ValueKey('ship')),
+      _Confirm() => const SizedBox(key: ValueKey('confirm')),
+    };
   }
 }

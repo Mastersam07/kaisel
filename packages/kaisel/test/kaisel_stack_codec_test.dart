@@ -155,5 +155,30 @@ void main() {
       );
       expect(info?.uri.path, '/settings');
     });
+
+    test('exposes the config codec it was constructed with', () {
+      const codec = StackToConfigCodec<_R>(_StackCodec());
+      final parser = KaiselRouteInformationParser<_R>(
+        codec: codec,
+        fallback: const [_Home()],
+      );
+      expect(identical(parser.codec, codec), isTrue);
+    });
+
+    test('.fromStackCodec wraps the stack codec in a StackToConfigCodec', () {
+      final parser = KaiselRouteInformationParser<_R>.fromStackCodec(
+        codec: const _StackCodec(),
+        fallback: const [_Home()],
+      );
+      expect(parser.codec, isA<StackToConfigCodec<_R>>());
+    });
+
+    test('exposes the fallback stack it was constructed with', () {
+      final parser = KaiselRouteInformationParser<_R>.fromStackCodec(
+        codec: const _StackCodec(),
+        fallback: const [_Home(), _Settings()],
+      );
+      expect(parser.fallback, const [_Home(), _Settings()]);
+    });
   });
 }
