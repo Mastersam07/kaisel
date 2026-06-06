@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:kaisel_core/kaisel_core.dart';
 
+import 'kaisel_adaptive.dart';
 import 'kaisel_page_wrapper.dart';
 import 'kaisel_route_information_parser.dart';
 import 'kaisel_router_delegate.dart';
@@ -61,19 +62,58 @@ class KaiselRouterConfig<R extends KaiselRoute>
     List<R>? fallback,
   }) {
     final router = KaiselRouter<R>(initial: initial, guards: guards);
-    final delegate = KaiselRouterDelegate<R>(
+    return _assemble<R>(
       router: router,
-      builder: builder,
-      pageWrapper: pageWrapper,
-      modalBuilder: modalBuilder,
+      delegate: KaiselRouterDelegate<R>(
+        router: router,
+        builder: builder,
+        pageWrapper: pageWrapper,
+        modalBuilder: modalBuilder,
+      ),
+      codec: codec,
+      fallback: fallback ?? [initial],
     );
+  }
 
+  /// Like the default constructor, but with an adaptive page [builder] (the
+  /// builder receives a [KaiselStackContext] per entry so it can return a
+  /// [KaiselAbsorbingPage] to collapse master-detail at wide breakpoints).
+  factory KaiselRouterConfig.adaptive({
+    required R initial,
+    required KaiselAdaptivePageBuilder<R> builder,
+    List<KaiselGuard<R>> guards = const [],
+    KaiselPageWrapper<R>? pageWrapper,
+    KaiselModalBuilder? modalBuilder,
+    KaiselConfigCodec<R>? codec,
+    List<R>? fallback,
+  }) {
+    final router = KaiselRouter<R>(initial: initial, guards: guards);
+    return _assemble<R>(
+      router: router,
+      delegate: KaiselRouterDelegate<R>.adaptive(
+        router: router,
+        builder: builder,
+        pageWrapper: pageWrapper,
+        modalBuilder: modalBuilder,
+      ),
+      codec: codec,
+      fallback: fallback ?? [initial],
+    );
+  }
+
+  // Wires the optional URL parser + platform provider and builds the config.
+  static KaiselRouterConfig<R> _assemble<R extends KaiselRoute>({
+    required KaiselRouter<R> router,
+    required KaiselRouterDelegate<R> delegate,
+    required KaiselConfigCodec<R>? codec,
+    required List<R> fallback,
+  }) {
     RouteInformationParser<KaiselConfig<R>>? parser;
     RouteInformationProvider? provider;
     if (codec case final codec?) {
       parser = KaiselRouteInformationParser<R>(
         codec: codec,
-        fallback: fallback ?? [initial],
+        fallback: fallback,
       );
       provider = PlatformRouteInformationProvider(
         initialRouteInformation: RouteInformation(
@@ -83,8 +123,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
         ),
       );
     }
-
-    return KaiselRouterConfig._(
+    return KaiselRouterConfig<R>._(
       router: router,
       delegate: delegate,
       parser: parser,

@@ -303,85 +303,62 @@ class BookReviewsScreen extends StatelessWidget {
   }
 }
 
-class AdaptiveBookApp extends StatefulWidget {
-  const AdaptiveBookApp({super.key});
+final _config = KaiselRouterConfig<BookRoute>.adaptive(
+  initial: const BookList(),
+  builder: (context, route, stack) {
+    final wide = MediaQuery.sizeOf(context).width >= 700;
+    return _buildPage(route, stack, wide: wide);
+  },
+);
 
-  @override
-  State<AdaptiveBookApp> createState() => _AdaptiveBookAppState();
+KaiselPageResult _buildPage(
+  BookRoute route,
+  KaiselStackContext<BookRoute> stack, {
+  required bool wide,
+}) {
+  return switch ((route, stack.previous, wide)) {
+    // Wide + Detail with List below: absorb into master-detail.
+    (BookDetail(:final id), BookList(), true) => KaiselAbsorbingPage(
+      widget: KaiselMasterDetailScaffold(
+        master: const BookListScreen(),
+        detail: BookDetailScreen(id: id),
+      ),
+      absorbing: 1,
+    ),
+
+    // Wide + List alone: show the master-detail frame with a
+    // "Select a book" placeholder on the right. Same page key as
+    // the absorbing case, so transitioning between this and the
+    // detail-selected state doesn't animate.
+    (BookList(), _, true) => const KaiselStandalonePage(
+      KaiselMasterDetailScaffold(
+        master: BookListScreen(),
+        detail: EmptyDetailPane(),
+      ),
+    ),
+
+    // Narrow + Detail (or detail with something other than List
+    // below it): standalone push. Back arrow shows.
+    (BookDetail(:final id), _, _) => KaiselStandalonePage(
+      BookDetailScreen(id: id),
+    ),
+
+    // Narrow + List: plain list.
+    (BookList(), _, _) => const KaiselStandalonePage(BookListScreen()),
+
+    // Reviews: always standalone on top, regardless of width. This
+    // demonstrates that absorbing only applies to specific
+    // (route, prev) pairs; routes outside the master-detail pair
+    // still stack normally.
+    (BookReviewsRoute(:final bookId), _, _) => KaiselStandalonePage(
+      BookReviewsScreen(bookId: bookId),
+    ),
+  };
 }
 
-class _AdaptiveBookAppState extends State<AdaptiveBookApp> {
-  late final KaiselRouter<BookRoute> _router;
-  late final KaiselRouterDelegate<BookRoute> _delegate;
-
-  @override
-  void initState() {
-    super.initState();
-    _router = KaiselRouter<BookRoute>(initial: const BookList());
-    _delegate = KaiselRouterDelegate<BookRoute>.adaptive(
-      router: _router,
-      builder: (context, route, stack) {
-        final wide = MediaQuery.sizeOf(context).width >= 700;
-        return _buildPage(route, stack, wide: wide);
-      },
-    );
-  }
-
-  KaiselPageResult _buildPage(
-    BookRoute route,
-    KaiselStackContext<BookRoute> stack, {
-    required bool wide,
-  }) {
-    return switch ((route, stack.previous, wide)) {
-      // Wide + Detail with List below: absorb into master-detail.
-      (BookDetail(:final id), BookList(), true) => KaiselAbsorbingPage(
-        widget: KaiselMasterDetailScaffold(
-          master: const BookListScreen(),
-          detail: BookDetailScreen(id: id),
-        ),
-        absorbing: 1,
-      ),
-
-      // Wide + List alone: show the master-detail frame with a
-      // "Select a book" placeholder on the right. Same page key as
-      // the absorbing case, so transitioning between this and the
-      // detail-selected state doesn't animate.
-      (BookList(), _, true) => const KaiselStandalonePage(
-        KaiselMasterDetailScaffold(
-          master: BookListScreen(),
-          detail: EmptyDetailPane(),
-        ),
-      ),
-
-      // Narrow + Detail (or detail with something other than List
-      // below it): standalone push. Back arrow shows.
-      (BookDetail(:final id), _, _) => KaiselStandalonePage(
-        BookDetailScreen(id: id),
-      ),
-
-      // Narrow + List: plain list.
-      (BookList(), _, _) => const KaiselStandalonePage(BookListScreen()),
-
-      // Reviews: always standalone on top, regardless of width. This
-      // demonstrates that absorbing only applies to specific
-      // (route, prev) pairs; routes outside the master-detail pair
-      // still stack normally.
-      (BookReviewsRoute(:final bookId), _, _) => KaiselStandalonePage(
-        BookReviewsScreen(bookId: bookId),
-      ),
-    };
-  }
-
-  @override
-  void dispose() {
-    _delegate.dispose();
-    _router.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp.router(
+void main() {
+  runApp(
+    MaterialApp.router(
       title: 'kaisel adaptive demo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -393,27 +370,7 @@ class _AdaptiveBookAppState extends State<AdaptiveBookApp> {
         cardColor: const Color(0xFF14141C),
         useMaterial3: true,
       ),
-      routerDelegate: _delegate,
-      routeInformationParser: _NoopParser(_router),
-    );
-  }
-}
-
-/// Parser that hands the router's current stack back so the
-/// platform's initial route information doesn't clobber the demo's
-/// in-memory state. The stack-diff in `applyFromInformation` becomes
-/// a no-op when fed the current stack.
-class _NoopParser extends RouteInformationParser<KaiselConfig<BookRoute>> {
-  _NoopParser(this.router);
-
-  final KaiselRouter<BookRoute> router;
-
-  @override
-  Future<KaiselConfig<BookRoute>> parseRouteInformation(
-    RouteInformation routeInformation,
-  ) async => KaiselConfig<BookRoute>(mainStack: router.stack);
-}
-
-void main() {
-  runApp(const AdaptiveBookApp());
+      routerConfig: _config,
+    ),
+  );
 }
