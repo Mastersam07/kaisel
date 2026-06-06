@@ -60,12 +60,29 @@ a qualifying construct, even when the related lint is disabled:
 
 ## Installation
 
-Add `kaisel_lint` under the `plugins` section of your project's
-`analysis_options.yaml`:
+Add `kaisel_lint` to your `dev_dependencies`:
 
 ```yaml
-plugins:
+dev_dependencies:
   kaisel_lint: ^0.3.0
+```
+
+Then either include the recommended config (activates the plugin with the
+correctness baseline on):
+
+```yaml
+# analysis_options.yaml
+include: package:kaisel_lint/recommended.yaml
+```
+
+…or activate it yourself under the `plugins` section (the entry is a map —
+`version:` is the pub source, `path:` / `git:` also work):
+
+```yaml
+# analysis_options.yaml
+plugins:
+  kaisel_lint:
+    version: ^0.3.0
 ```
 
 After modifying `analysis_options.yaml`, restart the Dart analysis

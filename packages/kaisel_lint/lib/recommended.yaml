@@ -1,0 +1,28 @@
+# Recommended kaisel_lint setup.
+#
+# 1. Add kaisel_lint to your app's dev_dependencies:
+#
+#      dev_dependencies:
+#        kaisel_lint: ^0.3.0
+#
+# 2. Include this file from your analysis_options.yaml:
+#
+#      include: package:kaisel_lint/recommended.yaml
+#
+# That activates the plugin. Its correctness baseline — `require_route_props`
+# and `avoid_modal_route_on_main_stack` — is on by default; the stylistic and
+# adaptive rules stay off. To turn the others on (or tune severities), write the
+# activation yourself instead of including this file, adding a `diagnostics:`
+# map alongside `version:`:
+#
+#      plugins:
+#        kaisel_lint:
+#          version: ^0.3.0
+#          diagnostics:
+#            prefer_const_route_constructors: true
+#            prefer_pattern_match_over_is_check: true
+#            unused_guard_redirect: true
+#            prefer_push_or_replace_top_in_adaptive: true  # fires on every push
+plugins:
+  kaisel_lint:
+    version: ^0.3.0

@@ -591,6 +591,38 @@ Coming from another router? See the migration guides in [`doc/migration/`](doc/m
 - [From go_router](doc/migration/from-go-router.md)
 - [From auto_route](doc/migration/from-auto-route.md)
 
+## Lints
+
+[`kaisel_lint`](https://github.com/Mastersam07/kaisel/tree/main/packages/kaisel_lint) is an analyzer plugin with kaisel-aware rules, quick fixes, and assists — e.g. a `KaiselRoute` with fields but no `props` override, or a `KaiselModalRoute` pushed onto the main stack instead of opened with `run<T>`.
+
+Lints are always opt-in in Dart (a dependency can't enable them for you), so add the plugin and turn it on:
+
+```yaml
+# pubspec.yaml
+dev_dependencies:
+  kaisel_lint: ^0.3.0
+```
+
+```yaml
+# analysis_options.yaml
+include: package:kaisel_lint/recommended.yaml
+```
+
+That activates the plugin with its correctness baseline on — `require_route_props` and `avoid_modal_route_on_main_stack`. To opt into the stylistic/adaptive rules or tune severities, write the activation yourself instead of including the file:
+
+```yaml
+# analysis_options.yaml
+plugins:
+  kaisel_lint:
+    version: ^0.3.0
+    diagnostics:
+      require_route_props: true
+      avoid_modal_route_on_main_stack: true
+      prefer_const_route_constructors: true   # opt-in
+```
+
+Restart the analysis server after editing. See the [`kaisel_lint` README](https://github.com/Mastersam07/kaisel/tree/main/packages/kaisel_lint) for the full rule list and the fixes/assists each ships.
+
 ## Editor / AI assistance
 
 An [agent skill](https://github.com/Mastersam07/kaisel/tree/main/skills/kaisel) teaches AI coding agents (Claude Code, Cursor, opencode, …) how kaisel works, so they generate idiomatic kaisel code instead of guessing. Install it with the [`skills` CLI](https://github.com/vercel-labs/skills):

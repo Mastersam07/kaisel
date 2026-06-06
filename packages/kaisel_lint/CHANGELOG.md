@@ -2,6 +2,14 @@
 
 ## 0.3.0
 
+### Tooling
+
+- Ship `package:kaisel_lint/recommended.yaml`. Apps can opt in with one
+  line — `include: package:kaisel_lint/recommended.yaml` in
+  `analysis_options.yaml` (plus the `dev_dependencies` entry) — which
+  activates the plugin with the correctness baseline (`require_route_props`,
+  `avoid_modal_route_on_main_stack`) on and the stylistic/adaptive rules off.
+
 ### Lint rules
 
 - `unused_guard_redirect` (info, off by default) — flags a guard-shaped
