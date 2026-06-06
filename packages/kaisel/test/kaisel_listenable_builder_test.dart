@@ -96,4 +96,90 @@ void main() {
       expect(notifications, 1, reason: 'a removed listener must not fire');
     },
   );
+
+  testWidgets(
+    'KaiselListenableBuilder rewires to the new router when the router prop '
+    'changes',
+    (tester) async {
+      final routerA = KaiselRouter<_R>(initial: const _A());
+      final routerB = KaiselRouter<_R>(initial: const _A());
+      addTearDown(routerA.dispose);
+      addTearDown(routerB.dispose);
+
+      var builds = 0;
+
+      Widget buildWith(KaiselRouter<_R> router) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: KaiselListenableBuilder<_R>(
+          // Same widget position across both pumps so the State is reused
+          // and didUpdateWidget runs instead of a fresh initState.
+          key: const ValueKey('builder'),
+          router: router,
+          builder: (context, _) {
+            builds++;
+            return Text('depth ${router.depth}');
+          },
+        ),
+      );
+
+      // Bound to A: a 2-deep A renders "depth 2".
+      await routerA.push(const _B());
+      await tester.pumpWidget(buildWith(routerA));
+      expect(find.text('depth 2'), findsOneWidget);
+
+      // Rebuild the same position bound to B (still 1-deep).
+      await tester.pumpWidget(buildWith(routerB));
+      expect(
+        find.text('depth 1'),
+        findsOneWidget,
+        reason: 'output must reflect the new router B',
+      );
+
+      // A change to the NEW router B now rebuilds the widget.
+      final buildsBeforeB = builds;
+      await routerB.push(const _B());
+      await tester.pump();
+      expect(
+        builds,
+        greaterThan(buildsBeforeB),
+        reason: 'a change to the new router must trigger a rebuild',
+      );
+      expect(find.text('depth 2'), findsOneWidget);
+
+      // A change to the OLD router A must NOT rebuild the widget: the old
+      // listener was removed in didUpdateWidget.
+      final buildsBeforeA = builds;
+      await routerA.push(const _A());
+      await tester.pump();
+      expect(
+        builds,
+        buildsBeforeA,
+        reason: 'a change to the old router must not trigger a rebuild',
+      );
+      expect(
+        find.text('depth 2'),
+        findsOneWidget,
+        reason: 'output must still reflect router B, not A',
+      );
+    },
+  );
+
+  test('asListenable equality reflects the underlying router', () async {
+    final routerA = KaiselRouter<_R>(initial: const _A());
+    final routerB = KaiselRouter<_R>(initial: const _A());
+    addTearDown(routerA.dispose);
+    addTearDown(routerB.dispose);
+
+    final fromA1 = routerA.asListenable();
+    final fromA2 = routerA.asListenable();
+    final fromB = routerB.asListenable();
+
+    // Same router: equal and equal hashCode, so ListenableBuilder treats
+    // repeated asListenable() calls as the same listenable and avoids churn.
+    expect(fromA1, equals(fromA2));
+    expect(fromA1.hashCode, equals(fromA2.hashCode));
+
+    // Different router: not equal.
+    expect(fromA1, isNot(equals(fromB)));
+  });
 }

@@ -729,4 +729,135 @@ void main() {
       expect(a.stack.length, 1, reason: 'back popped within the branch');
     });
   });
+
+  group('modal flow rendering', () {
+    KaiselRouterConfig<_R> flowConfig() => KaiselRouterConfig<_R>(
+      initial: const _A(),
+      builder: (context, route) => switch (route) {
+        _A() => const Text('home', textDirection: TextDirection.ltr),
+        _B() => const Text('B', textDirection: TextDirection.ltr),
+        _Flow() => const Text('flow', textDirection: TextDirection.ltr),
+      },
+      modalBuilder: (context, flowRoute, flowChild) =>
+          Material(child: flowChild),
+    );
+
+    PopScope<Object?> flowPopScope(WidgetTester tester) => tester
+        .widgetList<PopScope<Object?>>(
+          find.byWidgetPredicate((w) => w is PopScope),
+        )
+        .firstWhere((p) => !p.canPop);
+
+    testWidgets(
+      'back inside a flow pops its sub-stack, then dismisses at root',
+      (tester) async {
+        final config = flowConfig();
+        addTearDown(config.dispose);
+        await tester.pumpWidget(MaterialApp.router(routerConfig: config));
+
+        final result = config.router.run<bool>(const _Flow());
+        await tester.pumpAndSettle();
+        expect(find.text('flow'), findsOneWidget);
+
+        // Give the flow's own sub-stack some history.
+        final flow = config.router.activeFlows.last;
+        await flow.router.push(const _B());
+        await tester.pumpAndSettle();
+        expect(flow.router.stack.length, 2);
+
+        void back() {
+          final cb = flowPopScope(tester).onPopInvokedWithResult;
+          expect(cb, isNotNull);
+          cb?.call(false, null);
+        }
+
+        // First back: pops within the flow's sub-stack.
+        back();
+        await tester.pumpAndSettle();
+        expect(
+          flow.router.stack.length,
+          1,
+          reason: 'popped the flow sub-stack',
+        );
+
+        // Second back: flow is at root → dismiss with null.
+        back();
+        await tester.pumpAndSettle();
+        expect(await result, isNull, reason: 'flow dismissed');
+      },
+    );
+
+    testWidgets(
+      'an adaptive main delegate renders a flow as a standalone page',
+      (tester) async {
+        // Exercises the adaptive→simple page-builder adapter for flow screens.
+        final config = KaiselRouterConfig<_R>.adaptive(
+          initial: const _A(),
+          builder: (context, route, stack) => KaiselStandalonePage(
+            Text(switch (route) {
+              _A() => 'A',
+              _B() => 'B',
+              _Flow() => 'flow-screen',
+            }, textDirection: TextDirection.ltr),
+          ),
+          modalBuilder: (context, flowRoute, flowChild) =>
+              Material(child: flowChild),
+        );
+        addTearDown(config.dispose);
+        await tester.pumpWidget(MaterialApp.router(routerConfig: config));
+
+        final result = config.router.run<bool>(const _Flow());
+        await tester.pumpAndSettle();
+        expect(find.text('flow-screen'), findsOneWidget);
+
+        config.router.completeFlow<bool>(true);
+        expect(await result, isTrue);
+      },
+    );
+  });
+
+  group('KaiselBranch.adaptive pageWrapper', () {
+    testWidgets('an adaptive branch applies its pageWrapper', (tester) async {
+      final a = KaiselRouter<_BranchR>(initial: const _X());
+      final b = KaiselRouter<_R>(initial: const _A());
+      final shell = BranchedShellRouter(branches: [a, b]);
+      addTearDown(shell.dispose);
+      addTearDown(a.dispose);
+      addTearDown(b.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: KaiselBranchedShell(
+            shell: shell,
+            branches: [
+              KaiselBranch<_BranchR>.adaptive(
+                router: a,
+                pageBuilder: (context, route, stack) =>
+                    const KaiselStandalonePage(
+                      Text('x', textDirection: TextDirection.ltr),
+                    ),
+                pageWrapper: (ctx) => MaterialPage<Object?>(
+                  key: ctx.key,
+                  child: KeyedSubtree(
+                    key: const Key('adaptive-wrapped'),
+                    child: ctx.child,
+                  ),
+                ),
+              ),
+              KaiselBranch<_R>(
+                router: b,
+                pageBuilder: (c, r) => const Scaffold(),
+              ),
+            ],
+            chromeBuilder: (c, active, content, sb) => content,
+          ),
+        ),
+      );
+
+      expect(
+        find.byKey(const Key('adaptive-wrapped'), skipOffstage: false),
+        findsOneWidget,
+      );
+    });
+  });
 }

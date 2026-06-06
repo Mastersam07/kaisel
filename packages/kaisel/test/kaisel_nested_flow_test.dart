@@ -180,5 +180,49 @@ void main() {
         await outer;
       },
     );
+
+    testWidgets(
+      'throws a FlutterError when a flow is active but no modalBuilder '
+      'was provided',
+      (tester) async {
+        final router = KaiselRouter<_App>(initial: const _Home());
+        // Deliberately omit modalBuilder.
+        final delegate = KaiselRouterDelegate<_App>(
+          router: router,
+          builder: (context, route) => switch (route) {
+            _Home() => const _HomeScreen(),
+            _AddCardFlow() => const _AddCardModalContent(),
+            _VerifyIdentityFlow() => const _VerifyIdentityModalContent(),
+          },
+        );
+        addTearDown(delegate.dispose);
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp.router(
+            routerDelegate: delegate,
+            routeInformationParser: _CurrentStackParser(router),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // No flow active yet: build is clean.
+        expect(tester.takeException(), isNull);
+        expect(find.text('HOME'), findsOneWidget);
+
+        // Opening a modal flow forces a rebuild that hits the guard.
+        final pending = router.run<bool>(const _AddCardFlow());
+        await tester.pump();
+        await tester.pump();
+
+        final error = tester.takeException();
+        expect(error, isA<FlutterError>());
+        expect((error as FlutterError).message, contains('modalBuilder'));
+
+        // Drain the pending flow result so it doesn't leak past the test.
+        router.completeFlow<bool>(false);
+        await pending;
+      },
+    );
   });
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaisel/kaisel.dart';
+import 'package:kaisel/src/kaisel_adaptive.dart'
+    show KaiselAdaptiveKey, adaptiveEntryIdFromPageKey;
 
 // Test fixtures: two separate route hierarchies, one per branch.
 
@@ -464,6 +466,28 @@ void main() {
     test('isAdaptive can be opted in by overriding', () {
       const module = _AdaptiveShopModule();
       expect(module.isAdaptive, isTrue);
+    });
+  });
+
+  group('adaptiveEntryIdFromPageKey', () {
+    test('returns the popId of a KaiselAdaptiveKey', () {
+      // stableId and popId differ for absorbing pages; the pop target
+      // is the popId, not the stableId.
+      const key = KaiselAdaptiveKey(2, 5);
+      expect(adaptiveEntryIdFromPageKey(key), 5);
+    });
+
+    test('returns the value of a ValueKey<int>', () {
+      expect(adaptiveEntryIdFromPageKey(const ValueKey<int>(7)), 7);
+    });
+
+    test('returns null for an unrecognised key type', () {
+      expect(adaptiveEntryIdFromPageKey(const ValueKey<String>('x')), isNull);
+      expect(adaptiveEntryIdFromPageKey(UniqueKey()), isNull);
+    });
+
+    test('returns null for a null key', () {
+      expect(adaptiveEntryIdFromPageKey(null), isNull);
     });
   });
 }

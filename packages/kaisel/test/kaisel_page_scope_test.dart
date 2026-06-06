@@ -48,6 +48,21 @@ class _ScopeReader extends StatelessWidget {
   }
 }
 
+/// Reads the scope via the non-null [KaiselPageScope.of] accessor and
+/// forwards it to a builder so tests can assert on the values it
+/// returns from inside a kaisel-managed page.
+class _ScopeOfReader extends StatelessWidget {
+  const _ScopeOfReader({required this.onBuild});
+
+  final void Function(KaiselPageScope scope) onBuild;
+
+  @override
+  Widget build(BuildContext context) {
+    onBuild(KaiselPageScope.of(context));
+    return const Scaffold(body: SizedBox.shrink());
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -207,6 +222,85 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(observed, isNull);
+    });
+
+    testWidgets('of returns the enclosing scope inside a kaisel page', (
+      tester,
+    ) async {
+      // Stack: [_A, _B]. The top page (_B) is the one rendered to the
+      // tester, so of() inside it should return _B's scope:
+      // position 1, stackLength 2, previous _A, isTop true.
+      final router = KaiselRouter<_R>(initial: const _A());
+      await router.push(const _B());
+
+      KaiselPageScope? viaOf;
+      KaiselPageScope? viaMaybeOf;
+
+      final delegate = KaiselRouterDelegate<_R>(
+        router: router,
+        builder: (context, route) => Builder(
+          builder: (context) {
+            // maybeOf and of read from the same enclosing scope, so
+            // they must agree for the rendered (top) page.
+            viaMaybeOf = KaiselPageScope.maybeOf(context);
+            return _ScopeOfReader(onBuild: (scope) => viaOf = scope);
+          },
+        ),
+      );
+      addTearDown(delegate.dispose);
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp.router(
+          routerDelegate: delegate,
+          routeInformationParser: _Parser(router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(viaOf, isNotNull);
+      // of() returns the same data maybeOf() would for the top page.
+      expect(viaOf?.route, const _B());
+      expect(viaOf?.position, 1);
+      expect(viaOf?.stackLength, 2);
+      expect(viaOf?.previous, const _A());
+      expect(viaOf?.isTop, isTrue);
+      expect(viaOf?.isBottom, isFalse);
+      // Same scope the maybeOf accessor exposes.
+      expect(viaOf?.route, viaMaybeOf?.route);
+      expect(viaOf?.position, viaMaybeOf?.position);
+      expect(viaOf?.stackLength, viaMaybeOf?.stackLength);
+      expect(viaOf?.previous, viaMaybeOf?.previous);
+    });
+
+    testWidgets('of throws an AssertionError outside a kaisel page', (
+      tester,
+    ) async {
+      // No KaiselPageScope ancestor: of() asserts scope != null, which
+      // fires as an AssertionError in this debug/test build.
+      Object? caught;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              try {
+                KaiselPageScope.of(context);
+              } on AssertionError catch (error) {
+                caught = error;
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(caught, isA<AssertionError>());
+      expect(
+        (caught as AssertionError?)?.message,
+        contains('KaiselPageScope.of()'),
+      );
     });
 
     testWidgets('updateShouldNotify fires when context fields change', (
