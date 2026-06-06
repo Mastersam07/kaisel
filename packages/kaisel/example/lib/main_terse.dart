@@ -1,6 +1,5 @@
 // Ergonomics prototype: the same app, written with the new convenience layer.
 //
-// ─────────────────────────────────────────────────────────────────────────
 // BEFORE — the plumbing people call "low-level like Navigator 2.0":
 //
 //   class _App extends StatefulWidget { ... }
@@ -24,7 +23,6 @@
 //   context.router<AppRoute>().pop();
 //
 // AFTER — below. Top-level config, no StatefulWidget, no parser, terse calls.
-// ─────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/material.dart';
 import 'package:kaisel/kaisel.dart';
