@@ -97,6 +97,54 @@ void main() {
 
       await ctx.pop();
       expect(router.stack, const [_A()]);
+
+      await ctx.replaceTop(const _B());
+      expect(router.stack, const [_B()], reason: 'replaceTop swaps the top');
+
+      await ctx.set(const [_A(), _B()]);
+      expect(router.stack, const [
+        _A(),
+        _B(),
+      ], reason: 'set replaces the stack');
+    });
+
+    testWidgets('pop throws when no router is in scope', (tester) async {
+      late BuildContext ctx;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (c) {
+              ctx = c;
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+
+      Object? caught;
+      try {
+        await ctx.pop();
+      } catch (e) {
+        caught = e;
+      }
+      expect(caught, isA<FlutterError>());
+      expect('$caught', contains('context.pop()'));
+    });
+
+    testWidgets('shell() throws when no shell is in scope', (tester) async {
+      late BuildContext ctx;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (c) {
+              ctx = c;
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+
+      expect(ctx.shell, throwsA(isA<FlutterError>()));
     });
 
     testWidgets('push routes by family — nearest accepting router wins', (
@@ -394,6 +442,248 @@ void main() {
 
       main.completeFlow<bool>(true);
       expect(await result, isTrue);
+    });
+  });
+
+  group('context.completeFlow / dismissFlow', () {
+    KaiselRouterConfig<_R> flowConfig() => KaiselRouterConfig<_R>(
+      initial: const _A(),
+      builder: (context, route) => switch (route) {
+        _A() => const Text('home', textDirection: TextDirection.ltr),
+        _B() => const Text('B', textDirection: TextDirection.ltr),
+        _Flow() => Builder(
+          builder: (c) => Column(
+            children: [
+              TextButton(
+                onPressed: () => c.completeFlow<bool>(true),
+                child: const Text('confirm'),
+              ),
+              TextButton(onPressed: c.dismissFlow, child: const Text('cancel')),
+            ],
+          ),
+        ),
+      },
+      modalBuilder: (context, flowRoute, flowChild) =>
+          Material(child: flowChild),
+    );
+
+    testWidgets('completeFlow resolves the active flow with its value', (
+      tester,
+    ) async {
+      final config = flowConfig();
+      addTearDown(config.dispose);
+      await tester.pumpWidget(MaterialApp.router(routerConfig: config));
+
+      final result = config.router.run<bool>(const _Flow());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('confirm'));
+      await tester.pumpAndSettle();
+
+      expect(await result, isTrue);
+    });
+
+    testWidgets('dismissFlow resolves the active flow with null', (
+      tester,
+    ) async {
+      final config = flowConfig();
+      addTearDown(config.dispose);
+      await tester.pumpWidget(MaterialApp.router(routerConfig: config));
+
+      final result = config.router.run<bool>(const _Flow());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('cancel'));
+      await tester.pumpAndSettle();
+
+      expect(await result, isNull);
+    });
+
+    testWidgets('completeFlow outside a flow throws', (tester) async {
+      late BuildContext ctx;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (c) {
+              ctx = c;
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+
+      expect(() => ctx.completeFlow<bool>(true), throwsA(isA<FlutterError>()));
+    });
+  });
+
+  group('KaiselBranchedShell internals', () {
+    KaiselBranch<R> branch<R extends KaiselRoute>(
+      KaiselRouter<R> router, {
+      Widget Function(BuildContext, Widget)? scope,
+    }) => KaiselBranch<R>(
+      router: router,
+      pageBuilder: (c, r) => const Scaffold(),
+      scope: scope,
+    );
+
+    test('BranchedShellRouter.branches exposes the navigators', () {
+      final a = KaiselRouter<_BranchR>(initial: const _X());
+      final b = KaiselRouter<_R>(initial: const _A());
+      final shell = BranchedShellRouter(branches: [a, b]);
+      addTearDown(shell.dispose);
+      addTearDown(a.dispose);
+      addTearDown(b.dispose);
+
+      expect(shell.branches, [a, b]);
+      expect(shell.branchCount, 2);
+    });
+
+    testWidgets('asserts the branch-widget count matches the shell', (
+      tester,
+    ) async {
+      final a = KaiselRouter<_BranchR>(initial: const _X());
+      final b = KaiselRouter<_R>(initial: const _A());
+      final shell = BranchedShellRouter(branches: [a, b]);
+      addTearDown(shell.dispose);
+      addTearDown(a.dispose);
+      addTearDown(b.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: KaiselBranchedShell(
+            shell: shell,
+            branches: [branch<_BranchR>(a)], // 1 widget for 2 branches
+            chromeBuilder: (c, active, content, sb) => content,
+          ),
+        ),
+      );
+      expect(tester.takeException(), isAssertionError);
+    });
+
+    testWidgets('KaiselBranch scope wraps the branch content', (tester) async {
+      final a = KaiselRouter<_BranchR>(initial: const _X());
+      final b = KaiselRouter<_R>(initial: const _A());
+      final shell = BranchedShellRouter(branches: [a, b]);
+      addTearDown(shell.dispose);
+      addTearDown(a.dispose);
+      addTearDown(b.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: KaiselBranchedShell(
+            shell: shell,
+            branches: [
+              branch<_BranchR>(
+                a,
+                scope: (context, child) =>
+                    KeyedSubtree(key: const Key('scoped'), child: child),
+              ),
+              branch<_R>(b),
+            ],
+            chromeBuilder: (c, active, content, sb) => content,
+          ),
+        ),
+      );
+      expect(
+        find.byKey(const Key('scoped'), skipOffstage: false),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('KaiselBranchSpec.adaptive builds an adaptive branch', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: KaiselBranchedShell.specs(
+            branches: [
+              KaiselBranchSpec<_BranchR>.adaptive(
+                initial: const _X(),
+                builder: (context, route, stack) => const KaiselStandalonePage(
+                  Text('adaptive-x', textDirection: TextDirection.ltr),
+                ),
+              ),
+              KaiselBranchSpec<_R>(
+                initial: const _A(),
+                builder: (c, r) => const Scaffold(),
+              ),
+            ],
+            chromeBuilder: (c, active, content, sb) => content,
+          ),
+        ),
+      );
+      expect(find.text('adaptive-x'), findsOneWidget);
+    });
+
+    testWidgets('rewires when the shell instance is swapped', (tester) async {
+      final a1 = KaiselRouter<_BranchR>(initial: const _X());
+      final b1 = KaiselRouter<_R>(initial: const _A());
+      final shell1 = BranchedShellRouter(branches: [a1, b1]);
+      final a2 = KaiselRouter<_BranchR>(initial: const _X());
+      final b2 = KaiselRouter<_R>(initial: const _A());
+      final shell2 = BranchedShellRouter(branches: [a2, b2]);
+      addTearDown(a1.dispose);
+      addTearDown(b1.dispose);
+      addTearDown(shell1.dispose);
+      addTearDown(a2.dispose);
+      addTearDown(b2.dispose);
+      addTearDown(shell2.dispose);
+
+      Widget tree(
+        BranchedShellRouter shell,
+        KaiselRouter<_BranchR> a,
+        KaiselRouter<_R> b,
+      ) => MaterialApp(
+        home: KaiselBranchedShell(
+          shell: shell,
+          branches: [branch<_BranchR>(a), branch<_R>(b)],
+          chromeBuilder: (c, active, content, sb) =>
+              Text('active=$active', textDirection: TextDirection.ltr),
+        ),
+      );
+
+      await tester.pumpWidget(tree(shell1, a1, b1));
+      expect(find.text('active=0'), findsOneWidget);
+
+      shell2.switchTo(1);
+      // Same widget type, new shell instance → didUpdateWidget re-wires to it.
+      await tester.pumpWidget(tree(shell2, a2, b2));
+      await tester.pump();
+      expect(find.text('active=1'), findsOneWidget);
+    });
+
+    testWidgets('back-handler pops the active branch when it has history', (
+      tester,
+    ) async {
+      final a = KaiselRouter<_BranchR>(initial: const _X());
+      final b = KaiselRouter<_R>(initial: const _A());
+      final shell = BranchedShellRouter(branches: [a, b]);
+      addTearDown(shell.dispose);
+      addTearDown(a.dispose);
+      addTearDown(b.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: KaiselBranchedShell(
+            shell: shell,
+            branches: [branch<_BranchR>(a), branch<_R>(b)],
+            chromeBuilder: (c, active, content, sb) => content,
+          ),
+        ),
+      );
+
+      await a.push(const _Y());
+      await tester.pumpAndSettle();
+      expect(shell.currentCanPop, isTrue);
+
+      final popScope = tester.widget<PopScope<Object?>>(
+        find.byWidgetPredicate((w) => w is PopScope),
+      );
+      expect(popScope.canPop, isFalse);
+      final onPop = popScope.onPopInvokedWithResult;
+      expect(onPop, isNotNull);
+      onPop?.call(false, null);
+      await tester.pumpAndSettle();
+
+      expect(a.stack.length, 1, reason: 'back popped within the branch');
     });
   });
 }

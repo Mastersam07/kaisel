@@ -300,8 +300,11 @@ class KaiselBranchSpec<R extends KaiselRoute> {
           pageWrapper: pageWrapper,
           scope: scope,
         );
+      // Unreachable: both constructors set exactly one builder.
+      // coverage:ignore-start
       case _:
         throw StateError('KaiselBranchSpec has no builder.');
+      // coverage:ignore-end
     }
   }
 }
@@ -450,10 +453,13 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
         _shell = shell;
         _branches = widget.branches ?? const [];
         _ownedRouters = null;
+      // Unreachable: both constructors set exactly one of specs / shell.
+      // coverage:ignore-start
       case _:
         throw StateError(
           'KaiselBranchedShell needs either specs or shell + branches.',
         );
+      // coverage:ignore-end
     }
     assert(
       _shell.branchCount == _branches.length,
