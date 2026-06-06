@@ -4,8 +4,6 @@ import 'package:kaisel/kaisel.dart';
 import 'package:kaisel/src/kaisel_adaptive.dart'
     show KaiselAdaptiveKey, adaptiveEntryIdFromPageKey;
 
-// Test fixtures: two separate route hierarchies, one per branch.
-
 sealed class _HomeRoute extends KaiselRoute {
   const _HomeRoute();
 }
@@ -33,8 +31,6 @@ final class _DiscoverRoot extends _DiscoverRoute {
   const _DiscoverRoot();
 }
 
-// A module route hierarchy for the module-adaptive tests.
-
 sealed class _ShopRoute extends KaiselRoute {
   const _ShopRoute();
 }
@@ -49,8 +45,6 @@ final class _ShopDetail extends _ShopRoute {
   @override
   List<Object?> get props => [sku];
 }
-
-// Top-level app route to drive the host delegate.
 
 sealed class _AppRoute extends KaiselRoute {
   const _AppRoute();
@@ -216,8 +210,6 @@ void main() {
     testWidgets(
       'adaptive branch collapses list+detail into one absorbing page',
       (tester) async {
-        // Set up the home branch router with [HomeList, HomeDetail].
-        // The discover branch is plain.
         final homeRouter = KaiselRouter<_HomeRoute>(initial: const _HomeRoot());
         await homeRouter.push(const _HomeList());
         await homeRouter.push(const _HomeDetail('42'));
@@ -294,10 +286,6 @@ void main() {
     testWidgets(
       'popping inside an adaptive branch pops the top entry via PopScope',
       (tester) async {
-        // Same setup as above. Verify that triggering the shell's
-        // PopScope (the canonical Android-back path inside a shell)
-        // pops the top entry from the branch even when absorption
-        // has collapsed the visible pages to one.
         final homeRouter = KaiselRouter<_HomeRoute>(initial: const _HomeList());
         await homeRouter.push(const _HomeDetail('42'));
 
@@ -388,8 +376,6 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Absorbing widget is visible; standalone List/Detail screens
-      // are not.
       expect(find.byType(_AbsorbedShop), findsOneWidget);
       expect(find.byType(_ShopListScreen), findsNothing);
       expect(find.byType(_ShopDetailScreen), findsNothing);
@@ -434,8 +420,6 @@ void main() {
       'default buildAdaptivePage wraps buildPage as a standalone page',
       (tester) async {
         const module = _SimpleShopModule();
-        // The default implementation returns
-        // KaiselStandalonePage(buildPage(...)). Call it and verify.
         await tester.pumpWidget(
           MaterialApp(
             home: Builder(

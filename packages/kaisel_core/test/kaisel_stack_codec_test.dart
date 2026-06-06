@@ -1,8 +1,6 @@
 import 'package:kaisel_core/kaisel_core.dart';
 import 'package:test/test.dart';
 
-// Route fixtures — a small sealed hierarchy.
-
 sealed class _R extends KaiselRoute {
   const _R();
 }
@@ -18,9 +16,6 @@ final class _Detail extends _R {
   List<Object?> get props => [id];
 }
 
-// A concrete multi-frame stack codec.
-//   /      ⇄ [_Home]
-//   /d/42  ⇄ [_Home, _Detail('42')]
 class _StackCodec implements KaiselStackCodec<_R> {
   const _StackCodec();
 
@@ -38,9 +33,6 @@ class _StackCodec implements KaiselStackCodec<_R> {
   };
 }
 
-// A single-route codec, to be wrapped by KaiselSingleStackCodec.
-//   _Home()      ⇄ /
-//   _Detail(id)  ⇄ /d/<id>
 class _SingleCodec implements KaiselCodec<_R> {
   const _SingleCodec();
 
@@ -70,7 +62,6 @@ void main() {
     test('round-trips a deep-linked multi-frame stack', () {
       const stack = [_Home(), _Detail('42')];
       final encoded = codec.encode(stack);
-      // encode targets the top of the stack.
       expect(encoded.path, '/d/42');
       // decode restores the implicit parent frame too.
       expect(codec.decode(encoded), stack);
@@ -94,7 +85,6 @@ void main() {
 
     test('encode delegates to inner codec on the top of the stack', () {
       const stack = [_Home(), _Detail('x')];
-      // Should encode the TOP route, not the bottom.
       expect(codec.encode(stack), inner.encode(const _Detail('x')));
       expect(codec.encode(stack).path, '/d/x');
     });
@@ -110,7 +100,6 @@ void main() {
     });
 
     test('decode returns null when the inner codec returns null', () {
-      // Sanity: inner returns null for this URI.
       expect(inner.decode(Uri(path: '/nope')), isNull);
       expect(codec.decode(Uri(path: '/nope')), isNull);
     });

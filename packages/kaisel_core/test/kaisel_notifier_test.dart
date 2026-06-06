@@ -68,7 +68,6 @@ void main() {
       notifier.addListener(listener);
       notifier.dispose();
 
-      // Must not throw even though the notifier is disposed.
       expect(() => notifier.removeListener(listener), returnsNormally);
     });
   });
@@ -87,7 +86,6 @@ void main() {
       notifier.fire();
       expect(secondCalls, 1, reason: 'snapshot keeps second alive this round');
 
-      // On the next round `second` is gone.
       notifier.fire();
       expect(secondCalls, 1);
     });
@@ -102,11 +100,9 @@ void main() {
       };
       notifier.addListener(self);
 
-      // First dispatch runs `self` once and removes it.
       notifier.fire();
       expect(selfCalls, 1);
 
-      // Second dispatch: nothing left to call.
       notifier.fire();
       expect(selfCalls, 1);
     });

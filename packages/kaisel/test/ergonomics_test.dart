@@ -155,7 +155,6 @@ void main() {
       addTearDown(main.dispose);
       addTearDown(branch.dispose);
 
-      // main scope above, branch scope nearer the leaf.
       late BuildContext ctx;
       await tester.pumpWidget(
         MaterialApp(
@@ -259,7 +258,6 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: KaiselBranchedShell.specs(
-            // Declarative — no KaiselRouter constructed here.
             branches: [
               KaiselBranchSpec<_BranchR>(
                 initial: const _X(),
@@ -293,16 +291,14 @@ void main() {
         ),
       );
 
-      // The shell created the branch routers from the specs.
       expect(find.text('b0-X'), findsOneWidget);
 
-      // Push into branch 0 via context.push (resolves to the _BranchR router).
       await branch0.push(const _Y());
       await tester.pumpAndSettle();
       expect(find.text('b0-Y'), findsOneWidget);
 
-      // Switch away and back — the branch's stack must survive (the routers
-      // are created once, not rebuilt per switch).
+      // The branch's stack must survive a switch away and back: the routers
+      // are created once, not rebuilt per switch.
       switchTo(1);
       await tester.pumpAndSettle();
       expect(find.text('b1-A'), findsOneWidget);
@@ -341,7 +337,6 @@ void main() {
             branchContentBuilder: (context, active, branches, switchBranch) {
               receivedActive = active;
               receivedCount = branches.length;
-              // A PageView instead of the default IndexedStack.
               return PageView(children: branches);
             },
             chromeBuilder: (context, active, content, sb) => content,
@@ -349,8 +344,6 @@ void main() {
         ),
       );
 
-      // The custom builder ran with the shell's active index and branch list,
-      // and a PageView is in the tree — no IndexedStack.
       expect(receivedActive, 0);
       expect(receivedCount, 2);
       expect(find.byType(PageView), findsOneWidget);
@@ -383,8 +376,6 @@ void main() {
     testWidgets('wires the codec so a deep link decodes to the stack', (
       tester,
     ) async {
-      // The platform launches the app at /b; the config's parser + provider
-      // should decode it into [_B()].
       tester.platformDispatcher.defaultRouteNameTestValue = '/b';
       addTearDown(tester.platformDispatcher.clearDefaultRouteNameTestValue);
 
@@ -438,13 +429,11 @@ void main() {
       addTearDown(config.dispose);
 
       await tester.pumpWidget(MaterialApp.router(routerConfig: config));
-      expect(find.text('A'), findsOneWidget); // master alone
+      expect(find.text('A'), findsOneWidget);
 
       await config.router.push(const _B());
       await tester.pumpAndSettle();
 
-      // Absorbed into one page: both master and detail render, and the
-      // standalone master page is gone.
       expect(find.text('master-A'), findsOneWidget);
       expect(find.text('detail-B'), findsOneWidget);
       expect(find.text('A'), findsNothing);
@@ -759,7 +748,6 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('flow'), findsOneWidget);
 
-        // Give the flow's own sub-stack some history.
         final flow = config.router.activeFlows.last;
         await flow.router.push(const _B());
         await tester.pumpAndSettle();
@@ -771,7 +759,6 @@ void main() {
           cb?.call(false, null);
         }
 
-        // First back: pops within the flow's sub-stack.
         back();
         await tester.pumpAndSettle();
         expect(
@@ -780,7 +767,6 @@ void main() {
           reason: 'popped the flow sub-stack',
         );
 
-        // Second back: flow is at root → dismiss with null.
         back();
         await tester.pumpAndSettle();
         expect(await result, isNull, reason: 'flow dismissed');
@@ -790,7 +776,6 @@ void main() {
     testWidgets(
       'an adaptive main delegate renders a flow as a standalone page',
       (tester) async {
-        // Exercises the adaptive→simple page-builder adapter for flow screens.
         final config = KaiselRouterConfig<_R>.adaptive(
           initial: const _A(),
           builder: (context, route, stack) => KaiselStandalonePage(

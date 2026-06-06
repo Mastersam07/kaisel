@@ -1,8 +1,6 @@
 import 'package:kaisel_core/kaisel_core.dart';
 import 'package:test/test.dart';
 
-// Test fixtures — two distinct sealed hierarchies.
-
 sealed class _Top extends KaiselRoute {
   const _Top();
 }
@@ -34,7 +32,6 @@ final class _Product extends _Home {
   List<Object?> get props => [id];
 }
 
-// A simple stack codec for the migration-adapter test.
 class _LegacyStackCodec implements KaiselStackCodec<_Top> {
   const _LegacyStackCodec();
 
@@ -222,7 +219,6 @@ void main() {
           ),
         ),
       );
-      // No /home/products/x — just /app.
       expect(encoded.path, '/app');
     });
 
@@ -252,8 +248,6 @@ void main() {
     });
 
     test('runs guards on the restored stack', () async {
-      // A guard that strips _Product routes — restoreStack should
-      // see the effect.
       List<_Home> stripProducts(List<_Home> current, List<_Home> proposed) {
         return proposed.where((r) => r is! _Product).toList();
       }

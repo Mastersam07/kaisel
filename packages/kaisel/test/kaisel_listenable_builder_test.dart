@@ -66,7 +66,6 @@ void main() {
     );
     expect(builds, 1);
 
-    // Tear the builder out of the tree, then mutate the router.
     await tester.pumpWidget(const SizedBox());
     await router.push(const _B());
     await tester.pump();
@@ -122,12 +121,10 @@ void main() {
         ),
       );
 
-      // Bound to A: a 2-deep A renders "depth 2".
       await routerA.push(const _B());
       await tester.pumpWidget(buildWith(routerA));
       expect(find.text('depth 2'), findsOneWidget);
 
-      // Rebuild the same position bound to B (still 1-deep).
       await tester.pumpWidget(buildWith(routerB));
       expect(
         find.text('depth 1'),
@@ -135,7 +132,6 @@ void main() {
         reason: 'output must reflect the new router B',
       );
 
-      // A change to the NEW router B now rebuilds the widget.
       final buildsBeforeB = builds;
       await routerB.push(const _B());
       await tester.pump();
@@ -179,7 +175,6 @@ void main() {
     expect(fromA1, equals(fromA2));
     expect(fromA1.hashCode, equals(fromA2.hashCode));
 
-    // Different router: not equal.
     expect(fromA1, isNot(equals(fromB)));
   });
 }

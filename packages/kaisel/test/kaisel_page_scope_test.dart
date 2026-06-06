@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaisel/kaisel.dart';
 
-// Test routes.
 sealed class _R extends KaiselRoute {
   const _R();
 }
@@ -146,23 +145,10 @@ void main() {
   group('KaiselPageScope (adaptive pipeline)', () {
     testWidgets('absorbing pages report isBottom=true even when the '
         'router stack has multiple entries', (tester) async {
-      // Stack: [_A, _B, _C('x')]. Adaptive builder absorbs _C+_B
-      // into one page. After absorption, the rendered Navigator has
-      // pages [_A, absorbing(_B+_C)]. The absorbing page is at
-      // rendered position 1, stackLength 2.
-      //
-      // Inside the absorbing page's widget tree, descendants see
-      // the absorbing page's scope: route=_C, position=1,
-      // stackLength=2, previous=_A. isBottom=false because there's
-      // _A below.
-      //
-      // Now we'll test the more interesting case: a stack where the
-      // absorbing page is THE ONLY rendered page.
-
       final router = KaiselRouter<_R>(initial: const _A());
       await router.push(const _C('x'));
-      // Stack: [_A, _C('x')]. Adaptive builder absorbs (_C with
-      // prev _A) into one page. Rendered Navigator has ONE page:
+      // Stack: [_A, _C('x')]. The adaptive builder absorbs (_C with
+      // prev _A) into one page, so the rendered Navigator has ONE page:
       // the absorbing one. Inside it, isBottom should be true.
 
       KaiselPageScope? observed;
@@ -193,9 +179,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(observed, isNotNull);
-      // The absorbing page absorbed _A below, so the rendered
-      // Navigator has only ONE page total. Inside that page, the
-      // descendant should see isBottom=true.
       expect(observed!.route, const _C('x'));
       expect(observed!.position, 0);
       expect(observed!.stackLength, 1);
@@ -227,9 +210,6 @@ void main() {
     testWidgets('of returns the enclosing scope inside a kaisel page', (
       tester,
     ) async {
-      // Stack: [_A, _B]. The top page (_B) is the one rendered to the
-      // tester, so of() inside it should return _B's scope:
-      // position 1, stackLength 2, previous _A, isTop true.
       final router = KaiselRouter<_R>(initial: const _A());
       await router.push(const _B());
 
@@ -259,14 +239,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(viaOf, isNotNull);
-      // of() returns the same data maybeOf() would for the top page.
       expect(viaOf?.route, const _B());
       expect(viaOf?.position, 1);
       expect(viaOf?.stackLength, 2);
       expect(viaOf?.previous, const _A());
       expect(viaOf?.isTop, isTrue);
       expect(viaOf?.isBottom, isFalse);
-      // Same scope the maybeOf accessor exposes.
       expect(viaOf?.route, viaMaybeOf?.route);
       expect(viaOf?.position, viaMaybeOf?.position);
       expect(viaOf?.stackLength, viaMaybeOf?.stackLength);
@@ -306,8 +284,6 @@ void main() {
     testWidgets('updateShouldNotify fires when context fields change', (
       tester,
     ) async {
-      // Push to make position/stackLength change, then verify the
-      // dependent rebuilt.
       final router = KaiselRouter<_R>(initial: const _A());
       var buildCount = 0;
 

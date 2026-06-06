@@ -6,8 +6,6 @@ import 'package:kaisel/src/kaisel_router_delegate.dart'
 import 'package:kaisel_core/framework.dart'
     show KaiselNestedHandle, KaiselNestedHost;
 
-// Fixture: a small module under test.
-
 sealed class _CheckoutRoute extends KaiselRoute {
   const _CheckoutRoute();
 }
@@ -145,10 +143,8 @@ void main() {
 
     test('buildPage pattern-matches over the sealed type', () {
       const module = _TestCheckoutModule();
-      // We can't easily check returned widget identity without a
-      // BuildContext, but we can check the resolver doesn't throw.
-      // Use a fake context via a Builder to get a real one would be
-      // overkill; just hit the switch with each case.
+      // A real BuildContext isn't needed: the resolver doesn't dereference
+      // it, so a fake context lets us hit each switch case directly.
       final widgets = <Widget>[
         module.buildPage(_FakeContext(), const _Cart()),
         module.buildPage(_FakeContext(), const _Shipping()),
@@ -170,7 +166,6 @@ void main() {
           ),
         );
 
-        // The Cart screen is the initial page.
         expect(find.byKey(const ValueKey('cart')), findsOneWidget);
         expect(find.byKey(const ValueKey('ship')), findsNothing);
       },
@@ -187,7 +182,6 @@ void main() {
           ),
         );
 
-        // The shipping screen (top of initialStack) is shown.
         expect(find.byKey(const ValueKey('ship')), findsOneWidget);
       },
     );
@@ -220,8 +214,6 @@ void main() {
           ),
         ),
       );
-      // Replace with a different widget — the mount should dispose
-      // cleanly. Any disposal error would be caught by tester.
       await tester.pumpWidget(const MaterialApp(home: SizedBox()));
       expect(find.byKey(const ValueKey('cart')), findsNothing);
     });
@@ -238,8 +230,6 @@ void main() {
           ),
         );
 
-        // Push a second route into the module's own router. The mount
-        // listens on the router and must rebuild to render the new top.
         await router.push(const _Shipping());
         await tester.pumpAndSettle();
 
@@ -259,12 +249,10 @@ void main() {
         ),
       );
 
-      // Give the module in-branch history: [Cart, Shipping].
       await router.push(const _Shipping());
       await tester.pumpAndSettle();
       expect(router.stack, const [_Cart(), _Shipping()]);
 
-      // Fire the module's PopScope back handler with didPop == false.
       final popScope = tester.widget<PopScope<Object?>>(
         find.byWidgetPredicate((w) => w is PopScope<Object?>),
       );
@@ -273,7 +261,6 @@ void main() {
       cb?.call(false, null);
       await tester.pumpAndSettle();
 
-      // The module popped its own stack first — Shipping is gone.
       expect(router.stack, const [_Cart()]);
       expect(find.byKey(const ValueKey('cart')), findsOneWidget);
       expect(find.byKey(const ValueKey('ship')), findsNothing);
@@ -304,16 +291,13 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // The router in effect is the new one, not the old one.
         expect(identical(firstRouter, secondRouter), isFalse);
 
-        // Pushing into the NEW router is what the mount now reflects.
         await secondRouter.push(const _Confirm());
         await tester.pumpAndSettle();
         expect(find.byKey(const ValueKey('confirm')), findsOneWidget);
 
-        // The old router was torn down by the rewire — it's disposed, so
-        // it can no longer drive any UI.
+        // The rewire disposed the old router, so it can no longer be used.
         expect(
           () => firstRouter.push(const _Shipping()),
           throwsA(isA<StateError>()),
@@ -338,12 +322,10 @@ void main() {
           ),
         );
 
-        // The mount registered its real (private) handle with our host.
         final handle = host.registered;
         expect(handle, isNotNull);
         expect(router.stack, const [_Cart()]);
 
-        // Replaying a KaiselModuleConfig replays its stack into the router.
         await handle?.restoreFromConfig(
           KaiselModuleConfig(stack: const [_Cart(), _Shipping(), _Confirm()]),
         );
@@ -351,7 +333,6 @@ void main() {
         expect(router.stack, const [_Cart(), _Shipping(), _Confirm()]);
         expect(find.byKey(const ValueKey('confirm')), findsOneWidget);
 
-        // A non-module config is silently ignored — the stack is untouched.
         await handle?.restoreFromConfig(
           KaiselShellConfig(
             activeBranch: 0,

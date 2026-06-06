@@ -1,9 +1,6 @@
 import 'package:kaisel_core/kaisel_core.dart';
 import 'package:test/test.dart';
 
-// Fixtures — a host route family with a module-mount marker route, and a
-// self-contained module route family.
-
 sealed class _AppRoute extends KaiselRoute {
   const _AppRoute();
 }
@@ -36,7 +33,6 @@ final class _Confirm extends _CheckoutRoute {
   const _Confirm();
 }
 
-// The module's own URL codec, relative to its mount prefix.
 class _CheckoutCodec extends ModuleStackCodec<_CheckoutRoute> {
   const _CheckoutCodec();
 
@@ -56,8 +52,6 @@ class _CheckoutCodec extends ModuleStackCodec<_CheckoutRoute> {
   };
 }
 
-// The host's base codec. Knows main-stack routes only; mount routes are
-// handled by the composer before reaching here.
 class _MainCodec implements KaiselConfigCodec<_AppRoute> {
   const _MainCodec();
 
@@ -100,7 +94,6 @@ void main() {
 
   group('UntypedModuleStackCodec bridge (encodeAny/decodeAny)', () {
     const codec = _CheckoutCodec();
-    // Reference it through the untyped interface to exercise the bridge.
     const UntypedModuleStackCodec untyped = _CheckoutCodec();
 
     test('encodeAny equals the typed encode of the same stack', () {
@@ -192,7 +185,6 @@ void main() {
     );
 
     test('decode of a URL matching no module and no host route is null', () {
-      // Not under any module prefix; base codec rejects unknown paths.
       expect(codec.decode(Uri.parse('/unknown')), isNull);
       // Under the module prefix but rejected by the module codec — the
       // composer returns null and does NOT fall through to the host codec.

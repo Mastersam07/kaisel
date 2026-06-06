@@ -1,8 +1,6 @@
 import 'package:kaisel_core/kaisel_core.dart';
 import 'package:test/test.dart';
 
-// Test fixtures: a tiny sealed route type using v0.2's default
-// props-based equality. No manual == / hashCode needed.
 sealed class _R extends KaiselRoute {
   const _R();
 }
@@ -57,7 +55,6 @@ void main() {
       expect(r.stack, [const _A()]);
       expect(notifications, 1);
 
-      // Root: refuses to pop and does not notify.
       expect(await r.pop(), isFalse);
       expect(r.stack, [const _A()]);
       expect(notifications, 1);
@@ -107,12 +104,11 @@ void main() {
     });
 
     test('pushOrReplaceTop with empty stack pushes', () async {
-      // A pre-disposed-ish corner case: route stack should never be
-      // empty in normal operation, but verify the branch.
+      // The route stack should never be empty in normal operation, and it
+      // can't be constructed empty via the public API; this verifies that the
+      // non-empty default path with an always-true predicate triggers
+      // replaceTop.
       final r = KaiselRouter<_R>(initial: const _A());
-      // We can't construct an empty stack via public API, so this
-      // mainly verifies that the non-empty default path with a
-      // predicate that returns true still triggers replaceTop.
       await r.pushOrReplaceTop(const _A());
       expect(r.stack, [const _A()]);
     });
@@ -176,7 +172,6 @@ void main() {
         r.push(const _B('1'));
         r.push(const _B('2'));
         r.push(const _C());
-        // Await the final operation to flush the queue.
         await r.push(const _B('end'));
         expect(r.stack, [
           const _A(),
@@ -220,7 +215,6 @@ void main() {
       final entries = r.entries;
       expect(entries.length, 2);
       expect(entries.map((e) => e.route), [const _A(), const _B('x')]);
-      // Ids are distinct per entry.
       expect(entries.first.id == entries.last.id, isFalse);
     });
 
@@ -267,7 +261,6 @@ void main() {
       final onlyId = r.entries.single.id;
       r.onPageRemoved(onlyId);
 
-      // Won't pop to empty.
       expect(r.stack, [const _A()]);
       expect(r.depth, 1);
       expect(notifications, 0);
