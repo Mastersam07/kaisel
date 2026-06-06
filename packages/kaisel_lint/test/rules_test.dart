@@ -427,6 +427,25 @@ final guard = (List<KaiselRoute> current, List<KaiselRoute> proposed) {
     );
   }
 
+  Future<void> test_fires_whenIfElseBothReturnProposed() async {
+    // Both arms of an if/else pass the proposed stack through unchanged, so the
+    // guard is still a no-op — the walker must descend into the else branch too.
+    await assertDiagnostics(
+      r'''
+import 'package:kaisel/kaisel.dart';
+
+final guard = (List<KaiselRoute> current, List<KaiselRoute> proposed) {
+  if (current.isEmpty) {
+    return proposed;
+  } else {
+    return proposed;
+  }
+};
+''',
+      [lint(52, 141)],
+    );
+  }
+
   Future<void> test_noFire_whenABranchRedirects() async {
     await assertNoDiagnostics(r'''
 import 'package:kaisel/kaisel.dart';
