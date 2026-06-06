@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.14.0
+
+Navigation ergonomics — terser setup and call sites, and a single shell
+accessor. Additive except for the removed split shell accessors (pre-1.0, so no
+deprecation cycle).
+
+### Added
+
+- **`KaiselRouterConfig<R>`** — a `RouterConfig` that bundles the router,
+  delegate, and (when given a `codec:`) the URL parser + platform provider into
+  the single object `MaterialApp.router(routerConfig:)` expects. Hold it as a
+  top-level `final` for an app-lifetime router: no `StatefulWidget`, no manual
+  delegate or parser, no `dispose`. `config.router` exposes the bundled
+  `KaiselRouter<R>`. The explicit `KaiselRouterDelegate` + parser path is
+  unchanged.
+- **Terse `context.*` navigation** — `context.push` / `pop` / `replaceTop` /
+  `pushOrReplaceTop` / `set` / `run<T>` on `BuildContext`, a deliberate
+  convenience over the typed `context.router<R>().<verb>` (which stays the
+  idiomatic default). Each resolves the nearest router whose route type accepts
+  the argument (a runtime walk up the tree); the trade is that a wrong-family
+  route throws at runtime instead of failing to compile.
+- **`context.shell()` → `KaiselShellController`** — one accessor for either
+  shell flavour, exposing `switchTo`, `activeBranch`, `branchCount`, and
+  `current` (the active branch's navigator, so chrome can read the active stack
+  and pop it without holding a router reference).
+- **`KaiselBranchedShell.specs(...)` + `KaiselBranchSpec<R>`** — declare a
+  branched shell from per-branch `initial` + `builder` specs; the shell creates,
+  owns, and disposes one router per branch (each branch's stack still survives
+  tab switches), so you never construct a `KaiselRouter` or
+  `BranchedShellRouter`. `KaiselBranchSpec.adaptive(...)` for adaptive branches.
+  The explicit `KaiselBranchedShell(shell:, branches:)` form stays for when you
+  need to hold the branch routers.
+- **`KaiselBranchedShell.branchContentBuilder`** — optional override for how the
+  branches are laid out. Defaults to an `IndexedStack` (all branches mounted,
+  state preserved); pass one to use a `PageView` or any other container while
+  keeping the shell's back-button routing, scopes, and URL wiring. When you
+  override it, preserving per-branch state is yours to handle.
+
+### Removed (breaking)
+
+- **`context.branchedShell()`, `context.shellRouter<R>()`,
+  `context.branchRouter<R>()`** and the **`BranchedShellScope` / `ShellScope`**
+  inherited widgets. Use `context.shell()` (and `context.shell().current`). The
+  pre-1.0 release skips a deprecation cycle.
+
 ## 0.13.1
 
 ### Added

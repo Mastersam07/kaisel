@@ -108,15 +108,24 @@ Page<Object?> _appPageWrapper(KaiselPageWrapperContext<AppRoute> ctx) {
 }
 ```
 
-### 3. Pass it to the delegate
+### 3. Pass it to the config
+
+`pageWrapper:` is a `KaiselRouterConfig` parameter — declare the config
+once at app lifetime and hand it to `MaterialApp.router`:
 
 ```dart
-_delegate = KaiselRouterDelegate<AppRoute>(
-  router: _router,
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
   builder: /* ... */,
   pageWrapper: _appPageWrapper,
 );
+
+// build: MaterialApp.router(routerConfig: _config, theme: ...)
 ```
+
+(The lower-tier explicit form still works — pass `pageWrapper:` to
+`KaiselRouterDelegate(router:, builder:, pageWrapper:)` if you're
+managing the delegate by hand.)
 
 ## Pattern shapes you'll write
 

@@ -1,9 +1,32 @@
 # Navigation methods
 
 Reference for choosing between `push`, `pop`, `set`, `replaceTop`,
-`pushOrReplaceTop`, and `run<T>` on a `KaiselRouter<R>`. Each method
-mutates the stack differently and is appropriate for a different
-situation.
+`pushOrReplaceTop`, and `run<T>`. Each method mutates the stack
+differently and is appropriate for a different situation.
+
+## Two ways to call them
+
+Every verb has two surfaces. Lead with the typed one:
+
+- **Typed `context.router<R>().<verb>` — the idiomatic default.**
+  `context.router<R>()` resolves the nearest router of route family `R`,
+  and the verb is then a compile-checked call against that family: a route
+  from the wrong family is a **compile error**, caught before you run.
+  `context.router<R>()` also hands you the actual `KaiselRouter<R>`, so the
+  full surface (`stack`, `pop`, `replaceTop`, `run`, …) is right there. This
+  is the form to reach for by default — it's the one the type system backs.
+- **Terse `context.<verb>` — a deliberate convenience.** `context.push(...)`,
+  `context.pop()`, `context.replaceTop(...)`, `context.pushOrReplaceTop(...)`,
+  `context.set(...)`, `context.run<T>(...)` drop the `<R>` and resolve the
+  *nearest* router whose route type **accepts** the argument, walking up the
+  tree at runtime. You trade the compile-time family check for brevity: a
+  wrong-family route now throws at **runtime** instead of failing to compile.
+  Reach for it when the terseness clearly earns that trade — e.g. a
+  single-router screen, where there's no wrong family to get wrong.
+
+`push`/`pop`/`replaceTop`/`pushOrReplaceTop`/`set` are non-generic on the
+terse surface; only `run<T>` carries a result type either way. The sections
+below show the typed form first.
 
 ## Quick reference
 
@@ -23,6 +46,8 @@ applying. A guard can reject or transform any proposed stack.
 
 ```dart
 context.router<AppRoute>().push(const ProductDetail('sku-42'));
+// Terse convenience (runtime-resolved):
+context.push(const ProductDetail('sku-42'));
 ```
 
 Adds the route on top of the current stack. The previous top stays
@@ -43,6 +68,8 @@ sub-screen.
 
 ```dart
 final didPop = await context.router<AppRoute>().pop();
+// Terse convenience (runtime-resolved):
+final didPop = await context.pop();
 ```
 
 Removes the top entry. Returns `true` if the pop happened, `false` if
@@ -64,6 +91,8 @@ without a typed result.
 
 ```dart
 context.router<AppRoute>().replaceTop(const ProductDetail('sku-42'));
+// Terse convenience (runtime-resolved):
+context.replaceTop(const ProductDetail('sku-42'));
 ```
 
 Removes the current top entry and pushes a new one in its place. The
@@ -82,9 +111,9 @@ already below. If you want the user to be able to go back to the
 ## pushOrReplaceTop
 
 ```dart
-context.router<AppRoute>().pushOrReplaceTop(
-  ProductDetail(productId),
-);
+context.router<AppRoute>().pushOrReplaceTop(ProductDetail(productId));
+// Terse convenience (runtime-resolved):
+context.pushOrReplaceTop(ProductDetail(productId));
 ```
 
 If the current top is the same runtime type as the proposed route,
@@ -113,6 +142,8 @@ items.
 
 ```dart
 context.router<AppRoute>().set(const [Home(), ProductList()]);
+// Terse convenience (runtime-resolved):
+context.set(const [Home(), ProductList()]);
 ```
 
 Replaces the entire stack with the provided list. Equivalent to
@@ -140,6 +171,8 @@ changes.
 final cardId = await context.router<AppRoute>().run<CardId>(
   const AddCardFlow(),
 );
+// Terse convenience (runtime-resolved):
+final cardId = await context.run<CardId>(const AddCardFlow());
 if (cardId != null) {
   // Flow completed with a result.
 } else {
@@ -169,7 +202,9 @@ sub-flow has a clean entry, multi-step middle, and typed exit.
 
 ## Decision aid
 
-A short decision tree for picking the right method:
+A short decision tree for picking the right method. Reach for the typed
+`context.router<R>().<verb>` by default; drop to the terse `context.<verb>`
+when the brevity clearly earns the runtime family check:
 
 - **Going forward to a new screen?** `push`
 - **Going back?** `pop`
@@ -187,3 +222,4 @@ A short decision tree for picking the right method:
 | Forgetting to handle the `null` result from `run<T>` | `null` means the user dismissed the flow. Treat it as a first-class outcome, not an edge case. |
 | Pop loops to clear deep-link state | Use `set` to atomically replace the stack instead of popping repeatedly. |
 | Pop'ing past the root | `pop` returns `false` when the stack is at one entry. It doesn't throw. Use the return value if you need to know. |
+| Passing a wrong-family route to a terse `context.*` verb | The terse verbs resolve by *accepted argument type* at runtime, so a route from the wrong family throws at runtime. Use `context.router<R>().<verb>` to turn that into a compile error. |

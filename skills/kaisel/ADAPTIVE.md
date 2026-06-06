@@ -107,9 +107,8 @@ update the right pane in place — not stack another detail. Use
 
 ```dart
 onTap: () {
-  context.router<ProductRoute>().pushOrReplaceTop(
-    ProductDetail(item.id),
-  );
+  context.router<ProductRoute>().pushOrReplaceTop(ProductDetail(item.id));
+  // or, terser: context.pushOrReplaceTop(ProductDetail(item.id));
 }
 ```
 

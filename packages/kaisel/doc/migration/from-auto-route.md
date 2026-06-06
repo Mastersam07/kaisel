@@ -33,12 +33,13 @@ part is testing that nothing regressed.
 | `@RoutePage()` annotation                   | `final class Home extends AppRoute`               |
 | Codegen-produced `HomeRoute()` class        | Hand-written class with `const` constructor       |
 | `@AutoRouterConfig` with `AutoRoute(...)`s  | A single `switch` expression in a page builder    |
+| `final _appRouter = AppRouter()` + `routerConfig:` | `final _config = KaiselRouterConfig<AppRoute>(...)` + `routerConfig:` |
 | `AutoRouteGuard.onNavigation()`             | Guard function `(current, proposed) → stack` in the pipeline |
-| `AutoTabsScaffold`                          | `KaiselBranchedShell` with N branches             |
+| `AutoTabsScaffold`                          | `KaiselBranchedShell.specs` with N branches       |
 | Parent route with `children: [...]`         | Stack entries; sub-routers if you need isolation  |
-| `context.router.push(HomeRoute())`          | `context.router<AppRoute>().push(const Home())`   |
-| `context.router.pop()`                      | `context.router<AppRoute>().pop()`                |
-| `context.router.replaceAll([HomeRoute()])`  | `context.router<AppRoute>().set([const Home()])`  |
+| `context.router.push(HomeRoute())`          | `context.push(const Home())`                      |
+| `context.router.pop()`                      | `context.pop()`                                   |
+| `context.router.replaceAll([HomeRoute()])`  | `context.set([const Home()])`                     |
 | `defaultRouteParser()`                      | A `KaiselConfigCodec<AppRoute>` you write         |
 | `build_runner` step in CI                   | (gone)                                            |
 
@@ -71,6 +72,54 @@ it but you'll no longer rebuild on every route change.
 
 Delete every `*.gr.dart` file. They'll be recreated as hand-written
 classes in step 2.
+
+Then replace the router instance. auto_route gives `MaterialApp.router`
+a `routerConfig:` (or `routerDelegate:` + `routeInformationParser:`)
+from a generated `AppRouter`. kaisel has the same slot: a top-level
+`final _config = KaiselRouterConfig<AppRoute>(...)`.
+
+**Before** (auto_route):
+
+```dart
+final _appRouter = AppRouter();
+
+class App extends StatelessWidget {
+  const App({super.key});
+  @override
+  Widget build(BuildContext context) =>
+      MaterialApp.router(routerConfig: _appRouter.config());
+}
+```
+
+**After** (kaisel):
+
+```dart
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
+  builder: (context, route) => switch (route) {
+    Home() => const HomeScreen(),
+    ProductList() => const ProductListScreen(),
+    ProductDetail(:final id) => ProductDetailScreen(id: id),
+  },
+  // optional: guards:, pageWrapper:, modalBuilder:, codec:, fallback:
+);
+
+class App extends StatelessWidget {
+  const App({super.key});
+  @override
+  Widget build(BuildContext context) =>
+      MaterialApp.router(routerConfig: _config);
+}
+```
+
+`KaiselRouterConfig` is app-lifetime: a top-level `final`, no
+`StatefulWidget`, no manual `KaiselRouterDelegate`, no hand-rolled
+parser. Omit `codec:` and the app is URL-less; pass `codec:` (and
+optionally `fallback:`) to make it URL-addressable — it wires the
+parser and `PlatformRouteInformationProvider` for you (step 6).
+`_config.router` exposes the bundled `KaiselRouter` if you need
+imperative access. The explicit delegate-plus-parser form remains
+available as a lower tier.
 
 ### 2. Translate `@RoutePage` widgets to sealed routes
 
@@ -146,8 +195,8 @@ final class ProductDetail extends AppRoute {
 ### 3. Replace AutoRouterConfig with a page builder
 
 auto_route's route table — the giant list of `AutoRoute(page: ..., ...)`
-entries — becomes a single `switch` expression in the page builder
-on your `KaiselRouterDelegate`.
+entries — becomes a single `switch` expression in the `builder:` of
+your `KaiselRouterConfig` (the one from step 1).
 
 **Before** (auto_route):
 
@@ -166,9 +215,8 @@ class AppRouter extends $AppRouter {
 **After** (kaisel):
 
 ```dart
-final router = KaiselRouter<AppRoute>(initial: const Home());
-final delegate = KaiselRouterDelegate<AppRoute>(
-  router: router,
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
   builder: (context, route) => switch (route) {
     Home() => const HomeScreen(),
     ProductList() => const ProductListScreen(),
@@ -219,9 +267,10 @@ List<AppRoute> authGuard(List<AppRoute> current, List<AppRoute> proposed) {
   return proposed;
 }
 
-// Registered once on the router, applies to all mutations:
-final router = KaiselRouter<AppRoute>(
+// Registered once on the config, applies to all mutations:
+final _config = KaiselRouterConfig<AppRoute>(
   initial: const Home(),
+  builder: (context, route) => switch (route) { /* ... */ },
   guards: [authGuard],
 );
 ```
@@ -239,8 +288,9 @@ For multiple cross-cutting concerns (auth + feature flags + entitlement
 checks), compose them as a list of guards rather than nesting:
 
 ```dart
-KaiselRouter<AppRoute>(
+KaiselRouterConfig<AppRoute>(
   initial: const Home(),
+  builder: (context, route) => switch (route) { /* ... */ },
   guards: [authGuard, featureFlagGuard, entitlementGuard],
 )
 ```
@@ -250,8 +300,8 @@ Each runs in order. Each receives the output of the previous.
 ### 5. Replace AutoTabsScaffold with KaiselBranchedShell
 
 If your app has a tabbed shell, this is where most of the rewrite
-happens. `AutoTabsScaffold` becomes `KaiselBranchedShell`, and each
-tab gets its own sealed route type for per-branch typing.
+happens. `AutoTabsScaffold` becomes `KaiselBranchedShell.specs`, and
+each tab gets its own sealed route type for per-branch typing.
 
 **Before** (auto_route):
 
@@ -294,48 +344,55 @@ final class ProductDetail extends ProductRoute {
 sealed class SettingsRoute extends KaiselRoute { const SettingsRoute(); }
 final class SettingsView extends SettingsRoute { const SettingsView(); }
 
-class MainShell extends StatefulWidget { /* ... */ }
-
-class _MainShellState extends State<MainShell> {
-  late final _homeRouter = KaiselRouter<HomeRoute>(initial: const HomeView());
-  late final _productRouter = KaiselRouter<ProductRoute>(initial: const ProductList());
-  late final _settingsRouter = KaiselRouter<SettingsRoute>(initial: const SettingsView());
-  late final _shell = BranchedShellRouter(branches: [_homeRouter, _productRouter, _settingsRouter]);
-
-  @override
-  Widget build(BuildContext context) {
-    return KaiselBranchedShell(
-      shell: _shell,
-      branches: [
-        KaiselBranch<HomeRoute>(router: _homeRouter, pageBuilder: (c, r) => switch (r) {
-          HomeView() => const HomeTabScreen(),
-        }),
-        KaiselBranch<ProductRoute>(router: _productRouter, pageBuilder: (c, r) => switch (r) {
-          ProductList() => const ProductListScreen(),
-          ProductDetail(:final id) => ProductDetailScreen(id: id),
-        }),
-        KaiselBranch<SettingsRoute>(router: _settingsRouter, pageBuilder: (c, r) => switch (r) {
-          SettingsView() => const SettingsScreen(),
-        }),
-      ],
-      chromeBuilder: (context, activeBranch, branchContent, switchBranch) => Scaffold(
-        body: branchContent,
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: activeBranch,
-          onTap: switchBranch,
-          items: const [/* ... */],
-        ),
-      ),
-    );
-  }
-}
+// The shell owns the per-branch routers — no manual KaiselRouter to wire.
+KaiselBranchedShell.specs(
+  branches: [
+    KaiselBranchSpec<HomeRoute>(
+      initial: const HomeView(),
+      builder: (c, r) => switch (r) {
+        HomeView() => const HomeTabScreen(),
+      },
+    ),
+    KaiselBranchSpec<ProductRoute>(
+      initial: const ProductList(),
+      builder: (c, r) => switch (r) {
+        ProductList() => const ProductListScreen(),
+        ProductDetail(:final id) => ProductDetailScreen(id: id),
+      },
+    ),
+    KaiselBranchSpec<SettingsRoute>(
+      initial: const SettingsView(),
+      builder: (c, r) => switch (r) {
+        SettingsView() => const SettingsScreen(),
+      },
+    ),
+  ],
+  chromeBuilder: (context, activeBranch, branchContent, switchBranch) => Scaffold(
+    body: branchContent,
+    bottomNavigationBar: BottomNavigationBar(
+      currentIndex: activeBranch,
+      onTap: switchBranch,
+      items: const [/* ... */],
+    ),
+  ),
+);
 ```
 
-The notable thing is per-branch typing. Each tab's router takes a
-specific sealed type — `KaiselRouter<HomeRoute>`, not
-`KaiselRouter<AppRoute>`. The compiler will reject `_homeRouter.push(const ProductDetail('x'))`
-as a type error. That's the type safety the article talks about
-becoming load-bearing in your editor, not just on paper.
+`KaiselBranchedShell.specs` declares each branch's initial route and
+builder, and the shell owns the per-branch routers — no
+`StatefulWidget`, no manual `KaiselRouter` or `BranchedShellRouter`.
+(The explicit `KaiselBranchedShell(shell:, branches: [KaiselBranch(...)])`
+form stays available as the lower tier if you need to hold the routers
+yourself.)
+
+The notable thing is per-branch typing. Each `KaiselBranchSpec` takes
+a specific sealed type — `KaiselBranchSpec<HomeRoute>`, not a single
+shared `AppRoute` — so its router is typed too. The compiler will
+reject pushing a `ProductDetail` into the home branch as a type error.
+That's the type safety the article talks about becoming load-bearing
+in your editor, not just on paper. From inside a branch, reach the
+shell with `context.shell()` (a `KaiselShellController`: `.switchTo(i)`,
+`.activeBranch`, `.branchCount`, `.current`).
 
 State preservation across tab switches is on by default — you don't
 need a stateful variant the way auto_route does.

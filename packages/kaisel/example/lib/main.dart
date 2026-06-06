@@ -602,7 +602,7 @@ class _ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             TextButton(
-              onPressed: () => context.branchedShell().switchTo(0),
+              onPressed: () => context.shell().switchTo(0),
               child: const Text('Go to Home tab'),
             ),
             const SizedBox(height: 12),

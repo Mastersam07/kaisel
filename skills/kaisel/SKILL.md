@@ -71,6 +71,7 @@ Read these only when the topic at hand demands the depth.
 | Type | Purpose |
 |:-----|:--------|
 | `KaiselRoute` | Base class for every route. Subclasses are sealed data carriers. |
+| `KaiselRouterConfig<R>` | A `RouterConfig` bundling router + delegate (+ URL parser/provider when given a `codec`) for `MaterialApp.router(routerConfig:)`. Hold as a top-level `final`; `.router` exposes the bundled `KaiselRouter<R>`. |
 | `KaiselRouter<R>` | Holds the stack of routes for type `R`. Mutated via `push`, `pop`, `set`, `replaceTop`, `pushOrReplaceTop`, `run<T>`. |
 | `KaiselRouterDelegate<R>` | `RouterDelegate` that drives Flutter's `Router` from a `KaiselRouter`. Takes a `builder`, optional `pageWrapper`, optional `modalBuilder`. |
 | `KaiselPageBuilder<R>` | `Widget Function(BuildContext, R)`. Pattern-match on the route to produce the screen. |
@@ -121,13 +122,51 @@ final class ProductDetail extends AppRoute {
 
 ## 2. Wiring up the router
 
+Hold a `KaiselRouterConfig<R>` as a top-level `final` and hand it
+straight to `MaterialApp.router(routerConfig:)`. It bundles the router,
+the delegate, and — when you give it a `codec:` — the URL parser and a
+`PlatformRouteInformationProvider`. No `StatefulWidget`, no manual
+delegate, no hand-rolled parser, no `dispose`.
+
 ```dart
-class App extends StatefulWidget {
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
+  builder: (context, route) => switch (route) {
+    Home() => const HomeScreen(),
+    ProductList(:final category) => ProductListScreen(category: category),
+    ProductDetail(:final id) => ProductDetailScreen(id: id),
+  },
+  // optional: guards:, pageWrapper:, modalBuilder:, codec:, fallback:
+);
+
+class App extends StatelessWidget {
   const App({super.key});
   @override
-  State<App> createState() => _AppState();
+  Widget build(BuildContext context) {
+    return MaterialApp.router(routerConfig: _config);
+  }
 }
+```
 
+Omit `codec:` and you get a URL-less, delegate-only app. Pass `codec:`
+(plus an optional `fallback:`) and the config wires the
+`KaiselRouteInformationParser` and a `PlatformRouteInformationProvider`
+for you — the app is URL-addressable. The bundled router is reachable as
+`_config.router` (a `KaiselRouter<AppRoute>`) for imperative navigation
+outside the widget tree. Call `_config.dispose()` only when a `State`
+owns its lifecycle; a top-level `final` lives for the whole app.
+
+The `switch` is exhaustive. Add a new sealed variant and the compiler
+points at every page builder, codec, and transition wrapper that needs
+to handle it. That's the type safety the library is designed to give
+you in load-bearing form, not just on paper.
+
+**Lower tier — the explicit form.** Constructing a `KaiselRouter`, a
+`KaiselRouterDelegate`, and a `KaiselRouteInformationParser` by hand
+still works, and is the right tool when a `State` must own each piece's
+lifecycle:
+
+```dart
 class _AppState extends State<App> {
   late final KaiselRouter<AppRoute> _router;
   late final KaiselRouterDelegate<AppRoute> _delegate;
@@ -163,12 +202,12 @@ class _AppState extends State<App> {
 }
 ```
 
-The `switch` is exhaustive. Add a new sealed variant and the compiler
-points at every page builder, codec, and transition wrapper that needs
-to handle it. That's the type safety the library is designed to give
-you in load-bearing form, not just on paper.
-
 ## 3. Navigating
+
+The idiomatic default is the typed `context.router<R>()` — the verb is then
+compile-checked against the family, so a wrong-family route is a compile
+error, and you also get the full `KaiselRouter<R>` surface (`stack`, `pop`,
+`run`, …):
 
 ```dart
 // From any widget inside the delegate's tree:
@@ -176,12 +215,28 @@ context.router<AppRoute>().push(const ProductDetail('sku-42'));
 context.router<AppRoute>().pop();
 context.router<AppRoute>().replaceTop(const ProductList());
 context.router<AppRoute>().set(const [Home(), ProductList()]);
+final result = await context.router<AppRoute>().run<bool>(const ConfirmFlow());
 ```
 
-`context.router<R>()` resolves to the nearest enclosing router — the
-modal flow's router if inside a flow, the branch's router if inside a
-shell branch, otherwise the main router. The type parameter disambiguates
-which router you mean.
+`context.router<R>()` resolves to the nearest enclosing router — the modal
+flow's router if inside a flow, the branch's router if inside a shell branch,
+otherwise the main router. The type parameter disambiguates which family.
+
+For brevity, the terse `context.*` verbs drop the type parameter:
+
+```dart
+context.push(const ProductDetail('sku-42'));
+context.pop();
+context.pushOrReplaceTop(const ProductDetail('sku-99'));
+final quantity = await context.run<int>(const AddCardFlow());
+```
+
+These resolve the nearest router whose route type *accepts* the argument by
+walking up the tree at runtime. The deliberate trade: a wrong-family route
+throws at **runtime** rather than failing to compile — so reach for them when
+the terseness clearly earns that trade (a single-router screen, say).
+`push`/`pop`/`replaceTop`/`pushOrReplaceTop`/`set` are non-generic; only
+`run<T>` carries a result type.
 
 > For decisions between `push`, `replaceTop`, `pushOrReplaceTop`, `set`,
 > and `run<T>`, read [NAVIGATION.md](./NAVIGATION.md).

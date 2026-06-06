@@ -21,6 +21,12 @@ section" pattern.
 
 ## Branched shell — the canonical pattern
 
+The recommended setup is the declarative `KaiselBranchedShell.specs(...)`.
+You describe each branch as a `KaiselBranchSpec<R>` and the shell
+**creates, owns, and disposes** one `KaiselRouter` per spec — you never
+construct a `KaiselRouter` or a `BranchedShellRouter`, and each branch's
+stack still survives tab switches.
+
 ```dart
 sealed class HomeRoute extends KaiselRoute { const HomeRoute(); }
 final class HomeView extends HomeRoute { const HomeView(); }
@@ -37,6 +43,56 @@ final class ProductDetail extends ProductRoute {
 sealed class SettingsRoute extends KaiselRoute { const SettingsRoute(); }
 final class SettingsHome extends SettingsRoute { const SettingsHome(); }
 
+KaiselBranchedShell.specs(
+  branches: [
+    KaiselBranchSpec<HomeRoute>(
+      initial: const HomeView(),
+      builder: (context, route) => switch (route) {
+        HomeView() => const HomeScreen(),
+      },
+    ),
+    KaiselBranchSpec<ProductRoute>(
+      initial: const ProductList(),
+      builder: (context, route) => switch (route) {
+        ProductList() => const ProductListScreen(),
+        ProductDetail(:final id) => ProductDetailScreen(id: id),
+      },
+    ),
+    KaiselBranchSpec<SettingsRoute>(
+      initial: const SettingsHome(),
+      builder: (context, route) => switch (route) {
+        SettingsHome() => const SettingsScreen(),
+      },
+    ),
+  ],
+  chromeBuilder: (context, activeBranch, branchContent, switchBranch) {
+    return Scaffold(
+      body: branchContent,
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: activeBranch,
+        onTap: switchBranch,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.shop), label: 'Shop'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+        ],
+      ),
+    );
+  },
+  // optional: initialBranch:
+);
+```
+
+Each spec accepts optional `guards:`, `pageWrapper:`, and `scope:`. For
+an adaptive (absorbing) page builder, use the
+`KaiselBranchSpec<R>.adaptive(initial:, builder:)` constructor.
+
+**Lower tier — the explicit form.** When you need to hold the branch
+routers yourself, construct each `KaiselRouter`, wire them into a
+`BranchedShellRouter`, and pass `KaiselBranch<R>(router:, pageBuilder:)`
+entries. You own disposal in this form.
+
+```dart
 class _AppShellState extends State<AppShell> {
   late final _homeRouter =
       KaiselRouter<HomeRoute>(initial: const HomeView());
@@ -163,6 +219,40 @@ chromeBuilder: (context, activeBranch, branchContent, switchBranch) {
 },
 ```
 
+## Custom branch layout (`branchContentBuilder`)
+
+By default the shell lays the branches out in an `IndexedStack` — that's
+what keeps every branch mounted so the state preservation above works.
+Pass `branchContentBuilder` to swap that for any container (a `PageView`
+for swipeable tabs, a custom animated switcher, …) without giving up the
+shell's back-button routing, scopes, or URL wiring:
+
+```dart
+KaiselBranchedShell.specs(
+  branches: [/* ... */],
+  branchContentBuilder: (context, activeBranch, branches, switchBranch) {
+    return PageView(
+      controller: _pageController,         // your own, synced to activeBranch
+      onPageChanged: switchBranch,         // swipe → switch tab
+      children: branches,
+    );
+  },
+  chromeBuilder: (context, active, branchContent, switchBranch) =>
+      Scaffold(body: branchContent /* ... */),
+)
+```
+
+The builder receives the active index, the per-branch widgets (in branch
+order), and the tab switcher — the same pieces the default `IndexedStack`
+uses.
+
+> **You take over state preservation.** `IndexedStack` keeps every branch
+> alive; a plain `PageView` lazily builds and disposes off-screen pages, so
+> branch stacks reset unless you keep them mounted (e.g. `PageView` with
+> `AutomaticKeepAliveClientMixin` on the branch children, or
+> `KeepAlivePageView`-style wrappers). Keep `switchTo`/`activeBranch` and your
+> container in sync so back-button routing still targets the visible branch.
+
 ## Resolving the right router from context
 
 Inside a branch's screens, `context.router<R>()` resolves to that
@@ -180,19 +270,22 @@ If you need to mutate the top-level state (logout, switch shell route),
 use `context.router<AppRoute>()`. If you need to navigate within the
 current branch, use the branch's type.
 
-`KaiselBranchedShellContextX` is an extension that adds shell-specific
-helpers (e.g., reading the current active branch index from any
-descendant of the shell).
+`context.shell()` returns a `KaiselShellController` from any descendant
+of the shell — one accessor for either shell flavour. It exposes
+`switchTo(i)`, `activeBranch`, `branchCount`, and `current` (the active
+branch's `KaiselNavigator`, which carries its stack, `canPop`, and
+`pop`).
 
 **`context.router<R>()` does NOT work inside the `chromeBuilder`.** Each
-branch's `RouterScope<R>` is installed *inside* its `KaiselBranch`, which is
+branch's `RouterScope<R>` is installed *inside* its branch, which is
 a **descendant** of the chrome — and context lookups only walk upward. There
 is also no single "branch router" at the chrome level: the chrome wraps every
 branch, each with a different `R`. From the chrome:
 
 - use the `activeBranch` / `switchBranch` arguments you're handed, or
-  `context.branchedShell()` for the full aggregator (`switchTo`, `activeBranch`,
-  `current`, `currentCanPop`, `popCurrent`);
+  `context.shell()` for the controller (`switchTo`, `activeBranch`,
+  `branchCount`, `current`). Read the active branch's stack, `canPop`,
+  and `pop` through `context.shell().current`;
 - `context.router<AppRoute>()` (your root route type) resolves to the **main**
   router — it sits above the shell — so use it to push onto the root stack from
   the chrome.
@@ -241,8 +334,9 @@ KaiselShell<TabRoute>(
 ```
 
 Inside a branch screen, `context.router<TabRoute>()` resolves to the
-active branch's router and `context.shellRouter<TabRoute>()` to the
-shell aggregator. The trade-off vs. `KaiselBranchedShell`: every branch
+active branch's router and `context.shell()` to the shell controller
+(`switchTo`, `activeBranch`, `branchCount`, `current`). The trade-off
+vs. `KaiselBranchedShell`: every branch
 shares `TabRoute`, so the compiler can't stop you pushing a "profile"
 route into the "home" tab. When tabs need **different** route types (and
 that compile-time guard), use `KaiselBranchedShell` with per-branch

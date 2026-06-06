@@ -193,7 +193,9 @@ List<AppRoute> deepLinkSanitiser(
 ## Per-flow guards
 
 Modal flows can have their own guards independent of the main
-router's guards. Pass `flowGuards` when calling `run`:
+router's guards. Pass `flowGuards` when calling `run`. `flowGuards` are
+typed to the router's route type, so use the typed `context.router<R>()`
+form here (the terse `context.run` covers the no-guards case):
 
 ```dart
 final result = await context.router<AppRoute>().run<String>(

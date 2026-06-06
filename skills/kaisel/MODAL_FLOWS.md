@@ -29,7 +29,7 @@ itself. The flow has:
 |:-----|:--------|
 | `KaiselModalRoute<T>` | Abstract base for routes used as flow entry points. `T` is the typed completion value. |
 | `KaiselRouter.run<T>(flow)` | Opens the flow. Returns `Future<T?>` that completes when the flow completes or dismisses. |
-| `KaiselModalBuilder<R>` | Function passed to `KaiselRouterDelegate(modalBuilder: ...)` — required when the app uses flows. |
+| `KaiselModalBuilder<R>` | Function passed via `modalBuilder:` (on `KaiselRouterConfig` or `KaiselRouterDelegate`) — required when the app uses flows. |
 | `KaiselActiveFlow<R>` | Represents one active flow at runtime (one per `run` call). The delegate iterates these to render flows on top of the main stack. |
 | `context.completeFlow<T>(value)` | From inside a flow screen: complete the flow with `value`. |
 | `context.dismissFlow()` | From inside a flow screen (or in response to a backdrop tap): dismiss with `null`. |
@@ -66,15 +66,20 @@ final class PaymentFlow extends AppRoute
 ### 2. Open the flow with `run<T>`
 
 ```dart
-final cardId = await context.router<AppRoute>().run<CardId>(
-  const AddCardFlow(),
-);
+final cardId =
+    await context.router<AppRoute>().run<CardId>(const AddCardFlow());
 if (cardId != null) {
   // Flow completed with a card id.
 } else {
   // Dismissed.
 }
 ```
+
+The typed `context.router<AppRoute>().run<CardId>(...)` is the idiomatic
+form — it's compile-checked against the family. For brevity,
+`context.run<CardId>(flow)` drops the type parameter and resolves the
+nearest router that accepts the flow at runtime; the deliberate trade is
+that a wrong-family flow throws at runtime instead of failing to compile.
 
 The `Future<T?>` carries the result. `null` is the dismissal signal —
 treat it as a real outcome, not an error.
@@ -109,9 +114,12 @@ enclosing active flow and complete it.
 
 ### 4. Wire up the `modalBuilder`
 
+`modalBuilder:` is a `KaiselRouterConfig` parameter — declare the
+config once at app lifetime and hand it to `MaterialApp.router`:
+
 ```dart
-_delegate = KaiselRouterDelegate<AppRoute>(
-  router: _router,
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
   builder: (context, route) => switch (route) {
     Home() => const HomeScreen(),
     AddCardFlow() => const _AddCardEntryScreen(),
@@ -141,10 +149,14 @@ _delegate = KaiselRouterDelegate<AppRoute>(
     );
   },
 );
+
+// build: MaterialApp.router(routerConfig: _config, theme: ...)
 ```
 
 The `modalBuilder` is required when `run<T>` is used anywhere in the
-app. Without it, `run` throws.
+app. Without it, `run` throws. (The lower-tier explicit form —
+`KaiselRouterDelegate(router:, builder:, modalBuilder:)` — still works
+if you're managing the delegate by hand.)
 
 ## Sub-stack inside a flow
 
@@ -173,9 +185,7 @@ open.
 
 ```dart
 // In a PaymentFlow screen, open a sub-flow to add a card:
-final newCardId = await context.router<AppRoute>().run<CardId>(
-  const AddCardFlow(),
-);
+final newCardId = await context.run<CardId>(const AddCardFlow());
 if (newCardId != null) {
   // The PaymentFlow's state is still here, including its cards list,
   // its selected amount, anything in StatefulWidget state. The

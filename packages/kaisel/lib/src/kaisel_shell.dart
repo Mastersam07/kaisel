@@ -14,7 +14,8 @@ import 'kaisel_scope.dart';
 /// Branches share the route type [R]; you constrain "what's valid on
 /// which tab" through your pattern-matched [KaiselPageBuilder] and your
 /// own discipline. For per-branch typed routes, see [KaiselBranchedShell].
-class ShellRouter<R extends KaiselRoute> extends ChangeNotifier {
+class ShellRouter<R extends KaiselRoute> extends ChangeNotifier
+    implements KaiselShellController {
   /// Create a shell with one router per [branchInitials].
   ShellRouter({
     required List<R> branchInitials,
@@ -45,15 +46,19 @@ class ShellRouter<R extends KaiselRoute> extends ChangeNotifier {
   List<KaiselRouter<R>> get branches => List.unmodifiable(_branches);
 
   /// Index of the currently selected branch.
+  @override
   int get activeBranch => _activeBranch;
 
   /// The router for the currently selected branch.
+  @override
   KaiselRouter<R> get current => _branches[_activeBranch];
 
   /// Number of branches.
+  @override
   int get branchCount => _branches.length;
 
   /// Select a different branch. No-op if [branch] is already active.
+  @override
   void switchTo(int branch) {
     if (branch < 0 || branch >= _branches.length) {
       throw RangeError.range(branch, 0, _branches.length - 1, 'branch');
@@ -98,8 +103,8 @@ typedef KaiselBranchScope =
 /// Place a `KaiselShell` in your top-level builder as the screen for the
 /// "main app" route variant. Inside any branch screen, get the branch's
 /// router via `context.router<AppRoute>()` (which resolves to the
-/// active branch's router when inside a shell) and the shell router
-/// via `context.shellRouter<AppRoute>()`.
+/// active branch's router when inside a shell) and the shell controller
+/// via `context.shell()`.
 class KaiselShell<R extends KaiselRoute> extends StatefulWidget {
   /// Create a shell with [branchInitials.length] branches using a
   /// simple per-route page builder.
@@ -210,10 +215,9 @@ class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
           activeRouter.pop();
         }
       },
-      child: ShellScope<R>(
-        shellRouter: _shell,
+      child: KaiselShellScope(
+        controller: _shell,
         child: ShellChromeScope(
-          accessorHint: 'context.shellRouter<$R>()',
           child: Builder(
             builder: (context) {
               final branchContent = IndexedStack(
@@ -253,65 +257,4 @@ class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
     // inside a branch screen resolves to that branch's router.
     return RouterScope<R>(router: router, child: content);
   }
-}
-
-/// Inherited widget exposing the [ShellRouter] to descendants.
-///
-/// For most navigation, prefer `context.router<R>()` (which resolves to
-/// the active branch's router inside a shell). Use this when you
-/// specifically need to switch branches programmatically:
-/// `context.shellRouter<R>().switchTo(2)`.
-class ShellScope<R extends KaiselRoute> extends InheritedWidget {
-  /// Create a scope around [child] exposing [shellRouter].
-  const ShellScope({
-    super.key,
-    required this.shellRouter,
-    required super.child,
-  });
-
-  /// The shell router exposed at this scope.
-  final ShellRouter<R> shellRouter;
-
-  /// Look up the nearest [ShellScope] of route type [R].
-  ///
-  /// Throws if no scope is found — wrap your screen in a [KaiselShell]
-  /// or use [maybeOf] if absence is expected.
-  static ShellScope<R> of<R extends KaiselRoute>(BuildContext context) {
-    final scope = maybeOf<R>(context);
-    if (scope == null) {
-      throw FlutterError(
-        'ShellScope<$R> not found in widget tree.\n'
-        'Ensure the calling widget is inside a KaiselShell<$R>.',
-      );
-    }
-    return scope;
-  }
-
-  /// Like [of], but returns null instead of throwing.
-  static ShellScope<R>? maybeOf<R extends KaiselRoute>(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<ShellScope<R>>();
-
-  @override
-  bool updateShouldNotify(ShellScope<R> old) =>
-      !identical(old.shellRouter, shellRouter);
-}
-
-/// Convenience accessors for shell-scoped routers.
-///
-/// Prefer `context.router<R>()` for in-branch pushes (it resolves to
-/// the branch router when inside a shell). These accessors are for the
-/// shell-specific operations.
-extension KaiselShellBuildContextX on BuildContext {
-  /// The router for the currently active branch in the enclosing
-  /// [KaiselShell]. Equivalent to `context.router<R>()` when inside a
-  /// shell.
-  ///
-  /// Prefer `context.router<R>()` in new code.
-  KaiselRouter<R> branchRouter<R extends KaiselRoute>() =>
-      ShellScope.of<R>(this).shellRouter.current;
-
-  /// The enclosing [ShellRouter]. Use this to switch tabs
-  /// programmatically.
-  ShellRouter<R> shellRouter<R extends KaiselRoute>() =>
-      ShellScope.of<R>(this).shellRouter;
 }
