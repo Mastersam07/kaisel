@@ -45,7 +45,7 @@ Dart 3 has had the type machinery to do better since 2023: sealed classes, exhau
 ## Features
 
 - **Typed route stack** — `List<R>` over your sealed class. Pattern-matched page resolution with compile-time exhaustiveness.
-- **One-line setup, terse navigation** — `KaiselRouterConfig` collapses the router, delegate, and parser into a single `routerConfig:`; navigate with `context.push` / `pop` / `replaceTop` / `pushOrReplaceTop` / `set` / `run<T>`, with `context.router<R>()` as the typed escape hatch.
+- **One-line setup, typed navigation** — `KaiselRouterConfig` collapses the router, delegate, and parser into a single `routerConfig:`; navigate with the typed `context.router<R>().push` / `pop` / `replaceTop` / `pushOrReplaceTop` / `set` / `run<T>` (a wrong-family route is a compile error), or the terser `context.push(...)` when you'll take a runtime family check for the brevity.
 - **Value equality for free** — default `props`-based `==`/`hashCode` on `KaiselRoute`. No manual equality, no codegen.
 - **Guard pipeline** — composable `FutureOr<List<R>> Function(current, proposed)` functions. Async-aware and pure-Dart testable.
 - **Shells** — `KaiselShell<R>` (homogeneous branches) and `KaiselBranchedShell` (per-branch typed routes; `.specs` declares branches without wiring routers), with per-tab back stacks, scoped state, and correct back-button handling. One `context.shell()` accessor drives either.
@@ -206,12 +206,13 @@ Use `KaiselBranchSpec.adaptive(...)` for an adaptive branch. When you need to ho
 Inside a Home branch screen:
 
 ```dart
-context.push(const ProductDetail('42'));  // terse — nearest router that accepts it
-context.push(const Settings());           // resolves up to the main router
-context.shell().switchTo(2);              // change tab
+context.router<HomeRoute>().push(const ProductDetail('42'));  // compile-checked family
+context.router<AppRoute>().push(const Settings());            // the main router
+context.shell().switchTo(2);                                  // change tab
 
-// Or the typed form, when you want the wrong-family check at compile time:
-context.router<HomeRoute>().push(const ProductDetail('42'));
+// Or the terse convenience — resolves the nearest accepting router at runtime,
+// so a wrong-family route throws instead of failing to compile:
+context.push(const ProductDetail('42'));
 ```
 
 `RouterScope` lookup is by exact generic type, so `context.router<HomeRoute>()` and `context.router<AppRoute>()` don't collide. Each branch keeps its own back stack (via `IndexedStack`); Android back unwinds the active branch first, falling through to the parent router only at branch root.

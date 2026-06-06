@@ -6,24 +6,27 @@ differently and is appropriate for a different situation.
 
 ## Two ways to call them
 
-Every verb has two surfaces:
+Every verb has two surfaces. Lead with the typed one:
 
-- **Terse `context.*` verbs** — the idiomatic default. `context.push(...)`,
-  `context.pop()`, `context.replaceTop(...)`,
-  `context.pushOrReplaceTop(...)`, `context.set(...)`,
-  `context.run<T>(...)`. These resolve the *nearest* router whose route
-  type **accepts** the argument, walking up the widget tree at runtime.
-  `push`/`pop`/`replaceTop`/`pushOrReplaceTop`/`set` are non-generic;
-  only `run<T>` carries a result type.
-- **Typed `context.router<R>().<verb>`** — the equivalent explicit form.
+- **Typed `context.router<R>().<verb>` — the idiomatic default.**
   `context.router<R>()` resolves the nearest router of route family `R`,
-  and the verb is then a compile-checked call against that family. Reach
-  for it when typed/explicit router access is the point.
+  and the verb is then a compile-checked call against that family: a route
+  from the wrong family is a **compile error**, caught before you run.
+  `context.router<R>()` also hands you the actual `KaiselRouter<R>`, so the
+  full surface (`stack`, `pop`, `replaceTop`, `run`, …) is right there. This
+  is the form to reach for by default — it's the one the type system backs.
+- **Terse `context.<verb>` — a deliberate convenience.** `context.push(...)`,
+  `context.pop()`, `context.replaceTop(...)`, `context.pushOrReplaceTop(...)`,
+  `context.set(...)`, `context.run<T>(...)` drop the `<R>` and resolve the
+  *nearest* router whose route type **accepts** the argument, walking up the
+  tree at runtime. You trade the compile-time family check for brevity: a
+  wrong-family route now throws at **runtime** instead of failing to compile.
+  Reach for it when the terseness clearly earns that trade — e.g. a
+  single-router screen, where there's no wrong family to get wrong.
 
-The trade-off: a `context.*` verb given a route from the wrong family
-throws at **runtime**, whereas `context.router<R>().<verb>` makes the
-same mistake a **compile error**. Both lead the verbs in the sections
-below.
+`push`/`pop`/`replaceTop`/`pushOrReplaceTop`/`set` are non-generic on the
+terse surface; only `run<T>` carries a result type either way. The sections
+below show the typed form first.
 
 ## Quick reference
 
@@ -42,9 +45,9 @@ applying. A guard can reject or transform any proposed stack.
 ## push
 
 ```dart
-context.push(const ProductDetail('sku-42'));
-// Typed equivalent:
 context.router<AppRoute>().push(const ProductDetail('sku-42'));
+// Terse convenience (runtime-resolved):
+context.push(const ProductDetail('sku-42'));
 ```
 
 Adds the route on top of the current stack. The previous top stays
@@ -64,9 +67,9 @@ sub-screen.
 ## pop
 
 ```dart
-final didPop = await context.pop();
-// Typed equivalent:
 final didPop = await context.router<AppRoute>().pop();
+// Terse convenience (runtime-resolved):
+final didPop = await context.pop();
 ```
 
 Removes the top entry. Returns `true` if the pop happened, `false` if
@@ -87,9 +90,9 @@ without a typed result.
 ## replaceTop
 
 ```dart
-context.replaceTop(const ProductDetail('sku-42'));
-// Typed equivalent:
 context.router<AppRoute>().replaceTop(const ProductDetail('sku-42'));
+// Terse convenience (runtime-resolved):
+context.replaceTop(const ProductDetail('sku-42'));
 ```
 
 Removes the current top entry and pushes a new one in its place. The
@@ -108,11 +111,9 @@ already below. If you want the user to be able to go back to the
 ## pushOrReplaceTop
 
 ```dart
+context.router<AppRoute>().pushOrReplaceTop(ProductDetail(productId));
+// Terse convenience (runtime-resolved):
 context.pushOrReplaceTop(ProductDetail(productId));
-// Typed equivalent:
-context.router<AppRoute>().pushOrReplaceTop(
-  ProductDetail(productId),
-);
 ```
 
 If the current top is the same runtime type as the proposed route,
@@ -140,9 +141,9 @@ items.
 ## set
 
 ```dart
-context.set(const [Home(), ProductList()]);
-// Typed equivalent:
 context.router<AppRoute>().set(const [Home(), ProductList()]);
+// Terse convenience (runtime-resolved):
+context.set(const [Home(), ProductList()]);
 ```
 
 Replaces the entire stack with the provided list. Equivalent to
@@ -167,11 +168,11 @@ changes.
 ## run
 
 ```dart
-final cardId = await context.run<CardId>(const AddCardFlow());
-// Typed equivalent:
 final cardId = await context.router<AppRoute>().run<CardId>(
   const AddCardFlow(),
 );
+// Terse convenience (runtime-resolved):
+final cardId = await context.run<CardId>(const AddCardFlow());
 if (cardId != null) {
   // Flow completed with a result.
 } else {
@@ -201,9 +202,9 @@ sub-flow has a clean entry, multi-step middle, and typed exit.
 
 ## Decision aid
 
-A short decision tree for picking the right method. Reach for the terse
-`context.<verb>` by default; switch to `context.router<R>().<verb>` when
-you want the typed, compile-checked call:
+A short decision tree for picking the right method. Reach for the typed
+`context.router<R>().<verb>` by default; drop to the terse `context.<verb>`
+when the brevity clearly earns the runtime family check:
 
 - **Going forward to a new screen?** `push`
 - **Going back?** `pop`

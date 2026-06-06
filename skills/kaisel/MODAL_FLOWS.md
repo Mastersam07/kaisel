@@ -66,7 +66,8 @@ final class PaymentFlow extends AppRoute
 ### 2. Open the flow with `run<T>`
 
 ```dart
-final cardId = await context.run<CardId>(const AddCardFlow());
+final cardId =
+    await context.router<AppRoute>().run<CardId>(const AddCardFlow());
 if (cardId != null) {
   // Flow completed with a card id.
 } else {
@@ -74,11 +75,11 @@ if (cardId != null) {
 }
 ```
 
-`context.run<T>(flow)` is the terse form — it resolves the nearest
-router that accepts the flow route and runs it. The typed form
-`context.router<AppRoute>().run<CardId>(const AddCardFlow())` is
-equivalent and stays valid where you want explicit, compile-time-typed
-router access.
+The typed `context.router<AppRoute>().run<CardId>(...)` is the idiomatic
+form — it's compile-checked against the family. For brevity,
+`context.run<CardId>(flow)` drops the type parameter and resolves the
+nearest router that accepts the flow at runtime; the deliberate trade is
+that a wrong-family flow throws at runtime instead of failing to compile.
 
 The `Future<T?>` carries the result. `null` is the dismissal signal —
 treat it as a real outcome, not an error.

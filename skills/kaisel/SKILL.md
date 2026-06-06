@@ -204,35 +204,39 @@ class _AppState extends State<App> {
 
 ## 3. Navigating
 
-The idiomatic terse default is the `context.*` verbs — no type parameter:
+The idiomatic default is the typed `context.router<R>()` — the verb is then
+compile-checked against the family, so a wrong-family route is a compile
+error, and you also get the full `KaiselRouter<R>` surface (`stack`, `pop`,
+`run`, …):
 
 ```dart
 // From any widget inside the delegate's tree:
-context.push(const ProductDetail('sku-42'));
-context.pop();
-context.replaceTop(const ProductList());
-context.pushOrReplaceTop(const ProductDetail('sku-99'));
-context.set(const [Home(), ProductList()]);
-final result = await context.run<bool>(const ConfirmFlow());
+context.router<AppRoute>().push(const ProductDetail('sku-42'));
+context.router<AppRoute>().pop();
+context.router<AppRoute>().replaceTop(const ProductList());
+context.router<AppRoute>().set(const [Home(), ProductList()]);
+final result = await context.router<AppRoute>().run<bool>(const ConfirmFlow());
 ```
 
-These resolve the nearest router whose route type *accepts* the argument
-by walking up the widget tree at runtime. The trade-off: a wrong-family
-route throws at runtime rather than failing to compile.
-`push`/`pop`/`replaceTop`/`pushOrReplaceTop`/`set` are non-generic; only
-`run<T>` carries a result type.
+`context.router<R>()` resolves to the nearest enclosing router — the modal
+flow's router if inside a flow, the branch's router if inside a shell branch,
+otherwise the main router. The type parameter disambiguates which family.
 
-When you want typed/explicit router access — or a compile-time guarantee
-that the route belongs to the family — reach for `context.router<R>()`:
+For brevity, the terse `context.*` verbs drop the type parameter:
 
 ```dart
-context.router<AppRoute>().push(const ProductDetail('sku-42'));
+context.push(const ProductDetail('sku-42'));
+context.pop();
+context.pushOrReplaceTop(const ProductDetail('sku-99'));
+final quantity = await context.run<int>(const AddCardFlow());
 ```
 
-`context.router<R>()` resolves to the nearest enclosing router — the
-modal flow's router if inside a flow, the branch's router if inside a
-shell branch, otherwise the main router. The type parameter disambiguates
-which router you mean.
+These resolve the nearest router whose route type *accepts* the argument by
+walking up the tree at runtime. The deliberate trade: a wrong-family route
+throws at **runtime** rather than failing to compile — so reach for them when
+the terseness clearly earns that trade (a single-router screen, say).
+`push`/`pop`/`replaceTop`/`pushOrReplaceTop`/`set` are non-generic; only
+`run<T>` carries a result type.
 
 > For decisions between `push`, `replaceTop`, `pushOrReplaceTop`, `set`,
 > and `run<T>`, read [NAVIGATION.md](./NAVIGATION.md).

@@ -16,11 +16,11 @@ deprecation cycle).
   `KaiselRouter<R>`. The explicit `KaiselRouterDelegate` + parser path is
   unchanged.
 - **Terse `context.*` navigation** — `context.push` / `pop` / `replaceTop` /
-  `pushOrReplaceTop` / `set` / `run<T>` on `BuildContext`. Each resolves the
-  nearest router whose route type accepts the argument (a runtime walk up the
-  tree). The trade vs `context.router<R>().push(...)`: a wrong-family route
-  throws at runtime instead of failing to compile. `context.router<R>()` stays
-  as the typed escape hatch.
+  `pushOrReplaceTop` / `set` / `run<T>` on `BuildContext`, a deliberate
+  convenience over the typed `context.router<R>().<verb>` (which stays the
+  idiomatic default). Each resolves the nearest router whose route type accepts
+  the argument (a runtime walk up the tree); the trade is that a wrong-family
+  route throws at runtime instead of failing to compile.
 - **`context.shell()` → `KaiselShellController`** — one accessor for either
   shell flavour, exposing `switchTo`, `activeBranch`, `branchCount`, and
   `current` (the active branch's navigator, so chrome can read the active stack

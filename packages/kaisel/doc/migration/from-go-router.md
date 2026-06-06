@@ -502,8 +502,10 @@ router whose route type accepts the argument at runtime, so
 `context.push(const ProductDetail('42'))` "just works" from anywhere
 in the tree, the way `context.push('/products/42')` does. The trade
 is that a wrong-family route throws at runtime instead of compile
-time; `context.router<AppRoute>()` remains the typed escape hatch
-when you want the error at compile time.
+time — so kaisel treats the typed `context.router<AppRoute>().push(...)`
+as the idiomatic default (the family is compile-checked) and the terse
+`context.push(...)` as the go_router-shaped convenience you reach for
+when the brevity is worth that trade.
 
 **`routerConfig` setup.** `KaiselRouterConfig` is a `RouterConfig`
 you hand to `MaterialApp.router(routerConfig:)`, declared as a

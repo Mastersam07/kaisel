@@ -72,7 +72,8 @@ class _HomeScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Home')),
       body: Center(
         child: ElevatedButton(
-          // Terse, go_router-shaped — no `router<AppRoute>()` ceremony.
+          // Terse convenience (runtime family check). The idiomatic default
+          // is the typed context.router<AppRoute>().push(const ProductDetail(...)).
           onPressed: () => context.push(const ProductDetail('sku-42')),
           child: const Text('Open product'),
         ),
