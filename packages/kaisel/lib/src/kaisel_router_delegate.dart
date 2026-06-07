@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:kaisel_core/framework.dart';
 
 import 'kaisel_adaptive.dart';
+import 'kaisel_branched_shell.dart';
 import 'kaisel_inner_navigator.dart';
 import 'kaisel_page_scope.dart';
 import 'kaisel_page_wrapper.dart';
@@ -52,7 +54,7 @@ typedef KaiselModalBuilder =
 class KaiselRouterDelegate<R extends KaiselRoute>
     extends RouterDelegate<KaiselConfig<R>>
     with ChangeNotifier, PopNavigatorRouterDelegateMixin<KaiselConfig<R>>
-    implements KaiselNestedHost {
+    implements KaiselNestedHost, KaiselInspectable, KaiselListenable {
   /// Create a delegate driving [router].
   ///
   /// [builder] resolves a route to a widget. Use pattern matching here
@@ -72,6 +74,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   }) : _builder = builder,
        _adaptiveBuilder = null {
     router.addListener(_safeNotifyListeners);
+    _registerWithInspector();
   }
 
   /// Create a delegate that uses an adaptive builder for the main
@@ -117,6 +120,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   }) : _builder = null,
        _adaptiveBuilder = builder {
     router.addListener(_safeNotifyListeners);
+    _registerWithInspector();
   }
 
   /// The router whose state drives this delegate.
@@ -470,9 +474,119 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     }
   }
 
+  // DevTools inspection. The delegate is the snapshot hub: it sees the main
+  // router, the registered nested handles, and the active flows, and it
+  // already notifies on all of them. Registration is gated on kDebugMode, so
+  // release builds never touch the inspector and pay nothing.
+
+  int? _inspectorToken;
+
+  void _registerWithInspector() {
+    if (kDebugMode) {
+      _inspectorToken = KaiselInspector.instance.register(this);
+    }
+  }
+
+  @override
+  KaiselListenable get debugRevision => this;
+
+  @override
+  KaiselRootSnapshot debugSnapshot() {
+    final branches = <KaiselShellSnapshot>[];
+    final modules = <KaiselModuleSnapshot>[];
+    for (final handle in _nested) {
+      if (handle is BranchedShellRouter) {
+        branches.add(_shellSnapshot(handle));
+      } else if (handle.captureConfig() case final KaiselModuleConfig config) {
+        modules.add(
+          KaiselModuleSnapshot(
+            routeType: _routeTypeOf(config.stack),
+            stack: _routesStack(config.stack),
+          ),
+        );
+      }
+    }
+    return KaiselRootSnapshot(
+      id: 'root-${identityHashCode(this).toRadixString(16)}',
+      main: _entriesStack(router.depth, router.canPop, router.entries),
+      branches: branches,
+      modules: modules,
+      flows: _flowSnapshots(),
+    );
+  }
+
+  KaiselShellSnapshot _shellSnapshot(BranchedShellRouter shell) {
+    final branches = shell.branches;
+    return KaiselShellSnapshot(
+      type: shell.runtimeType.toString(),
+      activeBranch: shell.activeBranch,
+      branchCount: shell.branchCount,
+      branches: <KaiselBranchSnapshot>[
+        for (var i = 0; i < branches.length; i++)
+          KaiselBranchSnapshot(
+            index: i,
+            routeType: _routeTypeOf(branches[i].stack),
+            stack: _routesStack(branches[i].stack),
+          ),
+      ],
+    );
+  }
+
+  List<KaiselFlowSnapshot> _flowSnapshots() {
+    final flows = router.activeFlows;
+    return <KaiselFlowSnapshot>[
+      for (var i = 0; i < flows.length; i++)
+        KaiselFlowSnapshot(
+          depth: i,
+          type: flows[i].route.runtimeType.toString(),
+          stack: _entriesStack(
+            flows[i].router.depth,
+            flows[i].router.canPop,
+            flows[i].router.entries,
+          ),
+        ),
+    ];
+  }
+
+  KaiselStackSnapshot _entriesStack<S extends KaiselRoute>(
+    int depth,
+    bool canPop,
+    List<KaiselStackEntry<S>> entries,
+  ) => KaiselStackSnapshot(
+    depth: depth,
+    canPop: canPop,
+    entries: <KaiselEntrySnapshot>[
+      for (final entry in entries) _entrySnapshot(entry.id, entry.route),
+    ],
+  );
+
+  KaiselStackSnapshot _routesStack(List<KaiselRoute> routes) =>
+      KaiselStackSnapshot(
+        depth: routes.length,
+        canPop: routes.length > 1,
+        entries: <KaiselEntrySnapshot>[
+          for (var i = 0; i < routes.length; i++) _entrySnapshot(i, routes[i]),
+        ],
+      );
+
+  KaiselEntrySnapshot _entrySnapshot(int id, KaiselRoute route) =>
+      KaiselEntrySnapshot(
+        id: id,
+        type: route.runtimeType.toString(),
+        props: <String>[for (final prop in route.props) '$prop'],
+        label: route.toString(),
+      );
+
+  String _routeTypeOf(List<KaiselRoute> stack) =>
+      stack.isEmpty ? 'unknown' : stack.first.runtimeType.toString();
+
   @override
   void dispose() {
     _isDisposed = true;
+    final token = _inspectorToken;
+    if (token case final t?) {
+      KaiselInspector.instance.deregister(t);
+    }
     router.removeListener(_safeNotifyListeners);
     for (final handle in _nested) {
       handle.removeListener(_safeNotifyListeners);
