@@ -71,8 +71,10 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     required KaiselPageBuilder<R> builder,
     this.pageWrapper,
     this.modalBuilder,
+    KaiselConfigCodec<R>? codec,
   }) : _builder = builder,
-       _adaptiveBuilder = null {
+       _adaptiveBuilder = null,
+       _codec = codec {
     router.addListener(_safeNotifyListeners);
     _registerWithInspector();
   }
@@ -117,8 +119,10 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     required KaiselAdaptivePageBuilder<R> builder,
     this.pageWrapper,
     this.modalBuilder,
+    KaiselConfigCodec<R>? codec,
   }) : _builder = null,
-       _adaptiveBuilder = builder {
+       _adaptiveBuilder = builder,
+       _codec = codec {
     router.addListener(_safeNotifyListeners);
     _registerWithInspector();
   }
@@ -133,6 +137,11 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   /// Adaptive page builder. Null when the default constructor
   /// was used.
   final KaiselAdaptivePageBuilder<R>? _adaptiveBuilder;
+
+  /// The config codec, supplied by [KaiselRouterConfig] when the app is
+  /// URL-addressable. Used only to encode the current configuration into the
+  /// `url` field of the debug snapshot; null for URL-less apps.
+  final KaiselConfigCodec<R>? _codec;
 
   /// Optional customiser for the [Page] wrapping. Defaults to
   /// [MaterialPage].
@@ -513,7 +522,20 @@ class KaiselRouterDelegate<R extends KaiselRoute>
       modules: modules,
       flows: _flowSnapshots(),
       guardTrace: _guardTraceSnapshot(),
+      url: _encodeUrl(),
     );
+  }
+
+  String? _encodeUrl() {
+    final codec = _codec;
+    if (codec == null) return null;
+    try {
+      return codec.encode(currentConfiguration).toString();
+    } catch (_) {
+      // A user codec may throw on a transient configuration; the URL is a
+      // best-effort debug field, so swallow and report none.
+      return null;
+    }
   }
 
   KaiselGuardTraceSnapshot? _guardTraceSnapshot() {

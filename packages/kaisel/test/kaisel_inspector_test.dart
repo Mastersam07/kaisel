@@ -20,6 +20,19 @@ final class _Detail extends _R {
   List<Object?> get props => <Object?>[id];
 }
 
+class _Codec implements KaiselConfigCodec<_R> {
+  const _Codec();
+
+  @override
+  Uri encode(KaiselConfig<_R> config) => switch (config.mainStack.last) {
+    _Home() => Uri(path: '/'),
+    _Detail(:final id) => Uri(path: '/detail/$id'),
+  };
+
+  @override
+  KaiselConfig<_R>? decode(Uri uri) => null;
+}
+
 KaiselRouterDelegate<_R> _delegate(KaiselRouter<_R> router) =>
     KaiselRouterDelegate<_R>(
       router: router,
@@ -99,6 +112,33 @@ void main() {
     expect(trace.output, <String>['_Home', '_Detail(z)', '_Home']);
     expect(trace.steps.single.changed, isTrue);
 
+    delegate.dispose();
+    router.dispose();
+  });
+
+  test(
+    'debugSnapshot encodes the current url when a codec is supplied',
+    () async {
+      final router = KaiselRouter<_R>(initial: const _Home());
+      final delegate = KaiselRouterDelegate<_R>(
+        router: router,
+        builder: (_, _) => const SizedBox.shrink(),
+        codec: const _Codec(),
+      );
+
+      expect(delegate.debugSnapshot().url, '/');
+      await router.push(const _Detail('a'));
+      expect(delegate.debugSnapshot().url, '/detail/a');
+
+      delegate.dispose();
+      router.dispose();
+    },
+  );
+
+  test('url is null without a codec', () {
+    final router = KaiselRouter<_R>(initial: const _Home());
+    final delegate = _delegate(router);
+    expect(delegate.debugSnapshot().url, isNull);
     delegate.dispose();
     router.dispose();
   });
