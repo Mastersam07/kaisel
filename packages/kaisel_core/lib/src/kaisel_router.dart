@@ -121,6 +121,8 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   // [run] and popped by [completeFlow]/[dismissFlow] in LIFO order.
   final List<_ActiveFlow<R>> _flows = <_ActiveFlow<R>>[];
 
+  KaiselGuardRun<R>? _debugLastGuardRun;
+
   /// The current stack as a read-only list of routes.
   @override
   List<R> get stack => List<R>.unmodifiable(_entries.map((e) => e.route));
@@ -156,6 +158,13 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   /// Framework-facing view used by the delegate to key pages. Exposed via
   /// `package:kaisel_core/framework.dart`, not the public barrel.
   List<KaiselStackEntry<R>> get entries => List.unmodifiable(_entries);
+
+  /// The most recent guard-pipeline run, retained for DevTools/debugging.
+  ///
+  /// Populated only in debug builds (the recording is gated by `assert`) and
+  /// only when at least one guard ran; null in release and before any guarded
+  /// navigation. Exposed via `package:kaisel_core/framework.dart`.
+  KaiselGuardRun<R>? get debugLastGuardRun => _debugLastGuardRun;
 
   /// Push a route onto the top of the stack. Runs through guards.
   Future<void> push(R route) => _enqueue(() => _navigate([...stack, route]));
@@ -389,10 +398,46 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
 
   Future<List<R>> _runGuards(List<R> current, List<R> proposed) async {
     var next = proposed;
-    for (final guard in _guards) {
-      next = await guard(current, next);
+
+    // Retain a trace for DevTools — debug builds only, and only when guards
+    // actually run. The assert side-effect is stripped in release, so the
+    // recording machinery (and its allocations) costs nothing in production.
+    var recording = false;
+    assert(() {
+      recording = _guards.isNotEmpty;
+      return true;
+    }());
+    final steps = recording ? <KaiselGuardStep<R>>[] : null;
+
+    for (var i = 0; i < _guards.length; i++) {
+      final before = next;
+      next = await _guards[i](current, next);
+      steps?.add(
+        KaiselGuardStep<R>(
+          label: '#$i',
+          input: List<R>.unmodifiable(before),
+          output: List<R>.unmodifiable(next),
+          changed: !_sameRoutes(before, next),
+        ),
+      );
+    }
+
+    if (steps case final s?) {
+      _debugLastGuardRun = KaiselGuardRun<R>(
+        input: List<R>.unmodifiable(proposed),
+        steps: List<KaiselGuardStep<R>>.unmodifiable(s),
+        output: List<R>.unmodifiable(next),
+      );
     }
     return next;
+  }
+
+  bool _sameRoutes(List<R> a, List<R> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   /// Apply [next] to the stack with identity preservation: entries
@@ -465,4 +510,53 @@ class KaiselActiveFlow<R extends KaiselRoute> {
 
   /// The sub-router driving the flow's screens.
   final KaiselRouter<R> router;
+}
+
+/// A recorded run of the guard pipeline, retained for debugging.
+///
+/// Captures the proposed stack going in, each guard's effect in pipeline
+/// order, and the final stack out. Populated by
+/// [KaiselRouter.debugLastGuardRun] in debug builds only.
+@immutable
+class KaiselGuardRun<R extends KaiselRoute> {
+  /// Create a guard-run record.
+  const KaiselGuardRun({
+    required this.input,
+    required this.steps,
+    required this.output,
+  });
+
+  /// The proposed stack going into the pipeline.
+  final List<R> input;
+
+  /// One step per guard, in pipeline order.
+  final List<KaiselGuardStep<R>> steps;
+
+  /// The final stack the pipeline produced.
+  final List<R> output;
+}
+
+/// One guard's effect within a [KaiselGuardRun].
+@immutable
+class KaiselGuardStep<R extends KaiselRoute> {
+  /// Create a guard-step record.
+  const KaiselGuardStep({
+    required this.label,
+    required this.input,
+    required this.output,
+    required this.changed,
+  });
+
+  /// Best-effort label. Guards are usually anonymous closures, so this is
+  /// the pipeline index, e.g. `#0`.
+  final String label;
+
+  /// The stack this guard received.
+  final List<R> input;
+
+  /// The stack this guard produced.
+  final List<R> output;
+
+  /// Whether this guard changed the stack.
+  final bool changed;
 }

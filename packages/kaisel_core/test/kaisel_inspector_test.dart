@@ -1,6 +1,22 @@
 import 'package:kaisel_core/framework.dart';
 import 'package:test/test.dart';
 
+sealed class _TestRoute extends KaiselRoute {
+  const _TestRoute();
+}
+
+final class _A extends _TestRoute {
+  const _A();
+}
+
+final class _B extends _TestRoute {
+  const _B();
+}
+
+final class _C extends _TestRoute {
+  const _C();
+}
+
 class _FakeRevision extends KaiselChangeNotifier {}
 
 class _FakeRoot implements KaiselInspectable {
@@ -122,6 +138,54 @@ void main() {
       final json = KaiselInspector.instance.snapshot().toJson();
       expect(json['v'], 1);
       expect(json['roots'], isA<List<Object?>>());
+    });
+  });
+
+  group('KaiselRouter.debugLastGuardRun', () {
+    test('is null before any guarded navigation', () {
+      final router = KaiselRouter<_TestRoute>(initial: const _A());
+      expect(router.debugLastGuardRun, isNull);
+      router.dispose();
+    });
+
+    test(
+      'records input, per-guard steps, and output of the pipeline',
+      () async {
+        final router = KaiselRouter<_TestRoute>(
+          initial: const _A(),
+          guards: <KaiselGuard<_TestRoute>>[
+            (current, proposed) => proposed,
+            (current, proposed) => proposed.last is _B
+                ? <_TestRoute>[...proposed, const _C()]
+                : proposed,
+          ],
+        );
+
+        await router.push(const _B());
+
+        final run = router.debugLastGuardRun;
+        expect(run, isNotNull);
+        expect(run!.input, <_TestRoute>[const _A(), const _B()]);
+        expect(run.output, <_TestRoute>[const _A(), const _B(), const _C()]);
+        expect(run.steps, hasLength(2));
+        expect(run.steps[0].label, '#0');
+        expect(run.steps[0].changed, isFalse);
+        expect(run.steps[1].label, '#1');
+        expect(run.steps[1].changed, isTrue);
+        expect(run.steps[1].output, <_TestRoute>[
+          const _A(),
+          const _B(),
+          const _C(),
+        ]);
+        router.dispose();
+      },
+    );
+
+    test('stays null when no guards are registered', () async {
+      final router = KaiselRouter<_TestRoute>(initial: const _A());
+      await router.push(const _B());
+      expect(router.debugLastGuardRun, isNull);
+      router.dispose();
     });
   });
 }

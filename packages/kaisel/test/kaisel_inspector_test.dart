@@ -78,6 +78,31 @@ void main() {
     detailBranch.dispose();
   });
 
+  test('debugSnapshot surfaces the last guard run', () async {
+    final router = KaiselRouter<_R>(
+      initial: const _Home(),
+      guards: <KaiselGuard<_R>>[
+        (current, proposed) => proposed.last is _Detail
+            ? <_R>[...proposed, const _Home()]
+            : proposed,
+      ],
+    );
+    final delegate = _delegate(router);
+
+    expect(delegate.debugSnapshot().guardTrace, isNull);
+
+    await router.push(const _Detail('z'));
+
+    final trace = delegate.debugSnapshot().guardTrace;
+    expect(trace, isNotNull);
+    expect(trace!.input, <String>['_Home', '_Detail(z)']);
+    expect(trace.output, <String>['_Home', '_Detail(z)', '_Home']);
+    expect(trace.steps.single.changed, isTrue);
+
+    delegate.dispose();
+    router.dispose();
+  });
+
   test('registers with the inspector in debug and deregisters on dispose', () {
     final inspector = KaiselInspector.instance;
     final before = inspector.snapshot().roots.length;

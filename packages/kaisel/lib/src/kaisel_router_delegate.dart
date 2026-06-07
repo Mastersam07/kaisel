@@ -512,6 +512,25 @@ class KaiselRouterDelegate<R extends KaiselRoute>
       branches: branches,
       modules: modules,
       flows: _flowSnapshots(),
+      guardTrace: _guardTraceSnapshot(),
+    );
+  }
+
+  KaiselGuardTraceSnapshot? _guardTraceSnapshot() {
+    final run = router.debugLastGuardRun;
+    if (run == null) return null;
+    return KaiselGuardTraceSnapshot(
+      input: <String>[for (final route in run.input) route.toString()],
+      steps: <KaiselGuardStepSnapshot>[
+        for (final step in run.steps)
+          KaiselGuardStepSnapshot(
+            guard: step.label,
+            input: <String>[for (final route in step.input) route.toString()],
+            output: <String>[for (final route in step.output) route.toString()],
+            changed: step.changed,
+          ),
+      ],
+      output: <String>[for (final route in run.output) route.toString()],
     );
   }
 
