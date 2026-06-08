@@ -4,6 +4,17 @@
 
 ### Added
 
+- **DevTools extension** — kaisel now ships a zero-integration Dart/Flutter
+  DevTools extension. In debug, `KaiselRouterDelegate` auto-registers with an
+  inspector and emits navigation snapshots; open DevTools to get a live
+  **kaisel** panel showing the main stack (with a diff highlight), shell
+  branches, mounted modules, active flows, the last guard-pipeline run, a
+  **Problems** tab that flags no-op `replaceTop`s (the missing-`props` bug) and
+  broken codec round-trips, a transitions log, the current URL plus a deep-link
+  **decode** preview, and adaptive master-detail absorption. No setup — depend on
+  kaisel and open DevTools. Debug-only: the hook is `kDebugMode`-gated and
+  compiled out of release builds, adding no runtime cost or dependencies.
+
 - **Navigator observers** — `observers:` on `KaiselRouterConfig` and
   `KaiselRouterDelegate` takes a `KaiselObserversBuilder`
   (`List<NavigatorObserver> Function()`). kaisel calls it once per navigator —
