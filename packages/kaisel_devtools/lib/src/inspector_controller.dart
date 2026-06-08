@@ -23,6 +23,7 @@ class InspectorController extends ChangeNotifier {
   }
 
   static const Duration _pollInterval = Duration(milliseconds: 700);
+  static const int _maxTransitions = 100;
 
   Timer? _timer;
   StreamSubscription<Object?>? _eventSub;
@@ -35,9 +36,9 @@ class InspectorController extends ChangeNotifier {
   NavSnapshot? previous;
 
   /// A chronological log of inferred navigations (most recent first), derived
-  /// from consecutive snapshot deltas. Capped to the last [_maxTransitions].
-  final List<Transition> transitions = <Transition>[];
-  static const int _maxTransitions = 100;
+  /// from consecutive snapshot deltas. Capped to the last [_maxTransitions], and
+  /// reassigned (not mutated) on change so a memoised Log panel sees the update.
+  List<Transition> transitions = const <Transition>[];
 
   /// Whether a VM service connection is currently available.
   bool get connected => serviceManager.connectedState.value.connected;
@@ -112,15 +113,18 @@ class InspectorController extends ChangeNotifier {
     if (prev == null || prev.roots.isEmpty || next.roots.isEmpty) return;
     final p = prev.roots.first;
     final n = next.roots.first;
+    final added = <Transition>[];
 
     final mainOp = _stackOp(p.main.entries, n.main.entries);
-    if (mainOp != null) _add(mainOp, 'main', p.main.entries, n.main.entries);
+    if (mainOp != null) {
+      added.add(_transition(mainOp, 'main', p.main.entries, n.main.entries));
+    }
 
     for (var s = 0; s < p.branches.length && s < n.branches.length; s++) {
       final ps = p.branches[s];
       final ns = n.branches[s];
       if (ps.activeBranch != ns.activeBranch) {
-        _push(
+        added.add(
           Transition('switchBranch', 'shell$s', 'branch ${ns.activeBranch}'),
         );
       }
@@ -130,11 +134,13 @@ class InspectorController extends ChangeNotifier {
           ns.branches[b].stack.entries,
         );
         if (op != null) {
-          _add(
-            op,
-            'shell$s.branch$b',
-            ps.branches[b].stack.entries,
-            ns.branches[b].stack.entries,
+          added.add(
+            _transition(
+              op,
+              'shell$s.branch$b',
+              ps.branches[b].stack.entries,
+              ns.branches[b].stack.entries,
+            ),
           );
         }
       }
@@ -146,9 +152,15 @@ class InspectorController extends ChangeNotifier {
     };
     for (final x in n.problems) {
       if (x.kind == 'noOp' && !prevNoOps.contains(x.router)) {
-        _push(Transition('no-op', x.router, '(value-equal — no change)'));
+        added.add(Transition('no-op', x.router, '(value-equal — no change)'));
       }
     }
+
+    if (added.isEmpty) return;
+    final merged = <Transition>[...added.reversed, ...transitions];
+    transitions = merged.length > _maxTransitions
+        ? merged.sublist(0, _maxTransitions)
+        : merged;
   }
 
   /// Infer the operation that turned [a] into [b], or null if unchanged.
@@ -163,7 +175,7 @@ class InspectorController extends ChangeNotifier {
     return null;
   }
 
-  void _add(
+  Transition _transition(
     String op,
     String router,
     List<EntrySnapshot> a,
@@ -172,12 +184,7 @@ class InspectorController extends ChangeNotifier {
     final label = op == 'pop'
         ? (a.isNotEmpty ? a.last.label : '?')
         : (b.isNotEmpty ? b.last.label : '?');
-    _push(Transition(op, router, label));
-  }
-
-  void _push(Transition t) {
-    transitions.insert(0, t);
-    if (transitions.length > _maxTransitions) transitions.removeLast();
+    return Transition(op, router, label);
   }
 
   @override

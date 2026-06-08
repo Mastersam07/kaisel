@@ -126,29 +126,69 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final root = widget.root;
-    final previousMainIds = <int>{
-      for (final e in widget.previous?.main.entries ?? const <EntrySnapshot>[])
-        e.id,
-    };
+    final previousMain = widget.previous?.main;
 
     final tabs = <(String, Widget)>[
-      ('Stack', _StackList(stack: root.main, previousIds: previousMainIds)),
+      (
+        'Stack',
+        _Memo(
+          value: (root.main, previousMain),
+          child: _StackList(stack: root.main, previous: previousMain),
+        ),
+      ),
       if (root.branches.isNotEmpty)
-        ('Shells', _BranchesPanel(shells: root.branches)),
-      if (root.flows.isNotEmpty) ('Flows', _FlowsPanel(flows: root.flows)),
+        (
+          'Shells',
+          _Memo(
+            value: root.branches,
+            child: _BranchesPanel(shells: root.branches),
+          ),
+        ),
+      if (root.flows.isNotEmpty)
+        (
+          'Flows',
+          _Memo(
+            value: root.flows,
+            child: _FlowsPanel(flows: root.flows),
+          ),
+        ),
       if (root.modules.isNotEmpty)
-        ('Modules', _ModulesPanel(modules: root.modules)),
+        (
+          'Modules',
+          _Memo(
+            value: root.modules,
+            child: _ModulesPanel(modules: root.modules),
+          ),
+        ),
       if (root.problems.isNotEmpty)
         (
           'Problems (${root.problems.length})',
-          _ProblemsPanel(problems: root.problems),
+          _Memo(
+            value: root.problems,
+            child: _ProblemsPanel(problems: root.problems),
+          ),
         ),
-      ('Guards', _GuardPanel(trace: root.guardTrace)),
-      ('URL', _UrlPanel(root: root)),
+      (
+        'Guards',
+        _Memo(
+          value: root.guardTrace,
+          child: _GuardPanel(trace: root.guardTrace),
+        ),
+      ),
+      (
+        'URL',
+        _Memo(
+          value: root.url,
+          child: _UrlPanel(url: root.url),
+        ),
+      ),
       if (widget.transitions.isNotEmpty)
         (
           'Log (${widget.transitions.length})',
-          _TransitionsPanel(transitions: widget.transitions),
+          _Memo(
+            value: widget.transitions,
+            child: _TransitionsPanel(transitions: widget.transitions),
+          ),
         ),
     ];
 
@@ -183,12 +223,50 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
         Expanded(
           child: TabBarView(
             controller: _tabs,
-            children: [for (final (_, panel) in tabs) panel],
+            // Keyed by tab name so a panel stays matched to its state when the
+            // tab set changes.
+            children: [
+              for (final (label, panel) in tabs)
+                KeyedSubtree(key: ValueKey(_key(label)), child: panel),
+            ],
           ),
         ),
       ],
     );
   }
+}
+
+/// Caches its [child], rebuilding it only when [value] changes (value equality,
+/// list-aware) so an unchanged panel keeps its subtree and state.
+class _Memo extends StatefulWidget {
+  const _Memo({required this.value, required this.child});
+
+  final Object? value;
+  final Widget child;
+
+  @override
+  State<_Memo> createState() => _MemoState();
+}
+
+class _MemoState extends State<_Memo> {
+  late Widget _child = widget.child;
+
+  @override
+  void didUpdateWidget(_Memo oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_eq(oldWidget.value, widget.value)) _child = widget.child;
+  }
+
+  static bool _eq(Object? a, Object? b) {
+    if (a is (Object?, Object?) && b is (Object?, Object?)) {
+      return a.$1 == b.$1 && a.$2 == b.$2;
+    }
+    if (a is List && b is List) return listEquals(a, b);
+    return a == b;
+  }
+
+  @override
+  Widget build(BuildContext context) => _child;
 }
 
 class _Header extends StatelessWidget {
@@ -225,18 +303,20 @@ class _Header extends StatelessWidget {
 }
 
 class _StackList extends StatelessWidget {
-  const _StackList({required this.stack, this.previousIds});
+  const _StackList({required this.stack, this.previous});
 
   final StackSnapshot stack;
 
-  /// Entry ids present in the previous snapshot. When non-null, entries whose
-  /// id is absent are highlighted as newly pushed. Pass null to disable diff
-  /// highlighting (e.g. for branch stacks, whose ids are positional).
-  final Set<int>? previousIds;
+  /// The previous main stack, for the diff highlight. Entries whose id is absent
+  /// from it are flagged as newly pushed; null disables highlighting.
+  final StackSnapshot? previous;
 
   @override
   Widget build(BuildContext context) {
     if (stack.entries.isEmpty) return const _Message('Empty.');
+    final previousIds = previous == null
+        ? null
+        : <int>{for (final e in previous!.entries) e.id};
     final ordered = stack.entries.reversed.toList();
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -244,7 +324,7 @@ class _StackList extends StatelessWidget {
       itemBuilder: (context, i) {
         final entry = ordered[i];
         final isTop = i == 0;
-        final isNew = previousIds != null && !previousIds!.contains(entry.id);
+        final isNew = previousIds != null && !previousIds.contains(entry.id);
         return _EntryTile(entry: entry, isTop: isTop, isNew: isNew);
       },
     );
@@ -548,9 +628,9 @@ class _GuardPanel extends StatelessWidget {
 }
 
 class _UrlPanel extends StatefulWidget {
-  const _UrlPanel({required this.root});
+  const _UrlPanel({required this.url});
 
-  final RootSnapshot root;
+  final String? url;
 
   @override
   State<_UrlPanel> createState() => _UrlPanelState();
@@ -601,7 +681,7 @@ class _UrlPanelState extends State<_UrlPanel> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final mono = theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace');
-    final url = widget.root.url;
+    final url = widget.url;
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [

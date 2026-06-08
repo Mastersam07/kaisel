@@ -2,7 +2,9 @@
 ///
 /// This mirrors the schema produced by `KaiselInspector` in kaisel_core. The
 /// extension owns its own decoder (rather than importing the kaisel types) so
-/// it stays a pure consumer of the versioned JSON contract.
+/// it stays a pure consumer of the versioned JSON contract. The slice classes
+/// carry value equality (via [_Eq]) so the UI can skip rebuilding an unchanged
+/// panel.
 library;
 
 Map<String, Object?> _obj(Object? value) =>
@@ -13,6 +15,38 @@ List<Object?> _list(Object? value) => value is List ? value : const <Object?>[];
 List<String> _strings(Object? value) => <String>[
   for (final item in _list(value)) '$item',
 ];
+
+/// Deep, list-aware equality over two field lists.
+bool eqFields(List<Object?> a, List<Object?> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    final x = a[i];
+    final y = b[i];
+    if (x is List && y is List) {
+      if (!eqFields(x, y)) return false;
+    } else if (x != y) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/// Value equality derived from a class's [_eqFields] (handles nested lists).
+mixin _Eq {
+  List<Object?> get _eqFields;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is _Eq &&
+          other.runtimeType == runtimeType &&
+          eqFields(_eqFields, other._eqFields));
+
+  @override
+  int get hashCode => Object.hashAll(<Object?>[
+    for (final f in _eqFields) f is List ? Object.hashAll(f) : f,
+  ]);
+}
 
 /// A full navigation snapshot: schema version + one root per live delegate.
 class NavSnapshot {
@@ -101,7 +135,7 @@ class RootSnapshot {
 }
 
 /// A detected problem in the navigation state.
-class ProblemSnapshot {
+class ProblemSnapshot with _Eq {
   /// Create a problem.
   ProblemSnapshot({
     required this.kind,
@@ -125,10 +159,13 @@ class ProblemSnapshot {
 
   /// Human-readable description.
   final String detail;
+
+  @override
+  List<Object?> get _eqFields => <Object?>[kind, router, detail];
 }
 
 /// A single router's stack.
-class StackSnapshot {
+class StackSnapshot with _Eq {
   /// Create a stack snapshot.
   StackSnapshot({
     required this.depth,
@@ -154,10 +191,13 @@ class StackSnapshot {
 
   /// The entries, bottom to top.
   final List<EntrySnapshot> entries;
+
+  @override
+  List<Object?> get _eqFields => <Object?>[depth, canPop, entries];
 }
 
 /// One stack entry.
-class EntrySnapshot {
+class EntrySnapshot with _Eq {
   /// Create an entry snapshot.
   EntrySnapshot({
     required this.id,
@@ -191,10 +231,13 @@ class EntrySnapshot {
   /// Whether this entry is absorbed into the rendered page above it (adaptive
   /// master-detail) — no Navigator page of its own at the current breakpoint.
   final bool absorbed;
+
+  @override
+  List<Object?> get _eqFields => <Object?>[id, type, props, label, absorbed];
 }
 
 /// A branched shell.
-class ShellSnapshot {
+class ShellSnapshot with _Eq {
   /// Create a shell snapshot.
   ShellSnapshot({
     required this.type,
@@ -225,10 +268,18 @@ class ShellSnapshot {
 
   /// Per-branch snapshots.
   final List<BranchSnapshot> branches;
+
+  @override
+  List<Object?> get _eqFields => <Object?>[
+    type,
+    activeBranch,
+    branchCount,
+    branches,
+  ];
 }
 
 /// One branch of a shell.
-class BranchSnapshot {
+class BranchSnapshot with _Eq {
   /// Create a branch snapshot.
   BranchSnapshot({
     required this.index,
@@ -251,10 +302,13 @@ class BranchSnapshot {
 
   /// The branch's stack.
   final StackSnapshot stack;
+
+  @override
+  List<Object?> get _eqFields => <Object?>[index, routeType, stack];
 }
 
 /// A mounted module.
-class ModuleSnapshot {
+class ModuleSnapshot with _Eq {
   /// Create a module snapshot.
   ModuleSnapshot({
     required this.prefix,
@@ -277,10 +331,13 @@ class ModuleSnapshot {
 
   /// The module's stack.
   final StackSnapshot stack;
+
+  @override
+  List<Object?> get _eqFields => <Object?>[prefix, routeType, stack];
 }
 
 /// An active modal flow.
-class FlowSnapshot {
+class FlowSnapshot with _Eq {
   /// Create a flow snapshot.
   FlowSnapshot({
     required this.depth,
@@ -308,10 +365,13 @@ class FlowSnapshot {
 
   /// The flow's sub-stack.
   final StackSnapshot stack;
+
+  @override
+  List<Object?> get _eqFields => <Object?>[depth, type, resultType, stack];
 }
 
 /// The last guard-pipeline run.
-class GuardTrace {
+class GuardTrace with _Eq {
   /// Create a guard trace.
   GuardTrace({required this.input, required this.steps, required this.output});
 
@@ -332,10 +392,13 @@ class GuardTrace {
 
   /// Final stack out, as labels.
   final List<String> output;
+
+  @override
+  List<Object?> get _eqFields => <Object?>[input, steps, output];
 }
 
 /// One guard's effect.
-class GuardStep {
+class GuardStep with _Eq {
   /// Create a guard step.
   GuardStep({
     required this.guard,
@@ -363,4 +426,7 @@ class GuardStep {
 
   /// Whether this guard changed the stack.
   final bool changed;
+
+  @override
+  List<Object?> get _eqFields => <Object?>[guard, input, output, changed];
 }
