@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.15.1
+
+### Fixed
+
+- Require `kaisel_core: ^0.14.0`. The DevTools inspector added in 0.15.0 uses
+  APIs introduced in `kaisel_core 0.14.0`, but the constraint was still
+  `^0.13.0` — so against a published `kaisel_core` the package failed to resolve
+  and analyse (0.15.0 scored poorly on pub.dev for this reason). Publish
+  `kaisel_core 0.14.0` before this release.
+
 ## 0.15.0
 
 ### Added

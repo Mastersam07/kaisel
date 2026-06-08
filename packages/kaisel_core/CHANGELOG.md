@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.14.0
+
+### Added
+
+- **Debug-only inspector surface**, consumed by the kaisel DevTools extension:
+  `KaiselInspector` (a dormant registry) and the `KaiselInspectable` interface,
+  plus the renderer-agnostic snapshot model (`KaiselNavSnapshot` and friends).
+- **`KaiselRouter` debug fields** for the same: `debugLastGuardRun` /
+  `KaiselGuardRun` / `KaiselGuardStep` (guard-pipeline trace), `debugLastNoOp` /
+  `KaiselNoOp` (no-op `replaceTop` detection — the missing-`props` symptom), and
+  `debugAbsorbedPositions` / `debugSetAbsorbedPositions` (adaptive master-detail
+  absorption). All gated so they cost nothing in release.
+
+These are additive; existing APIs are unchanged.
+
 ## 0.13.0 — Renamed to kaisel_core
 
 Renamed from `gate_core` to `kaisel_core` as part of the gate → kaisel
