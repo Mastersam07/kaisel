@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'inspector_controller.dart';
 import 'snapshot.dart';
 
+/// The snapshot schema version this extension understands. A snapshot with a
+/// higher version means the app is newer than the extension.
+const int _supportedSchemaVersion = 1;
+
 /// Root of the inspector UI. Owns the [InspectorController] and rebuilds as
 /// snapshots arrive.
 class KaiselInspectorView extends StatefulWidget {
@@ -43,22 +47,59 @@ class _KaiselInspectorViewState extends State<KaiselInspectorView> {
           );
         }
         final previousRoots = _controller.previous?.roots;
-        return _RootView(
+        final view = _RootView(
           root: snapshot.roots.first,
           previous: (previousRoots != null && previousRoots.isNotEmpty)
               ? previousRoots.first
               : null,
+          transitions: _controller.transitions,
         );
+        if (snapshot.version > _supportedSchemaVersion) {
+          return Column(
+            children: [
+              _VersionBanner(appVersion: snapshot.version),
+              Expanded(child: view),
+            ],
+          );
+        }
+        return view;
       },
     );
   }
 }
 
+class _VersionBanner extends StatelessWidget {
+  const _VersionBanner({required this.appVersion});
+
+  final int appVersion;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      color: theme.colorScheme.tertiaryContainer,
+      padding: const EdgeInsets.all(8),
+      child: Text(
+        'The kaisel app speaks snapshot schema v$appVersion, but this DevTools '
+        'extension understands v$_supportedSchemaVersion. Update the extension; '
+        'showing what is recognised.',
+        style: theme.textTheme.bodySmall,
+      ),
+    );
+  }
+}
+
 class _RootView extends StatelessWidget {
-  const _RootView({required this.root, required this.previous});
+  const _RootView({
+    required this.root,
+    required this.previous,
+    required this.transitions,
+  });
 
   final RootSnapshot root;
   final RootSnapshot? previous;
+  final List<Transition> transitions;
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +124,11 @@ class _RootView extends StatelessWidget {
         ),
       ('Guards', _GuardPanel(trace: root.guardTrace)),
       ('URL', _UrlPanel(root: root)),
+      if (transitions.isNotEmpty)
+        (
+          'Log (${transitions.length})',
+          _TransitionsPanel(transitions: transitions),
+        ),
     ];
 
     return DefaultTabController(
@@ -480,6 +526,32 @@ class _UrlPanel extends StatelessWidget {
             style: theme.textTheme.bodyLarge?.copyWith(fontFamily: 'monospace'),
           ),
       ],
+    );
+  }
+}
+
+class _TransitionsPanel extends StatelessWidget {
+  const _TransitionsPanel({required this.transitions});
+
+  final List<Transition> transitions;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mono = theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace');
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      itemCount: transitions.length,
+      itemBuilder: (context, i) {
+        final t = transitions[i];
+        final noOp = t.op == 'no-op';
+        return ListTile(
+          dense: true,
+          leading: _Tag(text: t.op, tone: noOp ? _Tone.added : _Tone.neutral),
+          title: Text(t.label, style: mono),
+          trailing: _Badge(text: t.router),
+        );
+      },
     );
   }
 }

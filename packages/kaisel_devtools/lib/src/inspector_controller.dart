@@ -34,6 +34,11 @@ class InspectorController extends ChangeNotifier {
   /// The previous *distinct* snapshot, for diffing against [current].
   NavSnapshot? previous;
 
+  /// A chronological log of inferred navigations (most recent first), derived
+  /// from consecutive snapshot deltas. Capped to the last [_maxTransitions].
+  final List<Transition> transitions = <Transition>[];
+  static const int _maxTransitions = 100;
+
   /// Whether a VM service connection is currently available.
   bool get connected => serviceManager.connectedState.value.connected;
 
@@ -99,7 +104,80 @@ class InspectorController extends ChangeNotifier {
     _signature = signature;
     previous = current;
     current = NavSnapshot.fromJson(json);
+    _recordTransitions(previous, current!);
     notifyListeners();
+  }
+
+  void _recordTransitions(NavSnapshot? prev, NavSnapshot next) {
+    if (prev == null || prev.roots.isEmpty || next.roots.isEmpty) return;
+    final p = prev.roots.first;
+    final n = next.roots.first;
+
+    final mainOp = _stackOp(p.main.entries, n.main.entries);
+    if (mainOp != null) _add(mainOp, 'main', p.main.entries, n.main.entries);
+
+    for (var s = 0; s < p.branches.length && s < n.branches.length; s++) {
+      final ps = p.branches[s];
+      final ns = n.branches[s];
+      if (ps.activeBranch != ns.activeBranch) {
+        _push(
+          Transition('switchBranch', 'shell$s', 'branch ${ns.activeBranch}'),
+        );
+      }
+      for (var b = 0; b < ps.branches.length && b < ns.branches.length; b++) {
+        final op = _stackOp(
+          ps.branches[b].stack.entries,
+          ns.branches[b].stack.entries,
+        );
+        if (op != null) {
+          _add(
+            op,
+            'shell$s.branch$b',
+            ps.branches[b].stack.entries,
+            ns.branches[b].stack.entries,
+          );
+        }
+      }
+    }
+
+    final prevNoOps = <String>{
+      for (final x in p.problems)
+        if (x.kind == 'noOp') x.router,
+    };
+    for (final x in n.problems) {
+      if (x.kind == 'noOp' && !prevNoOps.contains(x.router)) {
+        _push(Transition('no-op', x.router, '(value-equal — no change)'));
+      }
+    }
+  }
+
+  /// Infer the operation that turned [a] into [b], or null if unchanged.
+  String? _stackOp(List<EntrySnapshot> a, List<EntrySnapshot> b) {
+    if (a.length != b.length) return b.length > a.length ? 'push' : 'pop';
+    if (a.isEmpty) return null;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].label != b[i].label) {
+        return i == a.length - 1 ? 'replaceTop' : 'set';
+      }
+    }
+    return null;
+  }
+
+  void _add(
+    String op,
+    String router,
+    List<EntrySnapshot> a,
+    List<EntrySnapshot> b,
+  ) {
+    final label = op == 'pop'
+        ? (a.isNotEmpty ? a.last.label : '?')
+        : (b.isNotEmpty ? b.last.label : '?');
+    _push(Transition(op, router, label));
+  }
+
+  void _push(Transition t) {
+    transitions.insert(0, t);
+    if (transitions.length > _maxTransitions) transitions.removeLast();
   }
 
   @override
@@ -108,4 +186,20 @@ class InspectorController extends ChangeNotifier {
     _unwire();
     super.dispose();
   }
+}
+
+/// One inferred navigation in the transitions log.
+class Transition {
+  /// Create a transition.
+  Transition(this.op, this.router, this.label);
+
+  /// The inferred operation: push / pop / replaceTop / set / switchBranch /
+  /// no-op.
+  final String op;
+
+  /// Which router it happened on (`main`, `shell0.branch1`, …).
+  final String router;
+
+  /// The route (or branch) involved.
+  final String label;
 }
