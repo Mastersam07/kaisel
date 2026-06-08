@@ -223,7 +223,9 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   Future<void> replaceTop(R route) => _enqueue(() {
     final next = [...stack];
     if (next.isEmpty) {
-      next.add(route);
+      // coverage:ignore-start
+      next.add(route); // The stack is never empty; this guard is defensive.
+      // coverage:ignore-end
     } else {
       next[next.length - 1] = route;
     }

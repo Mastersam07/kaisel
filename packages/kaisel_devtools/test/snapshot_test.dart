@@ -71,6 +71,37 @@ void main() {
       expect(EntrySnapshot.fromJson(const <String, Object?>{}).label, '?');
     });
 
+    test('RootSnapshot decodes modules, flows, a guard trace, and url', () {
+      final root = RootSnapshot.fromJson(const <String, Object?>{
+        'id': 'r',
+        'main': <String, Object?>{'entries': <Object?>[]},
+        'modules': <Object?>[
+          <String, Object?>{
+            'prefix': '/c',
+            'routeType': 'Checkout',
+            'stack': <String, Object?>{'entries': <Object?>[]},
+          },
+        ],
+        'flows': <Object?>[
+          <String, Object?>{
+            'depth': 0,
+            'type': 'AddCard',
+            'stack': <String, Object?>{'entries': <Object?>[]},
+          },
+        ],
+        'guardTrace': <String, Object?>{
+          'input': <Object?>['A'],
+          'steps': <Object?>[],
+          'output': <Object?>['A'],
+        },
+        'url': '/here',
+      });
+      expect(root.modules.single.routeType, 'Checkout');
+      expect(root.flows.single.type, 'AddCard');
+      expect(root.guardTrace, isNotNull);
+      expect(root.url, '/here');
+    });
+
     test('shell / module / flow / guard decode nested stacks', () {
       final shell = ShellSnapshot.fromJson(const <String, Object?>{
         'type': 'Branched',
@@ -225,6 +256,27 @@ void main() {
       );
       expect(shell('A'), shell('A'));
       expect(shell('A'), isNot(shell('B')));
+    });
+
+    test('module + flow equality is deep over their stacks', () {
+      StackSnapshot oneStack(String label) => StackSnapshot(
+        depth: 1,
+        canPop: false,
+        entries: <EntrySnapshot>[entry(0, label)],
+      );
+      ModuleSnapshot module(String label) =>
+          ModuleSnapshot(prefix: '/c', routeType: 'R', stack: oneStack(label));
+      expect(module('A'), module('A'));
+      expect(module('A'), isNot(module('B')));
+
+      FlowSnapshot flow(String label) => FlowSnapshot(
+        depth: 0,
+        type: 'F',
+        resultType: null,
+        stack: oneStack(label),
+      );
+      expect(flow('A'), flow('A'));
+      expect(flow('A'), isNot(flow('B')));
     });
 
     test('guard trace + problem equality', () {

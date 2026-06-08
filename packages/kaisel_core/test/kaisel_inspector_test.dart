@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:kaisel_core/framework.dart';
 import 'package:test/test.dart';
@@ -257,6 +258,44 @@ void main() {
       expect(miss['lines'], isEmpty);
 
       inspector.deregister(token);
+    });
+
+    test('the service-extension handlers return responses', () async {
+      final inspector = KaiselInspector.instance;
+      final token = inspector.register(_DecodingRoot());
+
+      final snap = await inspector.snapshotResponse(
+        'ext.kaisel.snapshot',
+        const <String, String>{},
+      );
+      expect(snap, isA<developer.ServiceExtensionResponse>());
+
+      final decoded = await inspector.decodeResponse(
+        'ext.kaisel.decode',
+        const <String, String>{'url': '/x'},
+      );
+      expect(decoded, isA<developer.ServiceExtensionResponse>());
+
+      inspector.deregister(token);
+    });
+  });
+
+  group('KaiselRouter debug fields', () {
+    test('debugAbsorbedPositions round-trips through the setter', () {
+      final router = KaiselRouter<_TestRoute>(initial: const _A());
+      expect(router.debugAbsorbedPositions, isEmpty);
+      router.debugSetAbsorbedPositions(const <int>{0, 2});
+      expect(router.debugAbsorbedPositions, const <int>{0, 2});
+      router.dispose();
+    });
+
+    test('a stack entry stringifies with its id and route', () {
+      final router = KaiselRouter<_TestRoute>(initial: const _A());
+      expect(
+        router.entries.first.toString(),
+        matches(r'KaiselStackEntry#\d+\('),
+      );
+      router.dispose();
     });
   });
 

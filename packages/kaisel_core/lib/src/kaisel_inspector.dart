@@ -431,27 +431,31 @@ class KaiselInspector {
     if (_extensionsRegistered) return;
     _extensionsRegistered = true;
     try {
-      developer.registerExtension(
-        'ext.kaisel.snapshot',
-        (method, parameters) =>
-            Future<developer.ServiceExtensionResponse>.value(
-              developer.ServiceExtensionResponse.result(snapshotJson()),
-            ),
-      );
-      // Read-only deep-link preview: decode a URL without navigating.
-      developer.registerExtension(
-        'ext.kaisel.decode',
-        (method, parameters) =>
-            Future<developer.ServiceExtensionResponse>.value(
-              developer.ServiceExtensionResponse.result(
-                decodeJson(parameters['url'] ?? ''),
-              ),
-            ),
-      );
+      developer.registerExtension('ext.kaisel.snapshot', snapshotResponse);
+      developer.registerExtension('ext.kaisel.decode', decodeResponse);
     } catch (_) {
       // Already registered (e.g. a hot restart re-running this) — fine.
     }
   }
+
+  /// Service-extension handler for `ext.kaisel.snapshot`.
+  Future<developer.ServiceExtensionResponse> snapshotResponse(
+    String method,
+    Map<String, String> parameters,
+  ) => Future<developer.ServiceExtensionResponse>.value(
+    developer.ServiceExtensionResponse.result(snapshotJson()),
+  );
+
+  /// Service-extension handler for `ext.kaisel.decode`: a read-only deep-link
+  /// preview that decodes a URL without navigating.
+  Future<developer.ServiceExtensionResponse> decodeResponse(
+    String method,
+    Map<String, String> parameters,
+  ) => Future<developer.ServiceExtensionResponse>.value(
+    developer.ServiceExtensionResponse.result(
+      decodeJson(parameters['url'] ?? ''),
+    ),
+  );
 
   /// The current snapshot as a JSON string — the body of the
   /// `ext.kaisel.snapshot` service extension.
