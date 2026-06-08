@@ -1,6 +1,15 @@
-# Extra excludes for `dart pub publish` (additive to .gitignore).
-# These are tracked in git but not useful inside the published package.
+# Controls which files `dart pub publish` includes. Pub honours .gitignore;
+# entries here adjust that for publishing (excludes, and `!` re-includes).
 
 # Dev-only test optimizer (see tool/test_optimizer.dart).
 tool/
 ROADMAP.md
+
+# The built DevTools extension is gitignored (**/build/) so the generated assets
+# stay out of git history — but it must ship inside the published package or
+# DevTools has no panel to load. Re-include it for publish only; run
+# `dart run devtools_extensions build_and_copy
+# --source=packages/kaisel_devtools --dest=packages/kaisel/extension/devtools`
+# before `pub publish` so the build is present and current.
+!extension/devtools/build/
+!extension/devtools/build/**
