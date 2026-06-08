@@ -109,8 +109,6 @@ class _RootView extends StatelessWidget {
         entry.id,
     };
 
-    // Tabs are built dynamically: shells / flows / modules only appear when
-    // present, so the bar stays uncluttered for a plain app.
     final tabs = <(String, Widget)>[
       ('Stack', _StackList(stack: root.main, previousIds: previousMainIds)),
       if (root.branches.isNotEmpty)

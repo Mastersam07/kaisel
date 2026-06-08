@@ -41,6 +41,62 @@ class _Codec implements KaiselConfigCodec<_R> {
   KaiselConfig<_R>? decode(Uri uri) => null;
 }
 
+// Decodes a few URLs back to real configs, for the deep-link preview.
+class _RoundTripCodec implements KaiselConfigCodec<_R> {
+  const _RoundTripCodec();
+
+  @override
+  Uri encode(KaiselConfig<_R> config) => Uri(path: '/');
+
+  @override
+  KaiselConfig<_R>? decode(Uri uri) => switch (uri.pathSegments) {
+    ['detail', final id] => KaiselConfig(
+      mainStack: <_R>[const _Home(), _Detail(id)],
+    ),
+    ['shell'] => KaiselConfig(
+      mainStack: const <_R>[_Home()],
+      nestedState: KaiselShellConfig(
+        activeBranch: 1,
+        activeBranchStack: const <KaiselRoute>[_Home()],
+      ),
+    ),
+    ['module'] => KaiselConfig(
+      mainStack: const <_R>[_Home()],
+      nestedState: KaiselModuleConfig(stack: const <KaiselRoute>[_Home()]),
+    ),
+    _ => null,
+  };
+}
+
+class _ThrowingCodec implements KaiselConfigCodec<_R> {
+  const _ThrowingCodec();
+
+  @override
+  Uri encode(KaiselConfig<_R> config) => throw StateError('boom');
+
+  @override
+  KaiselConfig<_R>? decode(Uri uri) => null;
+}
+
+// A nested handle that looks like a mounted module (configType + stack).
+class _FakeModuleHandle implements KaiselNestedHandle {
+  @override
+  Type get configType => KaiselModuleConfig;
+
+  @override
+  KaiselNestedConfig captureConfig() =>
+      KaiselModuleConfig(stack: const <KaiselRoute>[_Home()]);
+
+  @override
+  Future<void> restoreFromConfig(KaiselNestedConfig config) async {}
+
+  @override
+  void addListener(void Function() listener) {}
+
+  @override
+  void removeListener(void Function() listener) {}
+}
+
 KaiselRouterDelegate<_R> _delegate(KaiselRouter<_R> router) =>
     KaiselRouterDelegate<_R>(
       router: router,
@@ -215,6 +271,65 @@ void main() {
     );
     final problems = delegate.debugSnapshot().problems;
     expect(problems.any((p) => p.kind == 'codec'), isTrue);
+    delegate.dispose();
+    router.dispose();
+  });
+
+  test('a throwing codec is reported as a problem, not crashed', () {
+    final router = KaiselRouter<_R>(initial: const _Home());
+    final delegate = KaiselRouterDelegate<_R>(
+      router: router,
+      builder: (_, _) => const SizedBox.shrink(),
+      codec: const _ThrowingCodec(),
+    );
+    expect(delegate.debugSnapshot().url, isNull);
+    expect(
+      delegate.debugSnapshot().problems.any((p) => p.kind == 'codec'),
+      isTrue,
+    );
+    delegate.dispose();
+    router.dispose();
+  });
+
+  test('debugSnapshot includes a mounted module', () {
+    final router = KaiselRouter<_R>(initial: const _Home());
+    final delegate = _delegate(router);
+    delegate.registerNested(_FakeModuleHandle());
+
+    final modules = delegate.debugSnapshot().modules;
+    expect(modules, hasLength(1));
+    expect(modules.single.routeType, '_Home');
+    expect(modules.single.stack.entries.single.label, '_Home');
+
+    delegate.dispose();
+    router.dispose();
+  });
+
+  test('debugDecode previews a decoded URL without navigating', () {
+    final router = KaiselRouter<_R>(initial: const _Home());
+    final delegate = KaiselRouterDelegate<_R>(
+      router: router,
+      builder: (_, _) => const SizedBox.shrink(),
+      codec: const _RoundTripCodec(),
+    );
+
+    expect(delegate.debugDecode('/detail/x'), <String>[
+      'main: _Home → _Detail(x)',
+    ]);
+    expect(delegate.debugDecode('/shell'), contains('shell: branch 1 → _Home'));
+    expect(delegate.debugDecode('/module'), contains('module: _Home'));
+    expect(delegate.debugDecode('/nope'), isNull);
+    // Previewing does not navigate.
+    expect(router.stack, const <_R>[_Home()]);
+
+    delegate.dispose();
+    router.dispose();
+  });
+
+  test('debugDecode is null without a codec', () {
+    final router = KaiselRouter<_R>(initial: const _Home());
+    final delegate = _delegate(router);
+    expect(delegate.debugDecode('/x'), isNull);
     delegate.dispose();
     router.dispose();
   });

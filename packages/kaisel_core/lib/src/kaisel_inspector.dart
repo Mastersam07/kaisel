@@ -431,31 +431,42 @@ class KaiselInspector {
     if (_extensionsRegistered) return;
     _extensionsRegistered = true;
     try {
-      developer.registerExtension('ext.kaisel.snapshot', (method, parameters) {
-        return Future<developer.ServiceExtensionResponse>.value(
-          developer.ServiceExtensionResponse.result(
-            jsonEncode(snapshot().toJson()),
-          ),
-        );
-      });
-      // Read-only deep-link preview: decode a URL through the first root's
-      // codec and return the resulting stack, without navigating.
-      developer.registerExtension('ext.kaisel.decode', (method, parameters) {
-        final url = parameters['url'] ?? '';
-        final root = _roots.values.isEmpty ? null : _roots.values.first;
-        final lines = root?.debugDecode(url);
-        return Future<developer.ServiceExtensionResponse>.value(
-          developer.ServiceExtensionResponse.result(
-            jsonEncode(<String, Object?>{
-              'ok': lines != null,
-              'lines': lines ?? <String>[],
-            }),
-          ),
-        );
-      });
+      developer.registerExtension(
+        'ext.kaisel.snapshot',
+        (method, parameters) =>
+            Future<developer.ServiceExtensionResponse>.value(
+              developer.ServiceExtensionResponse.result(snapshotJson()),
+            ),
+      );
+      // Read-only deep-link preview: decode a URL without navigating.
+      developer.registerExtension(
+        'ext.kaisel.decode',
+        (method, parameters) =>
+            Future<developer.ServiceExtensionResponse>.value(
+              developer.ServiceExtensionResponse.result(
+                decodeJson(parameters['url'] ?? ''),
+              ),
+            ),
+      );
     } catch (_) {
       // Already registered (e.g. a hot restart re-running this) — fine.
     }
+  }
+
+  /// The current snapshot as a JSON string — the body of the
+  /// `ext.kaisel.snapshot` service extension.
+  String snapshotJson() => jsonEncode(snapshot().toJson());
+
+  /// A deep-link preview as a JSON string (`{ok, lines}`) — the body of the
+  /// `ext.kaisel.decode` service extension. Decodes [url] through the first
+  /// registered root's codec, without navigating.
+  String decodeJson(String url) {
+    final root = _roots.values.isEmpty ? null : _roots.values.first;
+    final lines = root?.debugDecode(url);
+    return jsonEncode(<String, Object?>{
+      'ok': lines != null,
+      'lines': lines ?? <String>[],
+    });
   }
 
   void _post(String event, Map<Object?, Object?> data) {

@@ -425,17 +425,8 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   static void _void(Object? _) {}
 
   Future<void> _navigate(List<R> proposed, {bool recordNoOp = false}) async {
-    // Diagnostic no-op detection (the missing-`props` signature) is opt-in, and
-    // only `replaceTop` (hence `pushOrReplaceTop`'s replace branch) opts in —
-    // that's the master-detail switch idiom where the bug actually bites:
-    //   - push grows / pop shrinks the stack, so they never no-op;
-    //   - set and popUntil legitimately re-apply an equal stack (idempotent
-    //     `set` from derived state, "popUntil we're already at X");
-    //   - URL restoration / restoreStack re-apply the current stack on startup.
-    // And even for replaceTop we only flag when the *caller's* proposed top was
-    // already value-equal to the current one — if a guard collapses a
-    // genuinely-different proposal back onto the current stack, that's the
-    // guard doing its job, not a bug.
+    // Only flag a no-op when the caller's proposal was already value-equal to
+    // the current stack — not when a guard later collapses it.
     final proposedNoOp = recordNoOp && _sameRoutes(stack, proposed);
     final result = await _runGuards(stack, proposed);
     _applyStack(result, recordNoOp: proposedNoOp);
@@ -444,9 +435,8 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   Future<List<R>> _runGuards(List<R> current, List<R> proposed) async {
     var next = proposed;
 
-    // Retain a trace for DevTools — debug builds only, and only when guards
-    // actually run. The assert side-effect is stripped in release, so the
-    // recording machinery (and its allocations) costs nothing in production.
+    // Debug-only trace retention: the assert side-effect is stripped in
+    // release, so the recording costs nothing in production.
     var recording = false;
     assert(() {
       recording = _guards.isNotEmpty;
@@ -497,9 +487,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       return;
     }
     if (_routesEqual(_entries, next)) {
-      // A no-op. Recorded for DevTools only when the caller opted in (see
-      // [_navigate] — effectively replaceTop / pushOrReplaceTop to a top that
-      // turned out value-equal, the missing-`props` signature). Debug only.
+      // A no-op; recorded for DevTools only when the caller opted in.
       if (recordNoOp) {
         assert(() {
           _debugLastNoOp = KaiselNoOp(

@@ -250,8 +250,7 @@ List<Page<Object?>> buildAdaptivePages<R extends KaiselRoute>({
   // tuples for each rendered page. Each absorbing entry skips its
   // absorbed neighbours below.
   final tuples = <_RenderedPageTuple<R>>[];
-  // Stack positions collapsed into the page above them (master entries of a
-  // master-detail page). Reported to [reportAbsorption] for DevTools.
+  // Positions collapsed into the page above them, reported via [reportAbsorption].
   final absorbed = <int>{};
   var i = stack.length - 1;
   while (i >= 0) {

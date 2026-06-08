@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:kaisel_core/framework.dart';
 import 'package:test/test.dart';
 
@@ -21,6 +23,14 @@ final class _C extends _TestRoute {
 final class _Bug extends _TestRoute {
   const _Bug(this.id);
   final String id;
+}
+
+class _DecodingRoot extends _FakeRoot {
+  _DecodingRoot() : super('decoder');
+
+  @override
+  List<String>? debugDecode(String url) =>
+      url == '/x' ? const <String>['main: X'] : null;
 }
 
 class _FakeRevision extends KaiselChangeNotifier {}
@@ -122,6 +132,80 @@ void main() {
       expect(json['v'], 1);
       expect((json['roots']! as List<Object?>), hasLength(1));
     });
+
+    const emptyStack = KaiselStackSnapshot(
+      depth: 0,
+      canPop: false,
+      entries: <KaiselEntrySnapshot>[],
+    );
+
+    test('module serialises prefix / routeType / stack', () {
+      expect(
+        const KaiselModuleSnapshot(
+          prefix: '/checkout',
+          routeType: 'CheckoutRoute',
+          stack: emptyStack,
+        ).toJson(),
+        <String, Object?>{
+          'prefix': '/checkout',
+          'routeType': 'CheckoutRoute',
+          'stack': <String, Object?>{
+            'depth': 0,
+            'canPop': false,
+            'entries': <Object?>[],
+          },
+        },
+      );
+    });
+
+    test('flow serialises depth / type / resultType', () {
+      final json = const KaiselFlowSnapshot(
+        depth: 1,
+        type: 'AddCardFlow',
+        resultType: 'CardId?',
+        stack: emptyStack,
+      ).toJson();
+      expect(json['depth'], 1);
+      expect(json['type'], 'AddCardFlow');
+      expect(json['resultType'], 'CardId?');
+    });
+
+    test('guard trace serialises input / steps (in,out,changed) / output', () {
+      final json = const KaiselGuardTraceSnapshot(
+        input: <String>['Login()'],
+        steps: <KaiselGuardStepSnapshot>[
+          KaiselGuardStepSnapshot(
+            guard: '#0',
+            input: <String>['Login()'],
+            output: <String>['Home()'],
+            changed: true,
+          ),
+        ],
+        output: <String>['Home()'],
+      ).toJson();
+      expect(json['input'], <String>['Login()']);
+      expect(json['output'], <String>['Home()']);
+      final step = (json['steps']! as List<Object?>).single! as Map;
+      expect(step['guard'], '#0');
+      expect(step['in'], <String>['Login()']);
+      expect(step['out'], <String>['Home()']);
+      expect(step['changed'], isTrue);
+    });
+
+    test('problem serialises kind / router / detail', () {
+      expect(
+        const KaiselProblemSnapshot(
+          kind: 'noOp',
+          router: 'shell0.branch1',
+          detail: 'changed nothing',
+        ).toJson(),
+        <String, Object?>{
+          'kind': 'noOp',
+          'router': 'shell0.branch1',
+          'detail': 'changed nothing',
+        },
+      );
+    });
   });
 
   group('KaiselInspector registry', () {
@@ -148,6 +232,31 @@ void main() {
       final json = KaiselInspector.instance.snapshot().toJson();
       expect(json['v'], 1);
       expect(json['roots'], isA<List<Object?>>());
+    });
+
+    test('snapshotJson encodes the registry snapshot', () {
+      final json =
+          jsonDecode(KaiselInspector.instance.snapshotJson())
+              as Map<String, Object?>;
+      expect(json['v'], 1);
+      expect(json['roots'], isA<List<Object?>>());
+    });
+
+    test('decodeJson previews via the first registered root', () {
+      final inspector = KaiselInspector.instance;
+      final token = inspector.register(_DecodingRoot());
+
+      final hit =
+          jsonDecode(inspector.decodeJson('/x')) as Map<String, Object?>;
+      expect(hit['ok'], isTrue);
+      expect(hit['lines'], const <String>['main: X']);
+
+      final miss =
+          jsonDecode(inspector.decodeJson('/nope')) as Map<String, Object?>;
+      expect(miss['ok'], isFalse);
+      expect(miss['lines'], isEmpty);
+
+      inspector.deregister(token);
     });
   });
 

@@ -484,10 +484,8 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     }
   }
 
-  // DevTools inspection. The delegate is the snapshot hub: it sees the main
-  // router, the registered nested handles, and the active flows, and it
-  // already notifies on all of them. Registration is gated on kDebugMode, so
-  // release builds never touch the inspector and pay nothing.
+  // DevTools inspection. Registration is gated on kDebugMode, so release
+  // builds never touch the inspector.
 
   int? _inspectorToken;
 
@@ -564,9 +562,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
       add('flow:$i', flows[i].router.debugLastNoOp);
     }
 
-    // Codec round-trip: if a codec is wired, the current state should encode to
-    // a URL that decodes back. A null decode (or a throw) means this state is
-    // not URL-addressable — deep links to it would fail.
+    // Flag states that encode to a URL that won't decode back (not deep-linkable).
     final codec = _codec;
     if (codec case final c?) {
       final config = currentConfiguration;
