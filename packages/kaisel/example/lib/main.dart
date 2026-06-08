@@ -349,6 +349,7 @@ final _config = KaiselRouterConfig<AppRoute>(
 );
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   auth.addListener(() {
     if (!auth.value) _config.router.set(const [Login()]);
   });

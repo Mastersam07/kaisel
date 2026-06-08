@@ -242,6 +242,7 @@ List<Page<Object?>> buildAdaptivePages<R extends KaiselRoute>({
   required List<KaiselStackEntry<R>> entries,
   required KaiselAdaptivePageBuilder<R> builder,
   required Page<Object?> Function(KaiselPageWrapperContext<R> ctx) wrap,
+  void Function(Set<int> absorbedPositions)? reportAbsorption,
 }) {
   final stack = [for (final e in entries) e.route];
 
@@ -249,6 +250,8 @@ List<Page<Object?>> buildAdaptivePages<R extends KaiselRoute>({
   // tuples for each rendered page. Each absorbing entry skips its
   // absorbed neighbours below.
   final tuples = <_RenderedPageTuple<R>>[];
+  // Positions collapsed into the page above them, reported via [reportAbsorption].
+  final absorbed = <int>{};
   var i = stack.length - 1;
   while (i >= 0) {
     final ctx = KaiselStackContext<R>(stack: stack, position: i);
@@ -285,9 +288,14 @@ List<Page<Object?>> buildAdaptivePages<R extends KaiselRoute>({
             child: widget,
           ),
         );
+        for (var p = lowestIdx; p < i; p++) {
+          absorbed.add(p);
+        }
         i = lowestIdx - 1;
     }
   }
+
+  reportAbsorption?.call(absorbed);
 
   // Second pass: wrap each tuple with full rendered-stack context.
   // `previous` is the route of the rendered page below this one

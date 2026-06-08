@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:kaisel_core/framework.dart';
 
 import 'kaisel_adaptive.dart';
+import 'kaisel_branched_shell.dart';
 import 'kaisel_inner_navigator.dart';
 import 'kaisel_page_scope.dart';
 import 'kaisel_page_wrapper.dart';
@@ -52,7 +54,7 @@ typedef KaiselModalBuilder =
 class KaiselRouterDelegate<R extends KaiselRoute>
     extends RouterDelegate<KaiselConfig<R>>
     with ChangeNotifier, PopNavigatorRouterDelegateMixin<KaiselConfig<R>>
-    implements KaiselNestedHost {
+    implements KaiselNestedHost, KaiselInspectable, KaiselListenable {
   /// Create a delegate driving [router].
   ///
   /// [builder] resolves a route to a widget. Use pattern matching here
@@ -69,9 +71,12 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     required KaiselPageBuilder<R> builder,
     this.pageWrapper,
     this.modalBuilder,
+    KaiselConfigCodec<R>? codec,
   }) : _builder = builder,
-       _adaptiveBuilder = null {
+       _adaptiveBuilder = null,
+       _codec = codec {
     router.addListener(_safeNotifyListeners);
+    _registerWithInspector();
   }
 
   /// Create a delegate that uses an adaptive builder for the main
@@ -114,9 +119,12 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     required KaiselAdaptivePageBuilder<R> builder,
     this.pageWrapper,
     this.modalBuilder,
+    KaiselConfigCodec<R>? codec,
   }) : _builder = null,
-       _adaptiveBuilder = builder {
+       _adaptiveBuilder = builder,
+       _codec = codec {
     router.addListener(_safeNotifyListeners);
+    _registerWithInspector();
   }
 
   /// The router whose state drives this delegate.
@@ -129,6 +137,11 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   /// Adaptive page builder. Null when the default constructor
   /// was used.
   final KaiselAdaptivePageBuilder<R>? _adaptiveBuilder;
+
+  /// The config codec, supplied by [KaiselRouterConfig] when the app is
+  /// URL-addressable. Used only to encode the current configuration into the
+  /// `url` field of the debug snapshot; null for URL-less apps.
+  final KaiselConfigCodec<R>? _codec;
 
   /// Optional customiser for the [Page] wrapping. Defaults to
   /// [MaterialPage].
@@ -432,6 +445,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     entries: entries,
     builder: builder,
     wrap: _wrapAdaptive,
+    reportAbsorption: kDebugMode ? router.debugSetAbsorbedPositions : null,
   );
 
   /// The simple builder used by the modal-flow inner navigator. When
@@ -470,9 +484,262 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     }
   }
 
+  // DevTools inspection. Registration is gated on kDebugMode, so release
+  // builds never touch the inspector.
+
+  int? _inspectorToken;
+
+  void _registerWithInspector() {
+    if (kDebugMode) {
+      _inspectorToken = KaiselInspector.instance.register(this);
+    }
+  }
+
+  @override
+  KaiselListenable get debugRevision => this;
+
+  @override
+  KaiselRootSnapshot debugSnapshot() {
+    final branches = <KaiselShellSnapshot>[];
+    final modules = <KaiselModuleSnapshot>[];
+    for (final handle in _nested) {
+      if (handle is BranchedShellRouter) {
+        branches.add(_shellSnapshot(handle));
+      } else if (handle.captureConfig() case final KaiselModuleConfig config) {
+        modules.add(
+          KaiselModuleSnapshot(
+            routeType: _routeTypeOf(config.stack),
+            stack: _routesStack(config.stack, const <int>{}),
+          ),
+        );
+      }
+    }
+    // Encode + round-trip the current state through the codec once, sharing the
+    // result between the `url` field and the codec problem.
+    final codec = _codecState();
+    return KaiselRootSnapshot(
+      id: 'root-${identityHashCode(this).toRadixString(16)}',
+      main: _entriesStack(
+        router.depth,
+        router.canPop,
+        router.entries,
+        router.debugAbsorbedPositions,
+      ),
+      branches: branches,
+      modules: modules,
+      flows: _flowSnapshots(),
+      problems: _problems(codec.problem),
+      guardTrace: _guardTraceSnapshot(),
+      url: codec.url,
+    );
+  }
+
+  List<KaiselProblemSnapshot> _problems(KaiselProblemSnapshot? codecProblem) {
+    final out = <KaiselProblemSnapshot>[];
+    void add(String where, KaiselNoOp? noOp) {
+      if (noOp == null) return;
+      out.add(
+        KaiselProblemSnapshot(
+          kind: 'noOp',
+          router: where,
+          detail:
+              'A navigation landing on "${noOp.top}" changed nothing — the '
+              'route is value-equal to the current top (often a missing '
+              '`props` override).',
+        ),
+      );
+    }
+
+    add('main', router.debugLastNoOp);
+    var shellIndex = 0;
+    for (final handle in _nested) {
+      if (handle is BranchedShellRouter) {
+        for (var b = 0; b < handle.branches.length; b++) {
+          add('shell$shellIndex.branch$b', handle.branches[b].debugLastNoOp);
+        }
+        shellIndex++;
+      }
+    }
+    final flows = router.activeFlows;
+    for (var i = 0; i < flows.length; i++) {
+      add('flow:$i', flows[i].router.debugLastNoOp);
+    }
+
+    if (codecProblem case final problem?) out.add(problem);
+    return out;
+  }
+
+  // Encodes the current configuration and round-trips it through the codec
+  // once. Returns the encoded URL (null if no codec / encode threw) and a
+  // codec problem when the state isn't deep-linkable.
+  ({String? url, KaiselProblemSnapshot? problem}) _codecState() {
+    final codec = _codec;
+    if (codec == null) return (url: null, problem: null);
+    final Uri uri;
+    try {
+      uri = codec.encode(currentConfiguration);
+    } catch (e) {
+      return (
+        url: null,
+        problem: KaiselProblemSnapshot(
+          kind: 'codec',
+          router: 'main',
+          detail: 'The codec threw while encoding the current state: $e',
+        ),
+      );
+    }
+    bool roundTrips;
+    try {
+      roundTrips = codec.decode(uri) != null;
+    } catch (_) {
+      roundTrips = false;
+    }
+    return (
+      url: uri.toString(),
+      problem: roundTrips
+          ? null
+          : KaiselProblemSnapshot(
+              kind: 'codec',
+              router: 'main',
+              detail:
+                  'The current state encodes to "$uri", but that URL does not '
+                  'decode back — the codec round-trip is broken (this state is '
+                  'not deep-linkable).',
+            ),
+    );
+  }
+
+  @override
+  List<String>? debugDecode(String url) {
+    final codec = _codec;
+    if (codec == null) return null;
+    try {
+      final config = codec.decode(Uri.parse(url));
+      if (config == null) return null;
+      final lines = <String>[
+        'main: ${config.mainStack.map((r) => '$r').join(' → ')}',
+      ];
+      final nested = config.nestedState;
+      if (nested case KaiselShellConfig(
+        :final activeBranch,
+        :final activeBranchStack,
+      )) {
+        lines.add(
+          'shell: branch $activeBranch → '
+          '${activeBranchStack.map((r) => '$r').join(' → ')}',
+        );
+      } else if (nested case KaiselModuleConfig(:final stack)) {
+        lines.add('module: ${stack.map((r) => '$r').join(' → ')}');
+      }
+      return lines;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  KaiselGuardTraceSnapshot? _guardTraceSnapshot() {
+    final run = router.debugLastGuardRun;
+    if (run == null) return null;
+    return KaiselGuardTraceSnapshot(
+      input: <String>[for (final route in run.input) route.toString()],
+      steps: <KaiselGuardStepSnapshot>[
+        for (final step in run.steps)
+          KaiselGuardStepSnapshot(
+            guard: step.label,
+            input: <String>[for (final route in step.input) route.toString()],
+            output: <String>[for (final route in step.output) route.toString()],
+            changed: step.changed,
+          ),
+      ],
+      output: <String>[for (final route in run.output) route.toString()],
+    );
+  }
+
+  KaiselShellSnapshot _shellSnapshot(BranchedShellRouter shell) {
+    final branches = shell.branches;
+    return KaiselShellSnapshot(
+      type: shell.runtimeType.toString(),
+      activeBranch: shell.activeBranch,
+      branchCount: shell.branchCount,
+      branches: <KaiselBranchSnapshot>[
+        for (var i = 0; i < branches.length; i++)
+          KaiselBranchSnapshot(
+            index: i,
+            routeType: _routeTypeOf(branches[i].stack),
+            stack: _routesStack(
+              branches[i].stack,
+              branches[i].debugAbsorbedPositions,
+            ),
+          ),
+      ],
+    );
+  }
+
+  List<KaiselFlowSnapshot> _flowSnapshots() {
+    final flows = router.activeFlows;
+    return <KaiselFlowSnapshot>[
+      for (var i = 0; i < flows.length; i++)
+        KaiselFlowSnapshot(
+          depth: i,
+          type: flows[i].route.runtimeType.toString(),
+          stack: _entriesStack(
+            flows[i].router.depth,
+            flows[i].router.canPop,
+            flows[i].router.entries,
+            flows[i].router.debugAbsorbedPositions,
+          ),
+        ),
+    ];
+  }
+
+  KaiselStackSnapshot _entriesStack<S extends KaiselRoute>(
+    int depth,
+    bool canPop,
+    List<KaiselStackEntry<S>> entries,
+    Set<int> absorbed,
+  ) => KaiselStackSnapshot(
+    depth: depth,
+    canPop: canPop,
+    entries: <KaiselEntrySnapshot>[
+      for (var i = 0; i < entries.length; i++)
+        _entrySnapshot(entries[i].id, entries[i].route, absorbed.contains(i)),
+    ],
+  );
+
+  KaiselStackSnapshot _routesStack(
+    List<KaiselRoute> routes,
+    Set<int> absorbed,
+  ) => KaiselStackSnapshot(
+    depth: routes.length,
+    canPop: routes.length > 1,
+    entries: <KaiselEntrySnapshot>[
+      for (var i = 0; i < routes.length; i++)
+        _entrySnapshot(i, routes[i], absorbed.contains(i)),
+    ],
+  );
+
+  KaiselEntrySnapshot _entrySnapshot(
+    int id,
+    KaiselRoute route,
+    bool absorbed,
+  ) => KaiselEntrySnapshot(
+    id: id,
+    type: route.runtimeType.toString(),
+    props: <String>[for (final prop in route.props) '$prop'],
+    label: route.toString(),
+    absorbed: absorbed,
+  );
+
+  String _routeTypeOf(List<KaiselRoute> stack) =>
+      stack.isEmpty ? 'unknown' : stack.first.runtimeType.toString();
+
   @override
   void dispose() {
     _isDisposed = true;
+    final token = _inspectorToken;
+    if (token case final t?) {
+      KaiselInspector.instance.deregister(t);
+    }
     router.removeListener(_safeNotifyListeners);
     for (final handle in _nested) {
       handle.removeListener(_safeNotifyListeners);

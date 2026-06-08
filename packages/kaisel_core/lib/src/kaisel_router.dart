@@ -33,6 +33,14 @@ abstract class KaiselNavigator implements KaiselListenable {
   /// router's underlying `R`. Used by [KaiselRouterDelegate] when
   /// restoring shell state from a URL.
   Future<void> restoreStack(List<KaiselRoute> stack);
+
+  /// The most recent no-op navigation on this router, for DevTools. Debug
+  /// only; null in release. See [KaiselRouter.debugLastNoOp].
+  KaiselNoOp? get debugLastNoOp;
+
+  /// Stack positions absorbed by adaptive rendering, for DevTools. Empty for
+  /// non-adaptive routers. See [KaiselRouter.debugAbsorbedPositions].
+  Set<int> get debugAbsorbedPositions;
 }
 
 /// Identity-stable wrapper for a route on the stack.
@@ -121,6 +129,11 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   // [run] and popped by [completeFlow]/[dismissFlow] in LIFO order.
   final List<_ActiveFlow<R>> _flows = <_ActiveFlow<R>>[];
 
+  KaiselGuardRun<R>? _debugLastGuardRun;
+  KaiselNoOp? _debugLastNoOp;
+  static int _noOpSeq = 0;
+  Set<int> _debugAbsorbedPositions = const <int>{};
+
   /// The current stack as a read-only list of routes.
   @override
   List<R> get stack => List<R>.unmodifiable(_entries.map((e) => e.route));
@@ -157,6 +170,35 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   /// `package:kaisel_core/framework.dart`, not the public barrel.
   List<KaiselStackEntry<R>> get entries => List.unmodifiable(_entries);
 
+  /// The most recent guard-pipeline run, retained for DevTools/debugging.
+  ///
+  /// Populated only in debug builds (the recording is gated by `assert`) and
+  /// only when at least one guard ran; null in release and before any guarded
+  /// navigation. Exposed via `package:kaisel_core/framework.dart`.
+  KaiselGuardRun<R>? get debugLastGuardRun => _debugLastGuardRun;
+
+  /// The most recent no-op navigation on this router — an issued mutation
+  /// (`push` / `replaceTop` / `set` / `pushOrReplaceTop`) that produced no
+  /// change because the proposed stack was value-equal to the current one.
+  /// The classic cause is a route with fields but no `props` override. Cleared
+  /// by the next real change. Populated in debug builds only; null in release.
+  @override
+  KaiselNoOp? get debugLastNoOp => _debugLastNoOp;
+
+  /// Stack positions (0-based from the bottom) the adaptive renderer collapsed
+  /// into the page above them at the current breakpoint — the master entries
+  /// of a master-detail page. Empty for non-adaptive routers. Updated by the
+  /// adaptive build path; for DevTools only.
+  @override
+  Set<int> get debugAbsorbedPositions => _debugAbsorbedPositions;
+
+  /// Framework-facing: record the absorbed positions from an adaptive build.
+  /// Called by the adaptive renderer in debug only. Exposed via
+  /// `package:kaisel_core/framework.dart`.
+  void debugSetAbsorbedPositions(Set<int> positions) {
+    _debugAbsorbedPositions = positions;
+  }
+
   /// Push a route onto the top of the stack. Runs through guards.
   Future<void> push(R route) => _enqueue(() => _navigate([...stack, route]));
 
@@ -181,11 +223,13 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   Future<void> replaceTop(R route) => _enqueue(() {
     final next = [...stack];
     if (next.isEmpty) {
-      next.add(route);
+      // coverage:ignore-start
+      next.add(route); // The stack is never empty; this guard is defensive.
+      // coverage:ignore-end
     } else {
       next[next.length - 1] = route;
     }
-    return _navigate(next);
+    return _navigate(next, recordNoOp: true);
   });
 
   /// Push [route] onto the stack, or replace the top entry if [when]
@@ -382,31 +426,82 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
 
   static void _void(Object? _) {}
 
-  Future<void> _navigate(List<R> proposed) async {
+  Future<void> _navigate(List<R> proposed, {bool recordNoOp = false}) async {
+    // Only flag a no-op when the caller's proposal was already value-equal to
+    // the current stack — not when a guard later collapses it.
+    final proposedNoOp = recordNoOp && _sameRoutes(stack, proposed);
     final result = await _runGuards(stack, proposed);
-    _applyStack(result);
+    _applyStack(result, recordNoOp: proposedNoOp);
   }
 
   Future<List<R>> _runGuards(List<R> current, List<R> proposed) async {
     var next = proposed;
-    for (final guard in _guards) {
-      next = await guard(current, next);
+
+    // Debug-only trace retention: the assert side-effect is stripped in
+    // release, so the recording costs nothing in production.
+    var recording = false;
+    assert(() {
+      recording = _guards.isNotEmpty;
+      return true;
+    }());
+    final steps = recording ? <KaiselGuardStep<R>>[] : null;
+
+    for (var i = 0; i < _guards.length; i++) {
+      final before = next;
+      next = await _guards[i](current, next);
+      steps?.add(
+        KaiselGuardStep<R>(
+          label: '#$i',
+          input: List<R>.unmodifiable(before),
+          output: List<R>.unmodifiable(next),
+          changed: !_sameRoutes(before, next),
+        ),
+      );
+    }
+
+    if (steps case final s?) {
+      _debugLastGuardRun = KaiselGuardRun<R>(
+        input: List<R>.unmodifiable(proposed),
+        steps: List<KaiselGuardStep<R>>.unmodifiable(s),
+        output: List<R>.unmodifiable(next),
+      );
     }
     return next;
+  }
+
+  bool _sameRoutes(List<R> a, List<R> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   /// Apply [next] to the stack with identity preservation: entries
   /// whose route at the same position is equal keep their id. New
   /// positions get fresh entries. This means a push only allocates
   /// the new entry; existing pages keep their navigator state.
-  void _applyStack(List<R> next) {
+  void _applyStack(List<R> next, {bool recordNoOp = true}) {
     if (next.isEmpty) {
       // Guards must not produce an empty stack. Refuse silently rather
       // than crashing — the user almost certainly wants the current
       // state preserved in this case.
       return;
     }
-    if (_routesEqual(_entries, next)) return;
+    if (_routesEqual(_entries, next)) {
+      // A no-op; recorded for DevTools only when the caller opted in.
+      if (recordNoOp) {
+        assert(() {
+          _debugLastNoOp = KaiselNoOp(
+            seq: ++_noOpSeq,
+            top: next.last.toString(),
+            depth: next.length,
+          );
+          return true;
+        }());
+      }
+      return;
+    }
 
     final newEntries = <KaiselStackEntry<R>>[];
     for (var i = 0; i < next.length; i++) {
@@ -420,6 +515,10 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     _entries
       ..clear()
       ..addAll(newEntries);
+    assert(() {
+      _debugLastNoOp = null;
+      return true;
+    }());
     notifyListeners();
   }
 
@@ -465,4 +564,75 @@ class KaiselActiveFlow<R extends KaiselRoute> {
 
   /// The sub-router driving the flow's screens.
   final KaiselRouter<R> router;
+}
+
+/// A recorded run of the guard pipeline, retained for debugging.
+///
+/// Captures the proposed stack going in, each guard's effect in pipeline
+/// order, and the final stack out. Populated by
+/// [KaiselRouter.debugLastGuardRun] in debug builds only.
+@immutable
+class KaiselGuardRun<R extends KaiselRoute> {
+  /// Create a guard-run record.
+  const KaiselGuardRun({
+    required this.input,
+    required this.steps,
+    required this.output,
+  });
+
+  /// The proposed stack going into the pipeline.
+  final List<R> input;
+
+  /// One step per guard, in pipeline order.
+  final List<KaiselGuardStep<R>> steps;
+
+  /// The final stack the pipeline produced.
+  final List<R> output;
+}
+
+/// A recorded no-op navigation, retained for debugging.
+///
+/// Produced when an issued mutation leaves the stack unchanged because the
+/// proposed top is value-equal to the current top — typically a route with
+/// fields but no `props` override. Surfaced by [KaiselRouter.debugLastNoOp].
+@immutable
+class KaiselNoOp {
+  /// Create a no-op record.
+  const KaiselNoOp({required this.seq, required this.top, required this.depth});
+
+  /// A monotonically increasing sequence number, so consumers can tell a new
+  /// no-op from a stale one across snapshots.
+  final int seq;
+
+  /// The `toString()` of the route the navigation tried to land on. A route
+  /// missing `props` renders without its fields here, which is itself a tell.
+  final String top;
+
+  /// The depth the stack would have had.
+  final int depth;
+}
+
+/// One guard's effect within a [KaiselGuardRun].
+@immutable
+class KaiselGuardStep<R extends KaiselRoute> {
+  /// Create a guard-step record.
+  const KaiselGuardStep({
+    required this.label,
+    required this.input,
+    required this.output,
+    required this.changed,
+  });
+
+  /// Best-effort label. Guards are usually anonymous closures, so this is
+  /// the pipeline index, e.g. `#0`.
+  final String label;
+
+  /// The stack this guard received.
+  final List<R> input;
+
+  /// The stack this guard produced.
+  final List<R> output;
+
+  /// Whether this guard changed the stack.
+  final bool changed;
 }

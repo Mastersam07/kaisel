@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:kaisel_core/framework.dart';
 
@@ -120,6 +121,9 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
         entries: entries,
         builder: builder,
         wrap: _wrapAdaptive,
+        reportAbsorption: kDebugMode
+            ? widget.router.debugSetAbsorbedPositions
+            : null,
       ),
       _ => [
         for (var i = 0; i < entries.length; i++)

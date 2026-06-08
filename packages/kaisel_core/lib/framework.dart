@@ -11,5 +11,7 @@ library;
 
 export 'kaisel_core.dart';
 export 'src/kaisel_config.dart' show KaiselNestedHandle, KaiselNestedHost;
+export 'src/kaisel_inspector.dart';
 export 'src/kaisel_notifier.dart' show KaiselChangeNotifier, KaiselListenable;
-export 'src/kaisel_router.dart' show KaiselStackEntry;
+export 'src/kaisel_router.dart'
+    show KaiselGuardRun, KaiselGuardStep, KaiselNoOp, KaiselStackEntry;
