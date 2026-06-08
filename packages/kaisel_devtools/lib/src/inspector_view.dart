@@ -1,4 +1,5 @@
 import 'package:devtools_extensions/devtools_extensions.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 
 import 'inspector_controller.dart';
@@ -91,7 +92,7 @@ class _VersionBanner extends StatelessWidget {
   }
 }
 
-class _RootView extends StatelessWidget {
+class _RootView extends StatefulWidget {
   const _RootView({
     required this.root,
     required this.previous,
@@ -103,10 +104,31 @@ class _RootView extends StatelessWidget {
   final List<Transition> transitions;
 
   @override
+  State<_RootView> createState() => _RootViewState();
+}
+
+class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
+  TabController? _tabs;
+  List<String> _keys = const <String>[];
+
+  // The stable identity of a tab, ignoring any " (N)" count suffix.
+  static String _key(String label) {
+    final i = label.indexOf(' (');
+    return i < 0 ? label : label.substring(0, i);
+  }
+
+  @override
+  void dispose() {
+    _tabs?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final root = widget.root;
     final previousMainIds = <int>{
-      for (final entry in previous?.main.entries ?? const <EntrySnapshot>[])
-        entry.id,
+      for (final e in widget.previous?.main.entries ?? const <EntrySnapshot>[])
+        e.id,
     };
 
     final tabs = <(String, Widget)>[
@@ -123,31 +145,48 @@ class _RootView extends StatelessWidget {
         ),
       ('Guards', _GuardPanel(trace: root.guardTrace)),
       ('URL', _UrlPanel(root: root)),
-      if (transitions.isNotEmpty)
+      if (widget.transitions.isNotEmpty)
         (
-          'Log (${transitions.length})',
-          _TransitionsPanel(transitions: transitions),
+          'Log (${widget.transitions.length})',
+          _TransitionsPanel(transitions: widget.transitions),
         ),
     ];
 
-    return DefaultTabController(
-      length: tabs.length,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Header(root: root),
-          TabBar(
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            tabs: [for (final (label, _) in tabs) Tab(text: label)],
+    // Recreate the controller only when the *set* of tabs (by stable key)
+    // changes, and preserve the selected tab across the change — otherwise it
+    // resets to the first tab every time a panel appears or disappears.
+    final keys = [for (final (label, _) in tabs) _key(label)];
+    if (_tabs == null || !listEquals(keys, _keys)) {
+      final selected = (_tabs != null && _keys.isNotEmpty)
+          ? _keys[_tabs!.index.clamp(0, _keys.length - 1)]
+          : null;
+      final restored = selected == null ? 0 : keys.indexOf(selected);
+      _tabs?.dispose();
+      _tabs = TabController(
+        length: tabs.length,
+        vsync: this,
+        initialIndex: restored < 0 ? 0 : restored,
+      );
+      _keys = keys;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _Header(root: root),
+        TabBar(
+          controller: _tabs,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          tabs: [for (final (label, _) in tabs) Tab(text: label)],
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabs,
+            children: [for (final (_, panel) in tabs) panel],
           ),
-          Expanded(
-            child: TabBarView(
-              children: [for (final (_, widget) in tabs) widget],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

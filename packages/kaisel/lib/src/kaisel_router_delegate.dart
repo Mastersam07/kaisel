@@ -514,6 +514,9 @@ class KaiselRouterDelegate<R extends KaiselRoute>
         );
       }
     }
+    // Encode + round-trip the current state through the codec once, sharing the
+    // result between the `url` field and the codec problem.
+    final codec = _codecState();
     return KaiselRootSnapshot(
       id: 'root-${identityHashCode(this).toRadixString(16)}',
       main: _entriesStack(
@@ -525,13 +528,13 @@ class KaiselRouterDelegate<R extends KaiselRoute>
       branches: branches,
       modules: modules,
       flows: _flowSnapshots(),
-      problems: _problems(),
+      problems: _problems(codec.problem),
       guardTrace: _guardTraceSnapshot(),
-      url: _encodeUrl(),
+      url: codec.url,
     );
   }
 
-  List<KaiselProblemSnapshot> _problems() {
+  List<KaiselProblemSnapshot> _problems(KaiselProblemSnapshot? codecProblem) {
     final out = <KaiselProblemSnapshot>[];
     void add(String where, KaiselNoOp? noOp) {
       if (noOp == null) return;
@@ -562,15 +565,40 @@ class KaiselRouterDelegate<R extends KaiselRoute>
       add('flow:$i', flows[i].router.debugLastNoOp);
     }
 
-    // Flag states that encode to a URL that won't decode back (not deep-linkable).
+    if (codecProblem case final problem?) out.add(problem);
+    return out;
+  }
+
+  // Encodes the current configuration and round-trips it through the codec
+  // once. Returns the encoded URL (null if no codec / encode threw) and a
+  // codec problem when the state isn't deep-linkable.
+  ({String? url, KaiselProblemSnapshot? problem}) _codecState() {
     final codec = _codec;
-    if (codec case final c?) {
-      final config = currentConfiguration;
-      try {
-        final uri = c.encode(config);
-        if (c.decode(uri) == null) {
-          out.add(
-            KaiselProblemSnapshot(
+    if (codec == null) return (url: null, problem: null);
+    final Uri uri;
+    try {
+      uri = codec.encode(currentConfiguration);
+    } catch (e) {
+      return (
+        url: null,
+        problem: KaiselProblemSnapshot(
+          kind: 'codec',
+          router: 'main',
+          detail: 'The codec threw while encoding the current state: $e',
+        ),
+      );
+    }
+    bool roundTrips;
+    try {
+      roundTrips = codec.decode(uri) != null;
+    } catch (_) {
+      roundTrips = false;
+    }
+    return (
+      url: uri.toString(),
+      problem: roundTrips
+          ? null
+          : KaiselProblemSnapshot(
               kind: 'codec',
               router: 'main',
               detail:
@@ -578,31 +606,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
                   'decode back — the codec round-trip is broken (this state is '
                   'not deep-linkable).',
             ),
-          );
-        }
-      } catch (e) {
-        out.add(
-          KaiselProblemSnapshot(
-            kind: 'codec',
-            router: 'main',
-            detail: 'The codec threw while encoding the current state: $e',
-          ),
-        );
-      }
-    }
-    return out;
-  }
-
-  String? _encodeUrl() {
-    final codec = _codec;
-    if (codec == null) return null;
-    try {
-      return codec.encode(currentConfiguration).toString();
-    } catch (_) {
-      // A user codec may throw on a transient configuration; the URL is a
-      // best-effort debug field, so swallow and report none.
-      return null;
-    }
+    );
   }
 
   @override
