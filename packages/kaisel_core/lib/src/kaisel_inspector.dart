@@ -48,6 +48,7 @@ class KaiselRootSnapshot {
     this.branches = const <KaiselShellSnapshot>[],
     this.modules = const <KaiselModuleSnapshot>[],
     this.flows = const <KaiselFlowSnapshot>[],
+    this.problems = const <KaiselProblemSnapshot>[],
     this.guardTrace,
     this.url,
   });
@@ -67,6 +68,9 @@ class KaiselRootSnapshot {
   /// Active modal flows, outermost first.
   final List<KaiselFlowSnapshot> flows;
 
+  /// Detected problems (e.g. no-op mutations), across this root's routers.
+  final List<KaiselProblemSnapshot> problems;
+
   /// The most recent guard-pipeline run, or null if none retained.
   final KaiselGuardTraceSnapshot? guardTrace;
 
@@ -80,8 +84,36 @@ class KaiselRootSnapshot {
     'branches': <Object?>[for (final shell in branches) shell.toJson()],
     'modules': <Object?>[for (final module in modules) module.toJson()],
     'flows': <Object?>[for (final flow in flows) flow.toJson()],
+    'problems': <Object?>[for (final problem in problems) problem.toJson()],
     'guardTrace': guardTrace?.toJson(),
     'url': url,
+  };
+}
+
+/// A detected problem in the navigation state, surfaced in the Problems panel.
+class KaiselProblemSnapshot {
+  /// Create a problem snapshot.
+  const KaiselProblemSnapshot({
+    required this.kind,
+    required this.router,
+    required this.detail,
+  });
+
+  /// The problem kind, e.g. `'noOp'`.
+  final String kind;
+
+  /// Which router it occurred on, e.g. `'main'`, `'shell0.branch1'`,
+  /// `'flow:0'`.
+  final String router;
+
+  /// A human-readable description.
+  final String detail;
+
+  /// Serialise to the wire format.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'kind': kind,
+    'router': router,
+    'detail': detail,
   };
 }
 

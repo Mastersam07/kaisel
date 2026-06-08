@@ -20,6 +20,13 @@ final class _Detail extends _R {
   List<Object?> get props => <Object?>[id];
 }
 
+// Has a field but no `props` override — the missing-props bug.
+final class _NoProps extends _R {
+  const _NoProps(this.id);
+
+  final String id;
+}
+
 class _Codec implements KaiselConfigCodec<_R> {
   const _Codec();
 
@@ -27,6 +34,7 @@ class _Codec implements KaiselConfigCodec<_R> {
   Uri encode(KaiselConfig<_R> config) => switch (config.mainStack.last) {
     _Home() => Uri(path: '/'),
     _Detail(:final id) => Uri(path: '/detail/$id'),
+    _NoProps(:final id) => Uri(path: '/np/$id'),
   };
 
   @override
@@ -141,6 +149,30 @@ void main() {
     expect(delegate.debugSnapshot().url, isNull);
     delegate.dispose();
     router.dispose();
+  });
+
+  test('debugSnapshot reports a branch no-op mutation as a problem', () async {
+    final router = KaiselRouter<_R>(initial: const _Home());
+    final delegate = _delegate(router);
+    final branch = KaiselRouter<_R>(initial: const _Home());
+    final shell = BranchedShellRouter(branches: <KaiselNavigator>[branch]);
+    delegate.registerNested(shell);
+
+    await branch.push(const _NoProps('a'));
+    expect(delegate.debugSnapshot().problems, isEmpty);
+
+    // _NoProps('a') == _NoProps('b') (no props), so this is a no-op.
+    await branch.pushOrReplaceTop(const _NoProps('b'));
+
+    final problems = delegate.debugSnapshot().problems;
+    expect(problems, hasLength(1));
+    expect(problems.single.kind, 'noOp');
+    expect(problems.single.router, contains('branch'));
+
+    delegate.dispose();
+    shell.dispose();
+    router.dispose();
+    branch.dispose();
   });
 
   test('registers with the inspector in debug and deregisters on dispose', () {

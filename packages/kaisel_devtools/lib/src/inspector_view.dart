@@ -76,6 +76,11 @@ class _RootView extends StatelessWidget {
       if (root.flows.isNotEmpty) ('Flows', _FlowsPanel(flows: root.flows)),
       if (root.modules.isNotEmpty)
         ('Modules', _ModulesPanel(modules: root.modules)),
+      if (root.problems.isNotEmpty)
+        (
+          'Problems (${root.problems.length})',
+          _ProblemsPanel(problems: root.problems),
+        ),
       ('Guards', _GuardPanel(trace: root.guardTrace)),
       ('URL', _UrlPanel(root: root)),
     ];
@@ -134,7 +139,6 @@ class _Header extends StatelessWidget {
     );
   }
 }
-
 
 class _StackList extends StatelessWidget {
   const _StackList({required this.stack, this.previousIds});
@@ -364,6 +368,43 @@ class _MiniStack extends StatelessWidget {
               style: i == 0
                   ? mono?.copyWith(fontWeight: FontWeight.bold)
                   : mono,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ProblemsPanel extends StatelessWidget {
+  const _ProblemsPanel({required this.problems});
+
+  final List<ProblemSnapshot> problems;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        for (final problem in problems)
+          Card(
+            color: theme.colorScheme.errorContainer.withValues(alpha: 0.4),
+            child: ListTile(
+              leading: Icon(
+                Icons.warning_amber_rounded,
+                color: theme.colorScheme.error,
+              ),
+              title: Text(problem.detail),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  children: [
+                    _Badge(text: problem.kind),
+                    const SizedBox(width: 6),
+                    _Badge(text: problem.router),
+                  ],
+                ),
+              ),
             ),
           ),
       ],

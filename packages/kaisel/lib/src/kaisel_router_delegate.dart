@@ -521,9 +521,43 @@ class KaiselRouterDelegate<R extends KaiselRoute>
       branches: branches,
       modules: modules,
       flows: _flowSnapshots(),
+      problems: _problems(),
       guardTrace: _guardTraceSnapshot(),
       url: _encodeUrl(),
     );
+  }
+
+  List<KaiselProblemSnapshot> _problems() {
+    final out = <KaiselProblemSnapshot>[];
+    void add(String where, KaiselNoOp? noOp) {
+      if (noOp == null) return;
+      out.add(
+        KaiselProblemSnapshot(
+          kind: 'noOp',
+          router: where,
+          detail:
+              'A navigation landing on "${noOp.top}" changed nothing — the '
+              'route is value-equal to the current top (often a missing '
+              '`props` override).',
+        ),
+      );
+    }
+
+    add('main', router.debugLastNoOp);
+    var shellIndex = 0;
+    for (final handle in _nested) {
+      if (handle is BranchedShellRouter) {
+        for (var b = 0; b < handle.branches.length; b++) {
+          add('shell$shellIndex.branch$b', handle.branches[b].debugLastNoOp);
+        }
+        shellIndex++;
+      }
+    }
+    final flows = router.activeFlows;
+    for (var i = 0; i < flows.length; i++) {
+      add('flow:$i', flows[i].router.debugLastNoOp);
+    }
+    return out;
   }
 
   String? _encodeUrl() {

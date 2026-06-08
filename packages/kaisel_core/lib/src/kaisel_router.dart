@@ -33,6 +33,10 @@ abstract class KaiselNavigator implements KaiselListenable {
   /// router's underlying `R`. Used by [KaiselRouterDelegate] when
   /// restoring shell state from a URL.
   Future<void> restoreStack(List<KaiselRoute> stack);
+
+  /// The most recent no-op navigation on this router, for DevTools. Debug
+  /// only; null in release. See [KaiselRouter.debugLastNoOp].
+  KaiselNoOp? get debugLastNoOp;
 }
 
 /// Identity-stable wrapper for a route on the stack.
@@ -122,6 +126,8 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   final List<_ActiveFlow<R>> _flows = <_ActiveFlow<R>>[];
 
   KaiselGuardRun<R>? _debugLastGuardRun;
+  KaiselNoOp? _debugLastNoOp;
+  static int _noOpSeq = 0;
 
   /// The current stack as a read-only list of routes.
   @override
@@ -165,6 +171,14 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   /// only when at least one guard ran; null in release and before any guarded
   /// navigation. Exposed via `package:kaisel_core/framework.dart`.
   KaiselGuardRun<R>? get debugLastGuardRun => _debugLastGuardRun;
+
+  /// The most recent no-op navigation on this router — an issued mutation
+  /// (`push` / `replaceTop` / `set` / `pushOrReplaceTop`) that produced no
+  /// change because the proposed stack was value-equal to the current one.
+  /// The classic cause is a route with fields but no `props` override. Cleared
+  /// by the next real change. Populated in debug builds only; null in release.
+  @override
+  KaiselNoOp? get debugLastNoOp => _debugLastNoOp;
 
   /// Push a route onto the top of the stack. Runs through guards.
   Future<void> push(R route) => _enqueue(() => _navigate([...stack, route]));
@@ -451,7 +465,20 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       // state preserved in this case.
       return;
     }
-    if (_routesEqual(_entries, next)) return;
+    if (_routesEqual(_entries, next)) {
+      // An issued navigation that produced no change. Usually a missing-`props`
+      // route (every instance is value-equal, so `pushOrReplaceTop`/`set` to a
+      // "different" one is a no-op). Record it for DevTools — debug only.
+      assert(() {
+        _debugLastNoOp = KaiselNoOp(
+          seq: ++_noOpSeq,
+          top: next.last.toString(),
+          depth: next.length,
+        );
+        return true;
+      }());
+      return;
+    }
 
     final newEntries = <KaiselStackEntry<R>>[];
     for (var i = 0; i < next.length; i++) {
@@ -465,6 +492,10 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     _entries
       ..clear()
       ..addAll(newEntries);
+    assert(() {
+      _debugLastNoOp = null;
+      return true;
+    }());
     notifyListeners();
   }
 
@@ -534,6 +565,28 @@ class KaiselGuardRun<R extends KaiselRoute> {
 
   /// The final stack the pipeline produced.
   final List<R> output;
+}
+
+/// A recorded no-op navigation, retained for debugging.
+///
+/// Produced when an issued mutation leaves the stack unchanged because the
+/// proposed top is value-equal to the current top — typically a route with
+/// fields but no `props` override. Surfaced by [KaiselRouter.debugLastNoOp].
+@immutable
+class KaiselNoOp {
+  /// Create a no-op record.
+  const KaiselNoOp({required this.seq, required this.top, required this.depth});
+
+  /// A monotonically increasing sequence number, so consumers can tell a new
+  /// no-op from a stale one across snapshots.
+  final int seq;
+
+  /// The `toString()` of the route the navigation tried to land on. A route
+  /// missing `props` renders without its fields here, which is itself a tell.
+  final String top;
+
+  /// The depth the stack would have had.
+  final int depth;
 }
 
 /// One guard's effect within a [KaiselGuardRun].

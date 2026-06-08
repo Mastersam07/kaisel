@@ -17,6 +17,12 @@ final class _C extends _TestRoute {
   const _C();
 }
 
+// Has a field but deliberately no `props` override — the missing-props bug.
+final class _Bug extends _TestRoute {
+  const _Bug(this.id);
+  final String id;
+}
+
 class _FakeRevision extends KaiselChangeNotifier {}
 
 class _FakeRoot implements KaiselInspectable {
@@ -185,6 +191,37 @@ void main() {
       final router = KaiselRouter<_TestRoute>(initial: const _A());
       await router.push(const _B());
       expect(router.debugLastGuardRun, isNull);
+      router.dispose();
+    });
+  });
+
+  group('KaiselRouter.debugLastNoOp', () {
+    test('records a no-op pushOrReplaceTop, clears on a real change', () async {
+      final router = KaiselRouter<_TestRoute>(initial: const _A());
+
+      await router.push(const _Bug('x'));
+      expect(
+        router.debugLastNoOp,
+        isNull,
+        reason: 'a real push is not a no-op',
+      );
+
+      // _Bug('x') == _Bug('y') (no props), so this replaceTop changes nothing.
+      await router.pushOrReplaceTop(const _Bug('y'));
+      final noOp = router.debugLastNoOp;
+      expect(noOp, isNotNull);
+      expect(noOp!.top, '_Bug'); // toString without props — itself a tell
+      expect(noOp.depth, 2);
+
+      await router.push(const _A());
+      expect(router.debugLastNoOp, isNull, reason: 'a real change clears it');
+      router.dispose();
+    });
+
+    test('a genuinely-distinct route is not a no-op', () async {
+      final router = KaiselRouter<_TestRoute>(initial: const _A());
+      await router.push(const _B());
+      expect(router.debugLastNoOp, isNull);
       router.dispose();
     });
   });

@@ -44,6 +44,7 @@ class RootSnapshot {
     required this.branches,
     required this.modules,
     required this.flows,
+    required this.problems,
     required this.guardTrace,
     required this.url,
   });
@@ -63,6 +64,10 @@ class RootSnapshot {
     flows: <FlowSnapshot>[
       for (final flow in _list(json['flows']))
         FlowSnapshot.fromJson(_obj(flow)),
+    ],
+    problems: <ProblemSnapshot>[
+      for (final problem in _list(json['problems']))
+        ProblemSnapshot.fromJson(_obj(problem)),
     ],
     guardTrace: json['guardTrace'] == null
         ? null
@@ -85,11 +90,41 @@ class RootSnapshot {
   /// Active modal flows.
   final List<FlowSnapshot> flows;
 
+  /// Detected problems (e.g. no-op mutations).
+  final List<ProblemSnapshot> problems;
+
   /// The last guard-pipeline run, if any.
   final GuardTrace? guardTrace;
 
   /// The encoded URL, if a codec is wired.
   final String? url;
+}
+
+/// A detected problem in the navigation state.
+class ProblemSnapshot {
+  /// Create a problem.
+  ProblemSnapshot({
+    required this.kind,
+    required this.router,
+    required this.detail,
+  });
+
+  /// Decode from the wire format.
+  factory ProblemSnapshot.fromJson(Map<String, Object?> json) =>
+      ProblemSnapshot(
+        kind: '${json['kind'] ?? 'problem'}',
+        router: '${json['router'] ?? '?'}',
+        detail: '${json['detail'] ?? ''}',
+      );
+
+  /// The problem kind, e.g. `'noOp'`.
+  final String kind;
+
+  /// Which router it occurred on.
+  final String router;
+
+  /// Human-readable description.
+  final String detail;
 }
 
 /// A single router's stack.
