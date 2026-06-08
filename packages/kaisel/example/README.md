@@ -1,10 +1,11 @@
 # kaisel example
 
-Seven entry points, each demonstrating a slice of the library.
+Eight entry points, each demonstrating a slice of the library.
 Pick one with `-t`:
 
 | Entry point | What it shows |
 | --- | --- |
+| `lib/main_inspector.dart` | The **DevTools inspector playground**: one app wiring a branched shell, a checkout module, nested modal flows, redirecting guards, and a full URL codec — driven from a Hub control panel so you can watch every panel of the `kaisel_devtools` extension update live. Its adaptive master-detail **Inbox** demonstrates the missing-`props` bug in situ: open a "Buggy" message, then tap another — the detail pane doesn't change (a `pushOrReplaceTop` no-op), with "Correct" rows beside it for contrast |
 | `lib/main_terse.dart` | The terse ergonomics layer: a minimal before/after app wiring `KaiselRouterConfig` into `MaterialApp.router` and navigating with `context.push`/`context.pop` |
 | `lib/main.dart` | The main example: bottom-nav `KaiselBranchedShell` with per-tab typed routes, modal flows, modules, and URL deep-linking via codec |
 | `lib/main_adaptive.dart` | Adaptive layouts at the main delegate (v0.8) with `pushOrReplaceTop` (v0.11) for in-place master-detail swaps |
