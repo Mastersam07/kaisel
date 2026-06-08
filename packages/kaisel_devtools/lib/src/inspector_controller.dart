@@ -6,13 +6,17 @@ import 'package:flutter/foundation.dart';
 
 import 'snapshot.dart';
 
-/// Polls the running app's `ext.kaisel.snapshot` service extension and exposes
-/// the latest navigation snapshot (plus the previous distinct one, for diffing).
+/// Connects to the running app's `KaiselInspector` and exposes the latest
+/// navigation snapshot (plus the previous distinct one, for diffing).
 ///
-/// CP4 uses polling for robustness; the app also pushes `kaisel:nav` events,
-/// which a later checkpoint can subscribe to for lower latency.
+/// Two channels, for robustness:
+///  - **push**: ingests `kaisel:nav` events for instant updates on real
+///    navigations;
+///  - **poll**: a periodic `ext.kaisel.snapshot` pull that catches no-op
+///    mutations (which update state without firing an event) and recovers
+///    from any missed events or a reconnect.
 class InspectorController extends ChangeNotifier {
-  /// Create the controller and begin polling when connected.
+  /// Create the controller and begin listening when connected.
   InspectorController() {
     serviceManager.connectedState.addListener(_onConnectionChanged);
     _onConnectionChanged();
@@ -21,9 +25,10 @@ class InspectorController extends ChangeNotifier {
   static const Duration _pollInterval = Duration(milliseconds: 700);
 
   Timer? _timer;
+  StreamSubscription<Object?>? _eventSub;
   String? _signature;
 
-  /// The most recent decoded snapshot, or null before the first poll.
+  /// The most recent decoded snapshot, or null before the first one.
   NavSnapshot? current;
 
   /// The previous *distinct* snapshot, for diffing against [current].
@@ -34,13 +39,45 @@ class InspectorController extends ChangeNotifier {
 
   void _onConnectionChanged() {
     if (connected) {
-      _timer ??= Timer.periodic(_pollInterval, (_) => unawaited(_poll()));
-      unawaited(_poll());
+      _wire();
     } else {
-      _timer?.cancel();
-      _timer = null;
+      _unwire();
     }
     notifyListeners();
+  }
+
+  void _wire() {
+    _timer ??= Timer.periodic(_pollInterval, (_) => unawaited(_poll()));
+    final service = serviceManager.service;
+    if (_eventSub == null && service != null) {
+      try {
+        unawaited(_listenExtensionStream());
+        _eventSub = service.onExtensionEvent.listen((event) {
+          if (event.extensionKind == 'kaisel:nav') {
+            final data = event.extensionData?.data;
+            if (data != null) _ingest(data);
+          }
+        });
+      } catch (_) {
+        // Event stream unavailable in this environment; polling still covers.
+      }
+    }
+    unawaited(_poll());
+  }
+
+  void _unwire() {
+    _timer?.cancel();
+    _timer = null;
+    unawaited(_eventSub?.cancel());
+    _eventSub = null;
+  }
+
+  Future<void> _listenExtensionStream() async {
+    try {
+      await serviceManager.service?.streamListen('Extension');
+    } catch (_) {
+      // Already subscribed (DevTools owns the stream) — events still flow.
+    }
   }
 
   Future<void> _poll() async {
@@ -52,8 +89,7 @@ class InspectorController extends ChangeNotifier {
       final data = response.json;
       if (data != null) _ingest(data);
     } catch (_) {
-      // The extension isn't registered (the app has no kaisel delegate yet,
-      // or is paused). Keep polling; it may appear after a hot reload.
+      // The extension isn't registered yet (no kaisel delegate, or paused).
     }
   }
 
@@ -69,7 +105,7 @@ class InspectorController extends ChangeNotifier {
   @override
   void dispose() {
     serviceManager.connectedState.removeListener(_onConnectionChanged);
-    _timer?.cancel();
+    _unwire();
     super.dispose();
   }
 }
