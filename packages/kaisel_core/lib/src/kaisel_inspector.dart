@@ -361,6 +361,11 @@ abstract interface class KaiselInspectable {
 
   /// Notifies whenever [debugSnapshot] would change.
   KaiselListenable get debugRevision;
+
+  /// Decode [url] through this root's codec into a human-readable preview of
+  /// the resulting stack, **without navigating**. Returns null if there's no
+  /// codec or the URL doesn't decode. Powers the extension's deep-link preview.
+  List<String>? debugDecode(String url);
 }
 
 /// Debug-only registry that aggregates live roots and publishes navigation
@@ -423,6 +428,21 @@ class KaiselInspector {
         return Future<developer.ServiceExtensionResponse>.value(
           developer.ServiceExtensionResponse.result(
             jsonEncode(snapshot().toJson()),
+          ),
+        );
+      });
+      // Read-only deep-link preview: decode a URL through the first root's
+      // codec and return the resulting stack, without navigating.
+      developer.registerExtension('ext.kaisel.decode', (method, parameters) {
+        final url = parameters['url'] ?? '';
+        final root = _roots.values.isEmpty ? null : _roots.values.first;
+        final lines = root?.debugDecode(url);
+        return Future<developer.ServiceExtensionResponse>.value(
+          developer.ServiceExtensionResponse.result(
+            jsonEncode(<String, Object?>{
+              'ok': lines != null,
+              'lines': lines ?? <String>[],
+            }),
           ),
         );
       });

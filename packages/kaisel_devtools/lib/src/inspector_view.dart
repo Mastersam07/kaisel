@@ -1,3 +1,4 @@
+import 'package:devtools_extensions/devtools_extensions.dart';
 import 'package:flutter/material.dart';
 
 import 'inspector_controller.dart';
@@ -501,15 +502,61 @@ class _GuardPanel extends StatelessWidget {
   }
 }
 
-class _UrlPanel extends StatelessWidget {
+class _UrlPanel extends StatefulWidget {
   const _UrlPanel({required this.root});
 
   final RootSnapshot root;
 
   @override
+  State<_UrlPanel> createState() => _UrlPanelState();
+}
+
+class _UrlPanelState extends State<_UrlPanel> {
+  final TextEditingController _input = TextEditingController();
+  List<String>? _decoded;
+  bool _failed = false;
+  bool _busy = false;
+
+  Future<void> _decode() async {
+    final url = _input.text.trim();
+    if (url.isEmpty) return;
+    setState(() => _busy = true);
+    try {
+      final response = await serviceManager.callServiceExtensionOnMainIsolate(
+        'ext.kaisel.decode',
+        args: <String, String>{'url': url},
+      );
+      final json = response.json;
+      final ok = json?['ok'] == true;
+      final lines = <String>[
+        for (final line in (json?['lines'] as List?) ?? const <Object?>[])
+          '$line',
+      ];
+      setState(() {
+        _decoded = ok ? lines : null;
+        _failed = !ok;
+        _busy = false;
+      });
+    } catch (_) {
+      setState(() {
+        _decoded = null;
+        _failed = true;
+        _busy = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _input.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final url = root.url;
+    final mono = theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace');
+    final url = widget.root.url;
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
@@ -525,6 +572,46 @@ class _UrlPanel extends StatelessWidget {
             url,
             style: theme.textTheme.bodyLarge?.copyWith(fontFamily: 'monospace'),
           ),
+        const Divider(height: 28),
+        Text(
+          'Decode a URL (preview only — does not navigate)',
+          style: theme.textTheme.labelLarge,
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _input,
+                decoration: const InputDecoration(
+                  hintText: '/app/inbox/m2',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: (_) => _decode(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: _busy ? null : _decode,
+              child: const Text('Decode'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (_failed)
+          Text(
+            'That URL did not decode (no codec, or the codec rejected it).',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          )
+        else if (_decoded case final lines?)
+          for (final line in lines)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 1),
+              child: Text(line, style: mono),
+            ),
       ],
     );
   }

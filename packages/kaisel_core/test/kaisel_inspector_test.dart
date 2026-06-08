@@ -35,6 +35,9 @@ class _FakeRoot implements KaiselInspectable {
   KaiselListenable get debugRevision => revision;
 
   @override
+  List<String>? debugDecode(String url) => null;
+
+  @override
   KaiselRootSnapshot debugSnapshot() => KaiselRootSnapshot(
     id: id,
     main: const KaiselStackSnapshot(

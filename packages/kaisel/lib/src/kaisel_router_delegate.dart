@@ -603,6 +603,34 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     }
   }
 
+  @override
+  List<String>? debugDecode(String url) {
+    final codec = _codec;
+    if (codec == null) return null;
+    try {
+      final config = codec.decode(Uri.parse(url));
+      if (config == null) return null;
+      final lines = <String>[
+        'main: ${config.mainStack.map((r) => '$r').join(' → ')}',
+      ];
+      final nested = config.nestedState;
+      if (nested case KaiselShellConfig(
+        :final activeBranch,
+        :final activeBranchStack,
+      )) {
+        lines.add(
+          'shell: branch $activeBranch → '
+          '${activeBranchStack.map((r) => '$r').join(' → ')}',
+        );
+      } else if (nested case KaiselModuleConfig(:final stack)) {
+        lines.add('module: ${stack.map((r) => '$r').join(' → ')}');
+      }
+      return lines;
+    } catch (_) {
+      return null;
+    }
+  }
+
   KaiselGuardTraceSnapshot? _guardTraceSnapshot() {
     final run = router.debugLastGuardRun;
     if (run == null) return null;
