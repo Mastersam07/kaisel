@@ -285,7 +285,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   /// Called by the delegate on incoming deep links / route information.
   /// Framework-facing; exposed via `package:kaisel_core/framework.dart`.
   Future<void> applyFromInformation(List<R> stack) =>
-      _enqueue(() => _navigate(stack));
+      _enqueue(() => _navigate(stack, recordNoOp: false));
 
   /// Type-erased restore from a URL decode. Each element of [stack]
   /// must be assignable to `R`; if not, throws [ArgumentError] before
@@ -302,7 +302,9 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       }
       typed.add(r);
     }
-    return set(typed);
+    // Like [set], but a URL/restore re-applying the current stack is not a
+    // diagnostic no-op.
+    return _enqueue(() => _navigate(typed, recordNoOp: false));
   }
 
   /// Present [flow] as a modal sub-flow and await its result.
@@ -405,9 +407,9 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
 
   static void _void(Object? _) {}
 
-  Future<void> _navigate(List<R> proposed) async {
+  Future<void> _navigate(List<R> proposed, {bool recordNoOp = true}) async {
     final result = await _runGuards(stack, proposed);
-    _applyStack(result);
+    _applyStack(result, recordNoOp: recordNoOp);
   }
 
   Future<List<R>> _runGuards(List<R> current, List<R> proposed) async {
@@ -458,7 +460,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   /// whose route at the same position is equal keep their id. New
   /// positions get fresh entries. This means a push only allocates
   /// the new entry; existing pages keep their navigator state.
-  void _applyStack(List<R> next) {
+  void _applyStack(List<R> next, {bool recordNoOp = true}) {
     if (next.isEmpty) {
       // Guards must not produce an empty stack. Refuse silently rather
       // than crashing — the user almost certainly wants the current
@@ -466,17 +468,22 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       return;
     }
     if (_routesEqual(_entries, next)) {
-      // An issued navigation that produced no change. Usually a missing-`props`
-      // route (every instance is value-equal, so `pushOrReplaceTop`/`set` to a
-      // "different" one is a no-op). Record it for DevTools — debug only.
-      assert(() {
-        _debugLastNoOp = KaiselNoOp(
-          seq: ++_noOpSeq,
-          top: next.last.toString(),
-          depth: next.length,
-        );
-        return true;
-      }());
+      // An issued navigation that produced no change. For user-initiated
+      // mutations this usually means a missing-`props` route (every instance
+      // is value-equal, so `pushOrReplaceTop`/`set` to a "different" one is a
+      // no-op) — record it for DevTools (debug only). URL restoration and
+      // `restoreStack` legitimately re-apply the current stack (e.g. the
+      // initial route on startup), so they pass `recordNoOp: false`.
+      if (recordNoOp) {
+        assert(() {
+          _debugLastNoOp = KaiselNoOp(
+            seq: ++_noOpSeq,
+            top: next.last.toString(),
+            depth: next.length,
+          );
+          return true;
+        }());
+      }
       return;
     }
 

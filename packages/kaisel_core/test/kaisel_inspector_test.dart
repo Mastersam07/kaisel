@@ -224,5 +224,24 @@ void main() {
       expect(router.debugLastNoOp, isNull);
       router.dispose();
     });
+
+    test(
+      'URL restoration re-applying the current stack is NOT flagged',
+      () async {
+        final router = KaiselRouter<_TestRoute>(initial: const _A());
+        // The platform route-information provider re-applies the initial route
+        // on startup; that benign sync must not look like the missing-props bug.
+        await router.applyFromInformation(const <_TestRoute>[_A()]);
+        expect(router.debugLastNoOp, isNull);
+        router.dispose();
+      },
+    );
+
+    test('restoreStack re-applying the current stack is NOT flagged', () async {
+      final router = KaiselRouter<_TestRoute>(initial: const _A());
+      await router.restoreStack(const <KaiselRoute>[_A()]);
+      expect(router.debugLastNoOp, isNull);
+      router.dispose();
+    });
   });
 }
