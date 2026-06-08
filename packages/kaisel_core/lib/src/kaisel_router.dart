@@ -408,8 +408,14 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   static void _void(Object? _) {}
 
   Future<void> _navigate(List<R> proposed, {bool recordNoOp = true}) async {
+    // A diagnostic no-op is one where the *caller's* proposed stack was already
+    // value-equal to the current one — the missing-`props` signature. If a
+    // guard later collapses a genuinely-different proposal back onto the
+    // current stack (e.g. a redirect that stays put), that's the guard doing
+    // its job, not a bug, so it must not be flagged.
+    final proposedNoOp = recordNoOp && _sameRoutes(stack, proposed);
     final result = await _runGuards(stack, proposed);
-    _applyStack(result, recordNoOp: recordNoOp);
+    _applyStack(result, recordNoOp: proposedNoOp);
   }
 
   Future<List<R>> _runGuards(List<R> current, List<R> proposed) async {

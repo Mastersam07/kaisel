@@ -243,5 +243,24 @@ void main() {
       expect(router.debugLastNoOp, isNull);
       router.dispose();
     });
+
+    test(
+      'a guard redirect that lands on the current stack is NOT flagged',
+      () async {
+        final router = KaiselRouter<_TestRoute>(
+          initial: const _A(),
+          guards: <KaiselGuard<_TestRoute>>[
+            // Block _B by redirecting back to the current [_A] stack.
+            (current, proposed) =>
+                proposed.last is _B ? const <_TestRoute>[_A()] : proposed,
+          ],
+        );
+        // The proposal [_A, _B] genuinely differs from current; the guard
+        // collapses it to [_A]. That no-op is the guard's doing, not a bug.
+        await router.push(const _B());
+        expect(router.debugLastNoOp, isNull);
+        router.dispose();
+      },
+    );
   });
 }
