@@ -208,7 +208,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     } else {
       next[next.length - 1] = route;
     }
-    return _navigate(next);
+    return _navigate(next, recordNoOp: true);
   });
 
   /// Push [route] onto the stack, or replace the top entry if [when]
@@ -285,7 +285,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   /// Called by the delegate on incoming deep links / route information.
   /// Framework-facing; exposed via `package:kaisel_core/framework.dart`.
   Future<void> applyFromInformation(List<R> stack) =>
-      _enqueue(() => _navigate(stack, recordNoOp: false));
+      _enqueue(() => _navigate(stack));
 
   /// Type-erased restore from a URL decode. Each element of [stack]
   /// must be assignable to `R`; if not, throws [ArgumentError] before
@@ -302,9 +302,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       }
       typed.add(r);
     }
-    // Like [set], but a URL/restore re-applying the current stack is not a
-    // diagnostic no-op.
-    return _enqueue(() => _navigate(typed, recordNoOp: false));
+    return set(typed);
   }
 
   /// Present [flow] as a modal sub-flow and await its result.
@@ -407,12 +405,18 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
 
   static void _void(Object? _) {}
 
-  Future<void> _navigate(List<R> proposed, {bool recordNoOp = true}) async {
-    // A diagnostic no-op is one where the *caller's* proposed stack was already
-    // value-equal to the current one — the missing-`props` signature. If a
-    // guard later collapses a genuinely-different proposal back onto the
-    // current stack (e.g. a redirect that stays put), that's the guard doing
-    // its job, not a bug, so it must not be flagged.
+  Future<void> _navigate(List<R> proposed, {bool recordNoOp = false}) async {
+    // Diagnostic no-op detection (the missing-`props` signature) is opt-in, and
+    // only `replaceTop` (hence `pushOrReplaceTop`'s replace branch) opts in —
+    // that's the master-detail switch idiom where the bug actually bites:
+    //   - push grows / pop shrinks the stack, so they never no-op;
+    //   - set and popUntil legitimately re-apply an equal stack (idempotent
+    //     `set` from derived state, "popUntil we're already at X");
+    //   - URL restoration / restoreStack re-apply the current stack on startup.
+    // And even for replaceTop we only flag when the *caller's* proposed top was
+    // already value-equal to the current one — if a guard collapses a
+    // genuinely-different proposal back onto the current stack, that's the
+    // guard doing its job, not a bug.
     final proposedNoOp = recordNoOp && _sameRoutes(stack, proposed);
     final result = await _runGuards(stack, proposed);
     _applyStack(result, recordNoOp: proposedNoOp);
@@ -474,12 +478,9 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       return;
     }
     if (_routesEqual(_entries, next)) {
-      // An issued navigation that produced no change. For user-initiated
-      // mutations this usually means a missing-`props` route (every instance
-      // is value-equal, so `pushOrReplaceTop`/`set` to a "different" one is a
-      // no-op) — record it for DevTools (debug only). URL restoration and
-      // `restoreStack` legitimately re-apply the current stack (e.g. the
-      // initial route on startup), so they pass `recordNoOp: false`.
+      // A no-op. Recorded for DevTools only when the caller opted in (see
+      // [_navigate] — effectively replaceTop / pushOrReplaceTop to a top that
+      // turned out value-equal, the missing-`props` signature). Debug only.
       if (recordNoOp) {
         assert(() {
           _debugLastNoOp = KaiselNoOp(

@@ -244,6 +244,24 @@ void main() {
       router.dispose();
     });
 
+    test('set re-applying a value-equal stack is NOT flagged', () async {
+      final router = KaiselRouter<_TestRoute>(initial: const _A());
+      await router.push(const _Bug('x'));
+      // A reactive app re-deriving the stack from state may set an equal one.
+      await router.set(const <_TestRoute>[_A(), _Bug('y')]);
+      expect(router.debugLastNoOp, isNull);
+      router.dispose();
+    });
+
+    test('popUntil when already at the target is NOT flagged', () async {
+      final router = KaiselRouter<_TestRoute>(initial: const _A());
+      await router.push(const _B());
+      // "Ensure we're at _B" — already there, so this is an expected no-op.
+      await router.popUntil((r) => r is _B);
+      expect(router.debugLastNoOp, isNull);
+      router.dispose();
+    });
+
     test(
       'a guard redirect that lands on the current stack is NOT flagged',
       () async {
