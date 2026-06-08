@@ -164,6 +164,7 @@ class EntrySnapshot {
     required this.type,
     required this.props,
     required this.label,
+    required this.absorbed,
   });
 
   /// Decode from the wire format.
@@ -172,6 +173,7 @@ class EntrySnapshot {
     type: '${json['type'] ?? '?'}',
     props: _strings(json['props']),
     label: '${json['label'] ?? json['type'] ?? '?'}',
+    absorbed: json['absorbed'] == true,
   );
 
   /// Identity-stable entry id.
@@ -185,6 +187,10 @@ class EntrySnapshot {
 
   /// The route label (`toString()`).
   final String label;
+
+  /// Whether this entry is absorbed into the rendered page above it (adaptive
+  /// master-detail) — no Navigator page of its own at the current breakpoint.
+  final bool absorbed;
 }
 
 /// A branched shell.

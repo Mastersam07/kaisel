@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaisel/kaisel.dart';
 import 'package:kaisel_core/framework.dart';
@@ -97,6 +97,58 @@ void main() {
     router.dispose();
     homeBranch.dispose();
     detailBranch.dispose();
+  });
+
+  test('debugSnapshot marks absorbed entries from the router', () {
+    final router = KaiselRouter<_R>.fromStack(const <_R>[
+      _Home(),
+      _Detail('a'),
+    ]);
+    final delegate = _delegate(router);
+    // Simulate an adaptive build that collapsed position 0 (the master).
+    router.debugSetAbsorbedPositions(const <int>{0});
+    final entries = delegate.debugSnapshot().main.entries;
+    expect(entries[0].absorbed, isTrue);
+    expect(entries[1].absorbed, isFalse);
+    delegate.dispose();
+    router.dispose();
+  });
+
+  testWidgets('an adaptive build records the absorbed master entry', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final router = KaiselRouter<_R>.fromStack(const <_R>[
+      _Home(),
+      _Detail('a'),
+    ]);
+    final delegate = KaiselRouterDelegate<_R>.adaptive(
+      router: router,
+      builder: (context, route, ctx) {
+        final wide = MediaQuery.sizeOf(context).width >= 600;
+        return switch ((ctx.previous, route, wide)) {
+          (_Home(), _Detail(), true) => const KaiselAbsorbingPage(
+            widget: SizedBox.shrink(),
+            absorbing: 1,
+          ),
+          _ => const KaiselStandalonePage(SizedBox.shrink()),
+        };
+      },
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
+
+    final entries = delegate.debugSnapshot().main.entries;
+    expect(entries[0].absorbed, isTrue, reason: 'Home (master) is absorbed');
+    expect(entries[1].absorbed, isFalse, reason: 'Detail (top) is not');
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    delegate.dispose();
+    router.dispose();
   });
 
   test('debugSnapshot surfaces the last guard run', () async {

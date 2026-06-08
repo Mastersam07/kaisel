@@ -249,6 +249,8 @@ class _EntryTile extends StatelessWidget {
         trailing: Wrap(
           spacing: 6,
           children: [
+            if (entry.absorbed)
+              const _Tag(text: 'absorbed', tone: _Tone.neutral),
             if (isTop) const _Tag(text: 'top', tone: _Tone.neutral),
             if (isNew) const _Tag(text: 'new', tone: _Tone.added),
           ],
@@ -411,10 +413,16 @@ class _MiniStack extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 1),
             child: Text(
-              '${i == 0 ? '▸ ' : '  '}${ordered[i].label}',
-              style: i == 0
-                  ? mono?.copyWith(fontWeight: FontWeight.bold)
-                  : mono,
+              '${i == 0 ? '▸ ' : '  '}${ordered[i].label}'
+              '${ordered[i].absorbed ? '  · absorbed' : ''}',
+              style: ordered[i].absorbed
+                  ? mono?.copyWith(
+                      fontStyle: FontStyle.italic,
+                      color: theme.hintColor,
+                    )
+                  : (i == 0
+                        ? mono?.copyWith(fontWeight: FontWeight.bold)
+                        : mono),
             ),
           ),
       ],

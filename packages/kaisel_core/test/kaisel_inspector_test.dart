@@ -69,6 +69,7 @@ void main() {
         'type': 'ChatDetail',
         'props': <String>['a'],
         'label': 'ChatDetail(a)',
+        'absorbed': false,
       });
     });
 

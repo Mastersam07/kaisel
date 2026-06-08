@@ -445,6 +445,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     entries: entries,
     builder: builder,
     wrap: _wrapAdaptive,
+    reportAbsorption: kDebugMode ? router.debugSetAbsorbedPositions : null,
   );
 
   /// The simple builder used by the modal-flow inner navigator. When
@@ -510,14 +511,19 @@ class KaiselRouterDelegate<R extends KaiselRoute>
         modules.add(
           KaiselModuleSnapshot(
             routeType: _routeTypeOf(config.stack),
-            stack: _routesStack(config.stack),
+            stack: _routesStack(config.stack, const <int>{}),
           ),
         );
       }
     }
     return KaiselRootSnapshot(
       id: 'root-${identityHashCode(this).toRadixString(16)}',
-      main: _entriesStack(router.depth, router.canPop, router.entries),
+      main: _entriesStack(
+        router.depth,
+        router.canPop,
+        router.entries,
+        router.debugAbsorbedPositions,
+      ),
       branches: branches,
       modules: modules,
       flows: _flowSnapshots(),
@@ -660,7 +666,10 @@ class KaiselRouterDelegate<R extends KaiselRoute>
           KaiselBranchSnapshot(
             index: i,
             routeType: _routeTypeOf(branches[i].stack),
-            stack: _routesStack(branches[i].stack),
+            stack: _routesStack(
+              branches[i].stack,
+              branches[i].debugAbsorbedPositions,
+            ),
           ),
       ],
     );
@@ -677,6 +686,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
             flows[i].router.depth,
             flows[i].router.canPop,
             flows[i].router.entries,
+            flows[i].router.debugAbsorbedPositions,
           ),
         ),
     ];
@@ -686,30 +696,39 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     int depth,
     bool canPop,
     List<KaiselStackEntry<S>> entries,
+    Set<int> absorbed,
   ) => KaiselStackSnapshot(
     depth: depth,
     canPop: canPop,
     entries: <KaiselEntrySnapshot>[
-      for (final entry in entries) _entrySnapshot(entry.id, entry.route),
+      for (var i = 0; i < entries.length; i++)
+        _entrySnapshot(entries[i].id, entries[i].route, absorbed.contains(i)),
     ],
   );
 
-  KaiselStackSnapshot _routesStack(List<KaiselRoute> routes) =>
-      KaiselStackSnapshot(
-        depth: routes.length,
-        canPop: routes.length > 1,
-        entries: <KaiselEntrySnapshot>[
-          for (var i = 0; i < routes.length; i++) _entrySnapshot(i, routes[i]),
-        ],
-      );
+  KaiselStackSnapshot _routesStack(
+    List<KaiselRoute> routes,
+    Set<int> absorbed,
+  ) => KaiselStackSnapshot(
+    depth: routes.length,
+    canPop: routes.length > 1,
+    entries: <KaiselEntrySnapshot>[
+      for (var i = 0; i < routes.length; i++)
+        _entrySnapshot(i, routes[i], absorbed.contains(i)),
+    ],
+  );
 
-  KaiselEntrySnapshot _entrySnapshot(int id, KaiselRoute route) =>
-      KaiselEntrySnapshot(
-        id: id,
-        type: route.runtimeType.toString(),
-        props: <String>[for (final prop in route.props) '$prop'],
-        label: route.toString(),
-      );
+  KaiselEntrySnapshot _entrySnapshot(
+    int id,
+    KaiselRoute route,
+    bool absorbed,
+  ) => KaiselEntrySnapshot(
+    id: id,
+    type: route.runtimeType.toString(),
+    props: <String>[for (final prop in route.props) '$prop'],
+    label: route.toString(),
+    absorbed: absorbed,
+  );
 
   String _routeTypeOf(List<KaiselRoute> stack) =>
       stack.isEmpty ? 'unknown' : stack.first.runtimeType.toString();

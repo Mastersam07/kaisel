@@ -151,6 +151,7 @@ class KaiselEntrySnapshot {
     required this.type,
     required this.props,
     required this.label,
+    this.absorbed = false,
   });
 
   /// Identity-stable entry id (preserved across value-equal routes). Index-
@@ -166,12 +167,18 @@ class KaiselEntrySnapshot {
   /// The route's `toString()`.
   final String label;
 
+  /// Whether this entry is absorbed into the rendered page above it (adaptive
+  /// master-detail) — it has no Navigator page of its own at the current
+  /// breakpoint. False for non-adaptive stacks.
+  final bool absorbed;
+
   /// Serialise to the wire format.
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
     'type': type,
     'props': props,
     'label': label,
+    'absorbed': absorbed,
   };
 }
 

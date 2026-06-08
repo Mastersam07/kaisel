@@ -37,6 +37,10 @@ abstract class KaiselNavigator implements KaiselListenable {
   /// The most recent no-op navigation on this router, for DevTools. Debug
   /// only; null in release. See [KaiselRouter.debugLastNoOp].
   KaiselNoOp? get debugLastNoOp;
+
+  /// Stack positions absorbed by adaptive rendering, for DevTools. Empty for
+  /// non-adaptive routers. See [KaiselRouter.debugAbsorbedPositions].
+  Set<int> get debugAbsorbedPositions;
 }
 
 /// Identity-stable wrapper for a route on the stack.
@@ -128,6 +132,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   KaiselGuardRun<R>? _debugLastGuardRun;
   KaiselNoOp? _debugLastNoOp;
   static int _noOpSeq = 0;
+  Set<int> _debugAbsorbedPositions = const <int>{};
 
   /// The current stack as a read-only list of routes.
   @override
@@ -179,6 +184,20 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   /// by the next real change. Populated in debug builds only; null in release.
   @override
   KaiselNoOp? get debugLastNoOp => _debugLastNoOp;
+
+  /// Stack positions (0-based from the bottom) the adaptive renderer collapsed
+  /// into the page above them at the current breakpoint — the master entries
+  /// of a master-detail page. Empty for non-adaptive routers. Updated by the
+  /// adaptive build path; for DevTools only.
+  @override
+  Set<int> get debugAbsorbedPositions => _debugAbsorbedPositions;
+
+  /// Framework-facing: record the absorbed positions from an adaptive build.
+  /// Called by the adaptive renderer in debug only. Exposed via
+  /// `package:kaisel_core/framework.dart`.
+  void debugSetAbsorbedPositions(Set<int> positions) {
+    _debugAbsorbedPositions = positions;
+  }
 
   /// Push a route onto the top of the stack. Runs through guards.
   Future<void> push(R route) => _enqueue(() => _navigate([...stack, route]));
