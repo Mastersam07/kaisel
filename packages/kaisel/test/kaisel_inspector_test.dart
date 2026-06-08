@@ -147,6 +147,22 @@ void main() {
     final router = KaiselRouter<_R>(initial: const _Home());
     final delegate = _delegate(router);
     expect(delegate.debugSnapshot().url, isNull);
+    expect(delegate.debugSnapshot().problems, isEmpty);
+    delegate.dispose();
+    router.dispose();
+  });
+
+  test('debugSnapshot flags a broken codec round-trip', () {
+    final router = KaiselRouter<_R>(initial: const _Home());
+    // _Codec.encode works but its decode always returns null — the current
+    // state encodes to a URL that won't decode back.
+    final delegate = KaiselRouterDelegate<_R>(
+      router: router,
+      builder: (_, _) => const SizedBox.shrink(),
+      codec: const _Codec(),
+    );
+    final problems = delegate.debugSnapshot().problems;
+    expect(problems.any((p) => p.kind == 'codec'), isTrue);
     delegate.dispose();
     router.dispose();
   });

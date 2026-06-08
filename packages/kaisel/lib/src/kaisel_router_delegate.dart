@@ -557,6 +557,37 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     for (var i = 0; i < flows.length; i++) {
       add('flow:$i', flows[i].router.debugLastNoOp);
     }
+
+    // Codec round-trip: if a codec is wired, the current state should encode to
+    // a URL that decodes back. A null decode (or a throw) means this state is
+    // not URL-addressable — deep links to it would fail.
+    final codec = _codec;
+    if (codec case final c?) {
+      final config = currentConfiguration;
+      try {
+        final uri = c.encode(config);
+        if (c.decode(uri) == null) {
+          out.add(
+            KaiselProblemSnapshot(
+              kind: 'codec',
+              router: 'main',
+              detail:
+                  'The current state encodes to "$uri", but that URL does not '
+                  'decode back — the codec round-trip is broken (this state is '
+                  'not deep-linkable).',
+            ),
+          );
+        }
+      } catch (e) {
+        out.add(
+          KaiselProblemSnapshot(
+            kind: 'codec',
+            router: 'main',
+            detail: 'The codec threw while encoding the current state: $e',
+          ),
+        );
+      }
+    }
     return out;
   }
 
