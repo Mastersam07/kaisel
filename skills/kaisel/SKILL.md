@@ -136,7 +136,7 @@ final _config = KaiselRouterConfig<AppRoute>(
     ProductList(:final category) => ProductListScreen(category: category),
     ProductDetail(:final id) => ProductDetailScreen(id: id),
   },
-  // optional: guards:, pageWrapper:, modalBuilder:, codec:, fallback:
+  // optional: guards:, pageWrapper:, modalBuilder:, observers:, codec:, fallback:
 );
 
 class App extends StatelessWidget {
@@ -155,6 +155,16 @@ for you — the app is URL-addressable. The bundled router is reachable as
 `_config.router` (a `KaiselRouter<AppRoute>`) for imperative navigation
 outside the widget tree. Call `_config.dispose()` only when a `State`
 owns its lifecycle; a top-level `final` lives for the whole app.
+
+**Navigator observers.** Pass `observers: () => [MyAnalyticsObserver()]` to
+attach `NavigatorObserver`s (analytics, Sentry, `RouteObserver`). It's a
+**builder**, not a list: a `NavigatorObserver` belongs to a single
+`Navigator`, and kaisel has many — the main stack plus one per shell branch,
+module, and active flow — so the builder is called **once per navigator** to
+give each its own fresh instance (return new instances each call). That means
+one observer per tab in a shell app; for a single unified "current screen"
+stream instead, listen to the router(s) directly — the stack is observable
+state (`router.addListener(...)`).
 
 The `switch` is exhaustive. Add a new sealed variant and the compiler
 points at every page builder, codec, and transition wrapper that needs
