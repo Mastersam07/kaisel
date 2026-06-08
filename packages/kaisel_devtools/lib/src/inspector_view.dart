@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 
 import 'inspector_controller.dart';
+import 'memo.dart';
 import 'snapshot.dart';
 
 /// The snapshot schema version this extension understands. A snapshot with a
@@ -131,7 +132,7 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
     final tabs = <(String, Widget)>[
       (
         'Stack',
-        _Memo(
+        Memo(
           value: (root.main, previousMain),
           child: _StackList(stack: root.main, previous: previousMain),
         ),
@@ -139,7 +140,7 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
       if (root.branches.isNotEmpty)
         (
           'Shells',
-          _Memo(
+          Memo(
             value: root.branches,
             child: _BranchesPanel(shells: root.branches),
           ),
@@ -147,7 +148,7 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
       if (root.flows.isNotEmpty)
         (
           'Flows',
-          _Memo(
+          Memo(
             value: root.flows,
             child: _FlowsPanel(flows: root.flows),
           ),
@@ -155,7 +156,7 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
       if (root.modules.isNotEmpty)
         (
           'Modules',
-          _Memo(
+          Memo(
             value: root.modules,
             child: _ModulesPanel(modules: root.modules),
           ),
@@ -163,21 +164,21 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
       if (root.problems.isNotEmpty)
         (
           'Problems (${root.problems.length})',
-          _Memo(
+          Memo(
             value: root.problems,
             child: _ProblemsPanel(problems: root.problems),
           ),
         ),
       (
         'Guards',
-        _Memo(
+        Memo(
           value: root.guardTrace,
           child: _GuardPanel(trace: root.guardTrace),
         ),
       ),
       (
         'URL',
-        _Memo(
+        Memo(
           value: root.url,
           child: _UrlPanel(url: root.url),
         ),
@@ -185,7 +186,7 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
       if (widget.transitions.isNotEmpty)
         (
           'Log (${widget.transitions.length})',
-          _Memo(
+          Memo(
             value: widget.transitions,
             child: _TransitionsPanel(transitions: widget.transitions),
           ),
@@ -234,39 +235,6 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
       ],
     );
   }
-}
-
-/// Caches its [child], rebuilding it only when [value] changes (value equality,
-/// list-aware) so an unchanged panel keeps its subtree and state.
-class _Memo extends StatefulWidget {
-  const _Memo({required this.value, required this.child});
-
-  final Object? value;
-  final Widget child;
-
-  @override
-  State<_Memo> createState() => _MemoState();
-}
-
-class _MemoState extends State<_Memo> {
-  late Widget _child = widget.child;
-
-  @override
-  void didUpdateWidget(_Memo oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!_eq(oldWidget.value, widget.value)) _child = widget.child;
-  }
-
-  static bool _eq(Object? a, Object? b) {
-    if (a is (Object?, Object?) && b is (Object?, Object?)) {
-      return a.$1 == b.$1 && a.$2 == b.$2;
-    }
-    if (a is List && b is List) return listEquals(a, b);
-    return a == b;
-  }
-
-  @override
-  Widget build(BuildContext context) => _child;
 }
 
 class _Header extends StatelessWidget {

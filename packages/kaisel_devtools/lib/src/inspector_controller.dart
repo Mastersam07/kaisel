@@ -3,8 +3,11 @@ import 'dart:convert';
 
 import 'package:devtools_extensions/devtools_extensions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:kaisel_devtools/src/transitions.dart';
 
 import 'snapshot.dart';
+
+export 'transitions.dart' show Transition;
 
 /// Connects to the running app's `KaiselInspector` and exposes the latest
 /// navigation snapshot (plus the previous distinct one, for diffing).
@@ -110,81 +113,12 @@ class InspectorController extends ChangeNotifier {
   }
 
   void _recordTransitions(NavSnapshot? prev, NavSnapshot next) {
-    if (prev == null || prev.roots.isEmpty || next.roots.isEmpty) return;
-    final p = prev.roots.first;
-    final n = next.roots.first;
-    final added = <Transition>[];
-
-    final mainOp = _stackOp(p.main.entries, n.main.entries);
-    if (mainOp != null) {
-      added.add(_transition(mainOp, 'main', p.main.entries, n.main.entries));
-    }
-
-    for (var s = 0; s < p.branches.length && s < n.branches.length; s++) {
-      final ps = p.branches[s];
-      final ns = n.branches[s];
-      if (ps.activeBranch != ns.activeBranch) {
-        added.add(
-          Transition('switchBranch', 'shell$s', 'branch ${ns.activeBranch}'),
-        );
-      }
-      for (var b = 0; b < ps.branches.length && b < ns.branches.length; b++) {
-        final op = _stackOp(
-          ps.branches[b].stack.entries,
-          ns.branches[b].stack.entries,
-        );
-        if (op != null) {
-          added.add(
-            _transition(
-              op,
-              'shell$s.branch$b',
-              ps.branches[b].stack.entries,
-              ns.branches[b].stack.entries,
-            ),
-          );
-        }
-      }
-    }
-
-    final prevNoOps = <String>{
-      for (final x in p.problems)
-        if (x.kind == 'noOp') x.router,
-    };
-    for (final x in n.problems) {
-      if (x.kind == 'noOp' && !prevNoOps.contains(x.router)) {
-        added.add(Transition('no-op', x.router, '(value-equal — no change)'));
-      }
-    }
-
+    final added = diffTransitions(prev, next);
     if (added.isEmpty) return;
     final merged = <Transition>[...added.reversed, ...transitions];
     transitions = merged.length > _maxTransitions
         ? merged.sublist(0, _maxTransitions)
         : merged;
-  }
-
-  /// Infer the operation that turned [a] into [b], or null if unchanged.
-  String? _stackOp(List<EntrySnapshot> a, List<EntrySnapshot> b) {
-    if (a.length != b.length) return b.length > a.length ? 'push' : 'pop';
-    if (a.isEmpty) return null;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i].label != b[i].label) {
-        return i == a.length - 1 ? 'replaceTop' : 'set';
-      }
-    }
-    return null;
-  }
-
-  Transition _transition(
-    String op,
-    String router,
-    List<EntrySnapshot> a,
-    List<EntrySnapshot> b,
-  ) {
-    final label = op == 'pop'
-        ? (a.isNotEmpty ? a.last.label : '?')
-        : (b.isNotEmpty ? b.last.label : '?');
-    return Transition(op, router, label);
   }
 
   @override
@@ -193,20 +127,4 @@ class InspectorController extends ChangeNotifier {
     _unwire();
     super.dispose();
   }
-}
-
-/// One inferred navigation in the transitions log.
-class Transition {
-  /// Create a transition.
-  Transition(this.op, this.router, this.label);
-
-  /// The inferred operation: push / pop / replaceTop / set / switchBranch /
-  /// no-op.
-  final String op;
-
-  /// Which router it happened on (`main`, `shell0.branch1`, …).
-  final String router;
-
-  /// The route (or branch) involved.
-  final String label;
 }
