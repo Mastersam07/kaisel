@@ -62,26 +62,38 @@ class _RootView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final previousMainIds = <int>{
+      for (final entry in previous?.main.entries ?? const <EntrySnapshot>[])
+        entry.id,
+    };
+
+    // Tabs are built dynamically: shells / flows / modules only appear when
+    // present, so the bar stays uncluttered for a plain app.
+    final tabs = <(String, Widget)>[
+      ('Stack', _StackList(stack: root.main, previousIds: previousMainIds)),
+      if (root.branches.isNotEmpty)
+        ('Shells', _BranchesPanel(shells: root.branches)),
+      if (root.flows.isNotEmpty) ('Flows', _FlowsPanel(flows: root.flows)),
+      if (root.modules.isNotEmpty)
+        ('Modules', _ModulesPanel(modules: root.modules)),
+      ('Guards', _GuardPanel(trace: root.guardTrace)),
+      ('URL', _UrlPanel(root: root)),
+    ];
+
     return DefaultTabController(
-      length: 3,
+      length: tabs.length,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _Header(root: root),
-          const TabBar(
-            tabs: [
-              Tab(text: 'Stack'),
-              Tab(text: 'Guards'),
-              Tab(text: 'URL'),
-            ],
+          TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            tabs: [for (final (label, _) in tabs) Tab(text: label)],
           ),
           Expanded(
             child: TabBarView(
-              children: [
-                _StackPanel(stack: root.main, previous: previous?.main),
-                _GuardPanel(trace: root.guardTrace),
-                _UrlPanel(root: root),
-              ],
+              children: [for (final (_, widget) in tabs) widget],
             ),
           ),
         ],
@@ -123,19 +135,20 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _StackPanel extends StatelessWidget {
-  const _StackPanel({required this.stack, required this.previous});
+
+class _StackList extends StatelessWidget {
+  const _StackList({required this.stack, this.previousIds});
 
   final StackSnapshot stack;
-  final StackSnapshot? previous;
+
+  /// Entry ids present in the previous snapshot. When non-null, entries whose
+  /// id is absent are highlighted as newly pushed. Pass null to disable diff
+  /// highlighting (e.g. for branch stacks, whose ids are positional).
+  final Set<int>? previousIds;
 
   @override
   Widget build(BuildContext context) {
-    final previousIds = <int>{
-      for (final entry in previous?.entries ?? const <EntrySnapshot>[])
-        entry.id,
-    };
-    // Render top-of-stack first.
+    if (stack.entries.isEmpty) return const _Message('Empty.');
     final ordered = stack.entries.reversed.toList();
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -143,7 +156,7 @@ class _StackPanel extends StatelessWidget {
       itemBuilder: (context, i) {
         final entry = ordered[i];
         final isTop = i == 0;
-        final isNew = previous != null && !previousIds.contains(entry.id);
+        final isNew = previousIds != null && !previousIds!.contains(entry.id);
         return _EntryTile(entry: entry, isTop: isTop, isNew: isNew);
       },
     );
@@ -190,6 +203,170 @@ class _EntryTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _BranchesPanel extends StatelessWidget {
+  const _BranchesPanel({required this.shells});
+
+  final List<ShellSnapshot> shells;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        for (final shell in shells) ...[
+          Text(
+            '${shell.type}  ·  branch ${shell.activeBranch} / ${shell.branchCount}',
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(height: 6),
+          for (final branch in shell.branches)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Branch ${branch.index}  (${branch.routeType})',
+                          style: theme.textTheme.labelLarge,
+                        ),
+                        const SizedBox(width: 8),
+                        if (branch.index == shell.activeBranch)
+                          const _Tag(text: 'active', tone: _Tone.added),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    _MiniStack(stack: branch.stack),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+}
+
+class _FlowsPanel extends StatelessWidget {
+  const _FlowsPanel({required this.flows});
+
+  final List<FlowSnapshot> flows;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        for (final flow in flows)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _Badge(text: 'depth ${flow.depth}'),
+                      const SizedBox(width: 8),
+                      Text(flow.type, style: theme.textTheme.labelLarge),
+                      if (flow.resultType != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '→ ${flow.resultType}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  _MiniStack(stack: flow.stack),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ModulesPanel extends StatelessWidget {
+  const _ModulesPanel({required this.modules});
+
+  final List<ModuleSnapshot> modules;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        for (final module in modules)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        module.prefix ?? module.routeType,
+                        style: theme.textTheme.labelLarge,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '(${module.routeType})',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  _MiniStack(stack: module.stack),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Compact, non-scrolling stack renderer used inside branch / flow / module
+/// cards (top-of-stack first). No diff highlighting: these stacks carry
+/// positional ids, so "new" wouldn't be meaningful.
+class _MiniStack extends StatelessWidget {
+  const _MiniStack({required this.stack});
+
+  final StackSnapshot stack;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mono = theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace');
+    final ordered = stack.entries.reversed.toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < ordered.length; i++)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 1),
+            child: Text(
+              '${i == 0 ? '▸ ' : '  '}${ordered[i].label}',
+              style: i == 0
+                  ? mono?.copyWith(fontWeight: FontWeight.bold)
+                  : mono,
+            ),
+          ),
+      ],
     );
   }
 }
