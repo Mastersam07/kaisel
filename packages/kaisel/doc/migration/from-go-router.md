@@ -83,6 +83,8 @@ codec entirely.
 | `context.replace('/login')`                     | `context.replaceTop(const Login())`                 |
 | `go_router_builder` (optional codegen)          | Sealed types; no build step                         |
 | `errorBuilder:`                                 | An error route variant in your sealed type          |
+| `GoRouter(observers: [analytics])`              | `KaiselRouterConfig(observers: () => [analytics()])` — a builder; called once per navigator so each gets its own instance |
+| `ShellRoute(observers: [...])`                  | Same `observers:` builder — it already reaches every shell branch, module, and flow navigator |
 
 A row-by-row read can hide the conceptual shift: the left column
 treats URLs as the primary representation; the right column treats

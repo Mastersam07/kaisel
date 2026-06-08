@@ -54,6 +54,7 @@ Dart 3 has had the type machinery to do better since 2023: sealed classes, exhau
 - **Modal flows with typed results** — `await router.run<T>(SomeFlow())` returns `Future<T?>`. Flows have their own sub-router and can nest, unwinding LIFO.
 - **Adaptive layouts** — at the main delegate, inside shell branches, and inside modules. A detail route can absorb its master into one rendered page (master-detail without changing the stack model).
 - **Direction-aware transitions** — pattern-match on the `(previous, current)` route pair to pick a `Page` subclass per transition. Shared elements via Flutter's `Hero`.
+- **Navigator observers** — attach `NavigatorObserver`s (analytics, Sentry, `RouteObserver`) with an `observers: () => [...]` builder. It's called once per navigator — the main stack and each shell branch, module, and flow — so every navigator gets its own fresh instance.
 - **`KaiselPageScope` for descendants** — deeply-nested widgets read the page's position in the rendered stack (`isTop`, `isBottom`, `previous`, …) without prop-drilling.
 - **Identity-preserving stack diff** — pushing one route doesn't rebuild the others.
 - **Pure-Dart unit tests** for navigation state — no widget tree needed.
@@ -579,6 +580,26 @@ class BookDetailScreen extends StatelessWidget {
 Useful for hiding back arrows on absorbing master-detail pages, "back to X" labels using the route below, AppBar chrome that animates on `isTop`, or pattern-matching on `scope.route` from a deeply-nested widget.
 
 A user-supplied `pageWrapper` receives `ctx.child` already wrapped in the scope, so `Page(child: ctx.child)` propagates it automatically. A wrapper that builds a Page with a *different* child is responsible for re-wrapping in `KaiselPageScope` itself if it wants descendants to see it.
+
+### 11. Navigation observers (analytics)
+
+Attach `NavigatorObserver`s — analytics, Sentry, `RouteObserver` — with an `observers:` **builder** on `KaiselRouterConfig` (or `KaiselRouterDelegate`):
+
+```dart
+KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
+  observers: () => [MyAnalyticsObserver()],
+  builder: (context, route) => switch (route) { /* … */ },
+);
+```
+
+It's a builder (`List<NavigatorObserver> Function()`), not a list, on purpose: a `NavigatorObserver` instance belongs to a **single** `Navigator`, and kaisel has many — the main stack plus one per shell branch, module, and active flow. kaisel calls the builder **once per navigator**, so each gets its **own fresh instance** (cached, so it isn't rebuilt every frame). Return new instances each call; don't hand back a shared one.
+
+Because each navigator has its own observer, a bottom-nav app gets one observer per tab — each logging that tab's routes. If instead you want a single, unified "where is the user now" stream (e.g. to label events by tab), listen to the routers directly — the stack is observable state:
+
+```dart
+router.addListener(() => analytics.logScreenView(screenName: '${router.stack.last}'));
+```
 
 ## Why no equality codegen
 

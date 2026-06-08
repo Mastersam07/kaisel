@@ -41,6 +41,47 @@ typedef KaiselModalBuilder =
       Widget flowChild,
     );
 
+/// Builds the [NavigatorObserver]s for one navigator.
+///
+/// kaisel calls this **once per navigator** — the main stack, and each nested
+/// shell branch, module, and flow — so every navigator gets its **own fresh
+/// instances**. A [NavigatorObserver] belongs to a single [Navigator], so the
+/// builder must return new instances on each call; don't hand back a shared
+/// instance. The result is cached per navigator, so it isn't rebuilt on every
+/// frame.
+///
+/// ```dart
+/// KaiselRouterConfig(
+///   observers: () => [MyAnalyticsObserver()],
+///   ...
+/// );
+/// ```
+typedef KaiselObserversBuilder = List<NavigatorObserver> Function();
+
+/// Carries the app's [KaiselObserversBuilder] down the tree. Installed by
+/// [KaiselRouterDelegate] so that nested navigators (shell branches, modules,
+/// flows) can attach their own fresh observers. You don't use this directly.
+class KaiselObserverScope extends InheritedWidget {
+  /// Create the scope with the app's [observers] builder.
+  const KaiselObserverScope({
+    super.key,
+    required this.observers,
+    required super.child,
+  });
+
+  /// The builder, or null when the app supplied no observers.
+  final KaiselObserversBuilder? observers;
+
+  /// The nearest builder, or null if none is installed.
+  static KaiselObserversBuilder? of(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<KaiselObserverScope>()
+      ?.observers;
+
+  @override
+  bool updateShouldNotify(KaiselObserverScope oldWidget) =>
+      !identical(oldWidget.observers, observers);
+}
+
 /// The renderer over a [KaiselRouter].
 ///
 /// Listens to the router for changes and rebuilds a [Navigator] with
@@ -71,6 +112,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     required KaiselPageBuilder<R> builder,
     this.pageWrapper,
     this.modalBuilder,
+    this.observers,
     KaiselConfigCodec<R>? codec,
   }) : _builder = builder,
        _adaptiveBuilder = null,
@@ -119,6 +161,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     required KaiselAdaptivePageBuilder<R> builder,
     this.pageWrapper,
     this.modalBuilder,
+    this.observers,
     KaiselConfigCodec<R>? codec,
   }) : _builder = null,
        _adaptiveBuilder = builder,
@@ -150,6 +193,17 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   /// Optional builder that renders an active modal flow over the main
   /// UI. Required if your app uses `router.run<T>(...)`.
   final KaiselModalBuilder? modalBuilder;
+
+  /// Builds the [NavigatorObserver]s for each navigator — e.g. an analytics or
+  /// Sentry observer. Called once per navigator (main stack and each nested
+  /// shell branch, module, and flow), so each gets its own fresh instances.
+  /// Null for no observers. See [KaiselObserversBuilder].
+  final KaiselObserversBuilder? observers;
+
+  /// The main stack's observers, built once from [observers] and reused for the
+  /// delegate's lifetime (so they aren't rebuilt every frame).
+  late final List<NavigatorObserver> _mainObservers =
+      observers?.call() ?? const <NavigatorObserver>[];
 
   @override
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -332,6 +386,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     final mainNavigator = Navigator(
       key: navigatorKey,
       pages: mainPages,
+      observers: _mainObservers,
       onDidRemovePage: _onDidRemovePage,
     );
 
@@ -369,7 +424,10 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     content = RouterScope<R>(router: router, child: content);
     // Install the host scope so descendant nested routers (branched
     // shells and module mounts) can register for URL capture/restore.
-    return KaiselNestedHostScope(host: this, child: content);
+    content = KaiselNestedHostScope(host: this, child: content);
+    // Carry the observers builder down so nested navigators can attach their
+    // own fresh observer instances.
+    return KaiselObserverScope(observers: observers, child: content);
   }
 
   Widget _buildFlowLayer({

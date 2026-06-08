@@ -35,7 +35,11 @@ export 'src/kaisel_page_wrapper.dart'
 export 'src/kaisel_route_information_parser.dart';
 export 'src/kaisel_router_config.dart' show KaiselRouterConfig;
 export 'src/kaisel_router_delegate.dart'
-    show KaiselModalBuilder, KaiselPageBuilder, KaiselRouterDelegate;
+    show
+        KaiselModalBuilder,
+        KaiselObserversBuilder,
+        KaiselPageBuilder,
+        KaiselRouterDelegate;
 export 'src/kaisel_scope.dart';
 export 'src/kaisel_shell.dart'
     show KaiselBranchScope, KaiselShell, KaiselShellChromeBuilder, ShellRouter;

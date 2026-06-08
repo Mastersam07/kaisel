@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.15.0
+
+### Added
+
+- **Navigator observers** — `observers:` on `KaiselRouterConfig` and
+  `KaiselRouterDelegate` takes a `KaiselObserversBuilder`
+  (`List<NavigatorObserver> Function()`). kaisel calls it once per navigator —
+  the main stack and each shell branch, module, and active flow — so each gets
+  its own fresh `NavigatorObserver` instance (one instance can't span
+  navigators). For analytics, Sentry, `RouteObserver`, and the like. If you
+  want a single unified "current screen" stream instead of one observer per
+  navigator, listen to the router(s) directly — the stack is observable state.
+
 ## 0.14.1
 
 ### Added

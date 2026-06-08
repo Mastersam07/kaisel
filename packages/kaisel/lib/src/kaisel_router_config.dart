@@ -58,6 +58,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
     List<KaiselGuard<R>> guards = const [],
     KaiselPageWrapper<R>? pageWrapper,
     KaiselModalBuilder? modalBuilder,
+    KaiselObserversBuilder? observers,
     KaiselConfigCodec<R>? codec,
     List<R>? fallback,
   }) {
@@ -69,6 +70,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
         builder: builder,
         pageWrapper: pageWrapper,
         modalBuilder: modalBuilder,
+        observers: observers,
         codec: codec,
       ),
       codec: codec,
@@ -85,6 +87,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
     List<KaiselGuard<R>> guards = const [],
     KaiselPageWrapper<R>? pageWrapper,
     KaiselModalBuilder? modalBuilder,
+    KaiselObserversBuilder? observers,
     KaiselConfigCodec<R>? codec,
     List<R>? fallback,
   }) {
@@ -96,6 +99,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
         builder: builder,
         pageWrapper: pageWrapper,
         modalBuilder: modalBuilder,
+        observers: observers,
         codec: codec,
       ),
       codec: codec,

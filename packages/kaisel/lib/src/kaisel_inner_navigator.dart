@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, listEquals;
 import 'package:flutter/material.dart';
 import 'package:kaisel_core/framework.dart';
 
@@ -75,10 +75,33 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
     extends State<KaiselInnerNavigator<R>> {
   final HeroController _heroController = HeroController();
 
+  // Observers from the app-wide [KaiselObserverScope], built fresh for this
+  // navigator (a NavigatorObserver belongs to one Navigator), merged with any
+  // per-instance [KaiselInnerNavigator.observers]. Cached so the list instance
+  // is stable across rebuilds.
+  KaiselObserversBuilder? _observersBuilder;
+  List<NavigatorObserver> _scopeObservers = const <NavigatorObserver>[];
+  List<NavigatorObserver> _observers = const <NavigatorObserver>[];
+
   @override
   void initState() {
     super.initState();
     widget.router.addListener(_onChange);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final builder = KaiselObserverScope.of(context);
+    if (!identical(builder, _observersBuilder)) {
+      _observersBuilder = builder;
+      _scopeObservers = builder?.call() ?? const <NavigatorObserver>[];
+      _mergeObservers();
+    }
+  }
+
+  void _mergeObservers() {
+    _observers = <NavigatorObserver>[..._scopeObservers, ...widget.observers];
   }
 
   void _onChange() {
@@ -92,6 +115,7 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
       oldWidget.router.removeListener(_onChange);
       widget.router.addListener(_onChange);
     }
+    if (!listEquals(oldWidget.observers, widget.observers)) _mergeObservers();
   }
 
   @override
@@ -153,7 +177,7 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
       controller: _heroController,
       child: Navigator(
         key: widget.navigatorKey,
-        observers: widget.observers,
+        observers: _observers,
         pages: pages,
         onDidRemovePage: (page) {
           final entryId = adaptiveEntryIdFromPageKey(page.key);
