@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:kaisel_core/kaisel_core.dart';
 
+import 'kaisel_page_scope.dart';
+
 /// Inherited widget that exposes the [KaiselRouter] in effect at a point
 /// in the widget tree.
 ///
@@ -148,8 +150,29 @@ extension KaiselContextNavigation on BuildContext {
   Future<void> push(KaiselRoute route) =>
       _scopeForRoute(route).pushRoute(route);
 
-  /// Pop the nearest router. Returns `false` if it was already at root.
-  Future<bool> pop() => _nearestRouterScope().router.pop();
+  /// Pop the nearest kaisel router. Returns `false` if it was already at root.
+  ///
+  /// When called from inside an overlay you pushed imperatively
+  /// ([showModalBottomSheet], [showDialog], …), that overlay is closed instead
+  /// — it isn't on the kaisel stack, and closing it is almost always what `pop`
+  /// means there. To pop the typed route from inside an overlay, call `pop()` on
+  /// a [KaiselRouter] directly (e.g. `context.router<R>().pop()`).
+  Future<bool> pop() {
+    Widget? boundary;
+    visitAncestorElements((element) {
+      final widget = element.widget;
+      if (widget is KaiselPageScope || widget is RouterScope) {
+        boundary = widget;
+        return false;
+      }
+      return true;
+    });
+    return switch (Navigator.maybeOf(this)) {
+      final navigator? when boundary is RouterScope && navigator.canPop() =>
+        navigator.maybePop(),
+      _ => _nearestRouterScope().router.pop(),
+    };
+  }
 
   /// Replace the top of the nearest router that accepts [route].
   Future<void> replaceTop(KaiselRoute route) =>

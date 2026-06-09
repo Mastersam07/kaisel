@@ -21,6 +21,14 @@
 
 - Requires `kaisel_core: ^0.15.0` (for the command + history APIs).
 
+### Fixed
+
+- **`context.pop()` inside a `showModalBottomSheet` / `showDialog` now closes
+  that overlay** instead of popping the route beneath it. On a kaisel page it
+  still pops the typed router stack (guards run) as before. To pop the
+  underlying route from inside an overlay, call `pop()` on a held `KaiselRouter`
+  (e.g. `context.router<R>().pop()`).
+
 ## 0.15.1
 
 ### Fixed
