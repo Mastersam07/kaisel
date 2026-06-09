@@ -59,7 +59,7 @@ abstract class KaiselRoute {
   /// `NavigatorObserver`s can identify the screen via `route.settings.name`.
   /// Defaults to the runtime type name; override for a custom (or
   /// obfuscation-stable) one.
-  String get name => runtimeType.toString();
+  String get routeName => runtimeType.toString();
 
   @override
   bool operator ==(Object other) {
