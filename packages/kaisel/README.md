@@ -673,7 +673,7 @@ npx skills add Mastersam07/kaisel
 
 ## Roadmap
 
-See [`ROADMAP.md`](ROADMAP.md) for work under consideration: state restoration via `RestorationManager` and a DevTools extension.
+The DevTools extension shipped in 0.15–0.16 (see the [changelog](CHANGELOG.md)). The main open track is **state restoration** via `RestorationManager`: URL-addressable apps already restore through the codec, and `RestorationBucket` stack persistence for non-URL apps is the remaining gap.
 
 ## Example
 

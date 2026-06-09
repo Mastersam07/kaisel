@@ -50,3 +50,4 @@ old/
 .ite/
 # Internal design doc, not shipped
 packages/kaisel_devtools/ROADMAP.md
+packages/kaisel/ROADMAP.md
