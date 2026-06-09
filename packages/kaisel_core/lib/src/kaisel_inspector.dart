@@ -373,6 +373,10 @@ abstract interface class KaiselInspectable {
   /// the resulting stack, **without navigating**. Returns null if there's no
   /// codec or the URL doesn't decode. Powers the extension's deep-link preview.
   List<String>? debugDecode(String url);
+
+  /// Apply a write [command] from DevTools (drive the app). Returns
+  /// `{'ok': bool, 'message': String}`. Debug only.
+  Future<Map<String, Object?>> debugApplyCommand(Map<String, Object?> command);
 }
 
 /// Debug-only registry that aggregates live roots and publishes navigation
@@ -433,6 +437,7 @@ class KaiselInspector {
     try {
       developer.registerExtension('ext.kaisel.snapshot', snapshotResponse);
       developer.registerExtension('ext.kaisel.decode', decodeResponse);
+      developer.registerExtension('ext.kaisel.command', commandResponse);
     } catch (_) {
       // Already registered (e.g. a hot restart re-running this) — fine.
     }
@@ -457,6 +462,15 @@ class KaiselInspector {
     ),
   );
 
+  /// Service-extension handler for `ext.kaisel.command`: applies a write
+  /// command that drives the app. See [commandJson].
+  Future<developer.ServiceExtensionResponse> commandResponse(
+    String method,
+    Map<String, String> parameters,
+  ) async => developer.ServiceExtensionResponse.result(
+    await commandJson(parameters['command'] ?? '{}'),
+  );
+
   /// The current snapshot as a JSON string — the body of the
   /// `ext.kaisel.snapshot` service extension.
   String snapshotJson() => jsonEncode(snapshot().toJson());
@@ -471,6 +485,25 @@ class KaiselInspector {
       'ok': lines != null,
       'lines': lines ?? <String>[],
     });
+  }
+
+  /// Apply the JSON-encoded write [command] to the first registered root;
+  /// returns the result as a JSON string (`{ok, message}`).
+  Future<String> commandJson(String command) async {
+    final root = _roots.values.isEmpty ? null : _roots.values.first;
+    if (root == null) {
+      return jsonEncode(<String, Object?>{'ok': false, 'message': 'No root.'});
+    }
+    final Map<String, Object?> parsed;
+    try {
+      parsed = (jsonDecode(command) as Map).cast<String, Object?>();
+    } catch (_) {
+      return jsonEncode(<String, Object?>{
+        'ok': false,
+        'message': 'Malformed command.',
+      });
+    }
+    return jsonEncode(await root.debugApplyCommand(parsed));
   }
 
   void _post(String event, Map<Object?, Object?> data) {

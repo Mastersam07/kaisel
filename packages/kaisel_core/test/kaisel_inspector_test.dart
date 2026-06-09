@@ -41,12 +41,24 @@ class _FakeRoot implements KaiselInspectable {
 
   final String id;
   final _FakeRevision revision = _FakeRevision();
+  Map<String, Object?>? lastCommand;
 
   @override
   KaiselListenable get debugRevision => revision;
 
   @override
   List<String>? debugDecode(String url) => null;
+
+  @override
+  Future<Map<String, Object?>> debugApplyCommand(
+    Map<String, Object?> command,
+  ) async {
+    lastCommand = command;
+    return <String, Object?>{
+      'ok': true,
+      'message': 'applied ${command['cmd']}',
+    };
+  }
 
   @override
   KaiselRootSnapshot debugSnapshot() => KaiselRootSnapshot(
@@ -275,6 +287,48 @@ void main() {
         const <String, String>{'url': '/x'},
       );
       expect(decoded, isA<developer.ServiceExtensionResponse>());
+
+      final command = await inspector.commandResponse(
+        'ext.kaisel.command',
+        const <String, String>{'command': '{"cmd":"pop"}'},
+      );
+      expect(command, isA<developer.ServiceExtensionResponse>());
+
+      inspector.deregister(token);
+    });
+
+    test(
+      'commandJson dispatches the parsed command to the first root',
+      () async {
+        final inspector = KaiselInspector.instance;
+        final root = _FakeRoot('cmd-root');
+        final token = inspector.register(root);
+
+        final result =
+            jsonDecode(
+                  await inspector.commandJson('{"cmd":"pop","target":"main"}'),
+                )
+                as Map<String, Object?>;
+        expect(result['ok'], isTrue);
+        expect(root.lastCommand, <String, Object?>{
+          'cmd': 'pop',
+          'target': 'main',
+        });
+
+        inspector.deregister(token);
+      },
+    );
+
+    test('commandJson rejects malformed JSON without dispatching', () async {
+      final inspector = KaiselInspector.instance;
+      final root = _FakeRoot('cmd-root-2');
+      final token = inspector.register(root);
+
+      final result =
+          jsonDecode(await inspector.commandJson('not json'))
+              as Map<String, Object?>;
+      expect(result['ok'], isFalse);
+      expect(root.lastCommand, isNull);
 
       inspector.deregister(token);
     });

@@ -371,4 +371,116 @@ void main() {
     router.dispose();
     expect(inspector.snapshot().roots.length, before);
   });
+
+  group('debugApplyCommand', () {
+    test('deepLink decodes a URL through the codec and applies it', () async {
+      final router = KaiselRouter<_R>(initial: const _Home());
+      final delegate = KaiselRouterDelegate<_R>(
+        router: router,
+        builder: (_, _) => const SizedBox.shrink(),
+        codec: const _RoundTripCodec(),
+      );
+
+      final result = await delegate.debugApplyCommand(<String, Object?>{
+        'cmd': 'deepLink',
+        'url': '/detail/x',
+      });
+      expect(result['ok'], isTrue);
+      expect(router.stack, <_R>[const _Home(), const _Detail('x')]);
+
+      delegate.dispose();
+      router.dispose();
+    });
+
+    test('deepLink without a codec fails', () async {
+      final router = KaiselRouter<_R>(initial: const _Home());
+      final delegate = _delegate(router);
+      final result = await delegate.debugApplyCommand(<String, Object?>{
+        'cmd': 'deepLink',
+        'url': '/x',
+      });
+      expect(result['ok'], isFalse);
+      delegate.dispose();
+      router.dispose();
+    });
+
+    test('pop removes the top route; fails at the root', () async {
+      final router = KaiselRouter<_R>(initial: const _Home());
+      final delegate = _delegate(router);
+
+      await router.push(const _Detail('a'));
+      final popped = await delegate.debugApplyCommand(<String, Object?>{
+        'cmd': 'pop',
+      });
+      expect(popped['ok'], isTrue);
+      expect(router.stack, <_R>[const _Home()]);
+
+      final atRoot = await delegate.debugApplyCommand(<String, Object?>{
+        'cmd': 'pop',
+      });
+      expect(atRoot['ok'], isFalse);
+
+      delegate.dispose();
+      router.dispose();
+    });
+
+    test(
+      'switchBranch changes the shell branch; rejects a bad index',
+      () async {
+        final router = KaiselRouter<_R>(initial: const _Home());
+        final delegate = _delegate(router);
+        final b0 = KaiselRouter<_R>(initial: const _Home());
+        final b1 = KaiselRouter<_R>(initial: const _Detail('x'));
+        final shell = BranchedShellRouter(
+          branches: <KaiselNavigator>[b0, b1],
+          initialBranch: 0,
+        );
+        delegate.registerNested(shell);
+
+        final ok = await delegate.debugApplyCommand(<String, Object?>{
+          'cmd': 'switchBranch',
+          'shell': 0,
+          'branch': 1,
+        });
+        expect(ok['ok'], isTrue);
+        expect(shell.activeBranch, 1);
+
+        final bad = await delegate.debugApplyCommand(<String, Object?>{
+          'cmd': 'switchBranch',
+          'shell': 0,
+          'branch': 5,
+        });
+        expect(bad['ok'], isFalse);
+
+        delegate.dispose();
+        shell.dispose();
+        router.dispose();
+        b0.dispose();
+        b1.dispose();
+      },
+    );
+
+    test('dismissFlow fails when no flow is active', () async {
+      final router = KaiselRouter<_R>(initial: const _Home());
+      final delegate = _delegate(router);
+      final result = await delegate.debugApplyCommand(<String, Object?>{
+        'cmd': 'dismissFlow',
+      });
+      expect(result['ok'], isFalse);
+      delegate.dispose();
+      router.dispose();
+    });
+
+    test('an unknown command is rejected', () async {
+      final router = KaiselRouter<_R>(initial: const _Home());
+      final delegate = _delegate(router);
+      final result = await delegate.debugApplyCommand(<String, Object?>{
+        'cmd': 'frobnicate',
+      });
+      expect(result['ok'], isFalse);
+      expect('${result['message']}', contains('Unknown'));
+      delegate.dispose();
+      router.dispose();
+    });
+  });
 }
