@@ -43,8 +43,32 @@ class InspectorController extends ChangeNotifier {
   /// reassigned (not mutated) on change so a memoised Log panel sees the update.
   List<Transition> transitions = const <Transition>[];
 
+  /// Whether write commands are enabled — the "drive the app" toggle. Off by
+  /// default: the user opts in, since commands mutate the running app.
+  final ValueNotifier<bool> writeMode = ValueNotifier<bool>(false);
+
+  /// The `{ok, message}` result of the last write command, for a status line.
+  final ValueNotifier<String?> lastCommandResult = ValueNotifier<String?>(null);
+
   /// Whether a VM service connection is currently available.
   bool get connected => serviceManager.connectedState.value.connected;
+
+  /// Send a write [command] to the app via `ext.kaisel.command`, recording the
+  /// result in [lastCommandResult].
+  Future<void> applyCommand(Map<String, Object?> command) async {
+    try {
+      final response = await serviceManager.callServiceExtensionOnMainIsolate(
+        'ext.kaisel.command',
+        args: <String, String>{'command': jsonEncode(command)},
+      );
+      final json = response.json;
+      final ok = json?['ok'] == true;
+      lastCommandResult.value =
+          '${ok ? '✓' : '✗'} ${json?['message'] ?? (ok ? 'ok' : 'failed')}';
+    } catch (e) {
+      lastCommandResult.value = '✗ $e';
+    }
+  }
 
   void _onConnectionChanged() {
     if (connected) {
@@ -125,6 +149,8 @@ class InspectorController extends ChangeNotifier {
   void dispose() {
     serviceManager.connectedState.removeListener(_onConnectionChanged);
     _unwire();
+    writeMode.dispose();
+    lastCommandResult.dispose();
     super.dispose();
   }
 }
