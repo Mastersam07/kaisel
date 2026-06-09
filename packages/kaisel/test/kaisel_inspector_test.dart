@@ -207,6 +207,17 @@ void main() {
     router.dispose();
   });
 
+  test('debugSnapshot includes the main stack history', () async {
+    final router = KaiselRouter<_R>(initial: const _Home());
+    final delegate = _delegate(router);
+    await router.push(const _Detail('a'));
+    final history = delegate.debugSnapshot().history;
+    expect(history.first, '_Home');
+    expect(history.last, '_Home → _Detail(a)');
+    delegate.dispose();
+    router.dispose();
+  });
+
   test('debugSnapshot surfaces the last guard run', () async {
     final router = KaiselRouter<_R>(
       initial: const _Home(),
@@ -526,6 +537,29 @@ void main() {
       expect(result['ok'], isTrue);
       await flow;
       expect(router.activeFlows, isEmpty);
+
+      delegate.dispose();
+      router.dispose();
+    });
+
+    test('timeTravel restores a history entry; rejects a bad index', () async {
+      final router = KaiselRouter<_R>(initial: const _Home());
+      final delegate = _delegate(router);
+      await router.push(const _Detail('a'));
+      await router.push(const _Detail('b'));
+
+      final ok = await delegate.debugApplyCommand(<String, Object?>{
+        'cmd': 'timeTravel',
+        'index': 0,
+      });
+      expect(ok['ok'], isTrue);
+      expect(router.stack, <_R>[const _Home()]);
+
+      final bad = await delegate.debugApplyCommand(<String, Object?>{
+        'cmd': 'timeTravel',
+        'index': 99,
+      });
+      expect(bad['ok'], isFalse);
 
       delegate.dispose();
       router.dispose();

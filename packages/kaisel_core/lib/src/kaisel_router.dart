@@ -99,7 +99,9 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   /// pipeline.
   KaiselRouter({required R initial, List<KaiselGuard<R>> guards = const []})
     : _entries = [KaiselStackEntry<R>(initial)],
-      _guards = List<KaiselGuard<R>>.unmodifiable(guards);
+      _guards = List<KaiselGuard<R>>.unmodifiable(guards) {
+    _recordHistory();
+  }
 
   /// Create a router from an existing stack. Must not be empty.
   factory KaiselRouter.fromStack(
@@ -113,6 +115,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     for (final r in stack) {
       router._entries.add(KaiselStackEntry<R>(r));
     }
+    router._recordHistory();
     return router;
   }
 
@@ -133,6 +136,8 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   KaiselNoOp? _debugLastNoOp;
   static int _noOpSeq = 0;
   Set<int> _debugAbsorbedPositions = const <int>{};
+  final List<List<R>> _debugHistory = <List<R>>[];
+  static const int _debugHistoryCap = 30;
 
   /// The current stack as a read-only list of routes.
   @override
@@ -197,6 +202,18 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   /// `package:kaisel_core/framework.dart`.
   void debugSetAbsorbedPositions(Set<int> positions) {
     _debugAbsorbedPositions = positions;
+  }
+
+  /// A capped, debug-only history of the stacks this router has held (real
+  /// routes, oldest first), for DevTools time-travel. Empty in release.
+  List<List<R>> get debugHistory => List<List<R>>.unmodifiable(_debugHistory);
+
+  void _recordHistory() {
+    assert(() {
+      _debugHistory.add(<R>[for (final entry in _entries) entry.route]);
+      if (_debugHistory.length > _debugHistoryCap) _debugHistory.removeAt(0);
+      return true;
+    }());
   }
 
   /// Push a route onto the top of the stack. Runs through guards.
@@ -519,6 +536,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       _debugLastNoOp = null;
       return true;
     }());
+    _recordHistory();
     notifyListeners();
   }
 

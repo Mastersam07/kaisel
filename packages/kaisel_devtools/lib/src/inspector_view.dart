@@ -204,6 +204,17 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
             child: _TransitionsPanel(transitions: widget.transitions),
           ),
         ),
+      if (root.history.isNotEmpty)
+        (
+          'History (${root.history.length})',
+          Memo(
+            value: root.history,
+            child: _HistoryPanel(
+              controller: widget.controller,
+              history: root.history,
+            ),
+          ),
+        ),
     ];
 
     // Recreate the controller only when the *set* of tabs (by stable key)
@@ -877,6 +888,44 @@ class _TransitionsPanel extends StatelessWidget {
           leading: _Tag(text: t.op, tone: noOp ? _Tone.added : _Tone.neutral),
           title: Text(t.label, style: mono),
           trailing: _Badge(text: t.router),
+        );
+      },
+    );
+  }
+}
+
+class _HistoryPanel extends StatelessWidget {
+  const _HistoryPanel({required this.controller, required this.history});
+
+  final InspectorController controller;
+  final List<String> history;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mono = theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace');
+    final last = history.length - 1;
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      itemCount: history.length,
+      itemBuilder: (context, i) {
+        final index = last - i;
+        final isCurrent = index == last;
+        return ListTile(
+          dense: true,
+          leading: _Badge(text: '#$index'),
+          title: Text(history[index], style: mono),
+          trailing: isCurrent
+              ? const _Tag(text: 'current', tone: _Tone.neutral)
+              : _WriteButton(
+                  controller: controller,
+                  icon: Icons.history,
+                  label: 'Jump',
+                  command: <String, Object?>{
+                    'cmd': 'timeTravel',
+                    'index': index,
+                  },
+                ),
         );
       },
     );

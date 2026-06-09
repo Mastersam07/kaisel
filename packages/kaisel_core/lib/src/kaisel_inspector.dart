@@ -51,6 +51,7 @@ class KaiselRootSnapshot {
     this.problems = const <KaiselProblemSnapshot>[],
     this.guardTrace,
     this.url,
+    this.history = const <String>[],
   });
 
   /// Stable id distinguishing this root from others (multi-delegate apps).
@@ -77,6 +78,10 @@ class KaiselRootSnapshot {
   /// The URL the current configuration encodes to, or null when no codec.
   final String? url;
 
+  /// The main router's past stacks (oldest first), each as a "A → B" label, for
+  /// DevTools time-travel. Empty in release.
+  final List<String> history;
+
   /// Serialise to the wire format.
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
@@ -87,6 +92,7 @@ class KaiselRootSnapshot {
     'problems': <Object?>[for (final problem in problems) problem.toJson()],
     'guardTrace': guardTrace?.toJson(),
     'url': url,
+    'history': history,
   };
 }
 

@@ -488,4 +488,48 @@ void main() {
       },
     );
   });
+
+  group('KaiselRouter.debugHistory', () {
+    test('records the initial stack and each real change', () async {
+      final router = KaiselRouter<_TestRoute>(initial: const _A());
+      expect(router.debugHistory, hasLength(1));
+      expect(router.debugHistory.last, <_TestRoute>[const _A()]);
+
+      await router.push(const _B());
+      expect(router.debugHistory, hasLength(2));
+      expect(router.debugHistory.last, <_TestRoute>[const _A(), const _B()]);
+
+      await router.pop();
+      expect(router.debugHistory, hasLength(3));
+      expect(router.debugHistory.last, <_TestRoute>[const _A()]);
+
+      router.dispose();
+    });
+
+    test('does not record a no-op', () async {
+      final router = KaiselRouter<_TestRoute>(initial: const _A());
+      await router.set(const <_TestRoute>[_A()]);
+      expect(router.debugHistory, hasLength(1));
+      router.dispose();
+    });
+
+    test('is capped', () async {
+      final router = KaiselRouter<_TestRoute>(initial: const _A());
+      for (var i = 0; i < 40; i++) {
+        await (i.isEven ? router.push(const _B()) : router.pop());
+      }
+      expect(router.debugHistory, hasLength(30));
+      router.dispose();
+    });
+
+    test('fromStack seeds the initial stack', () {
+      final router = KaiselRouter<_TestRoute>.fromStack(const <_TestRoute>[
+        _A(),
+        _B(),
+      ]);
+      expect(router.debugHistory, hasLength(1));
+      expect(router.debugHistory.last, <_TestRoute>[const _A(), const _B()]);
+      router.dispose();
+    });
+  });
 }

@@ -81,6 +81,7 @@ class RootSnapshot {
     required this.problems,
     required this.guardTrace,
     required this.url,
+    required this.history,
   });
 
   /// Decode from the wire format.
@@ -107,6 +108,7 @@ class RootSnapshot {
         ? null
         : GuardTrace.fromJson(_obj(json['guardTrace'])),
     url: json['url'] as String?,
+    history: _strings(json['history']),
   );
 
   /// Stable root id.
@@ -132,6 +134,9 @@ class RootSnapshot {
 
   /// The encoded URL, if a codec is wired.
   final String? url;
+
+  /// The main router's past stacks (oldest first), each as a "A → B" label.
+  final List<String> history;
 }
 
 /// A detected problem in the navigation state.
