@@ -10,6 +10,12 @@
   the active flow, **apply** a deep-link URL (decoded through your codec and
   navigated to), and **time-travel** — jump back to any previous stack from a
   recorded history. Debug-only, like the rest of the inspector.
+- **Route names for observers** — pages now carry `settings.name` (from
+  `KaiselRoute.name`, defaulting to the runtime type) and the route in
+  `settings.arguments`, so off-the-shelf `NavigatorObserver`s like
+  `FirebaseAnalyticsObserver` can identify the screen. Override `name` with a
+  string literal for a custom or `--obfuscate`-stable name. Requires the matching
+  `kaisel_core`.
 
 ### Changed
 

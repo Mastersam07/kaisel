@@ -55,6 +55,12 @@ abstract class KaiselRoute {
   /// that carry data. Defaults to const [] (only runtime type matters).
   List<Object?> get props => const [];
 
+  /// Name set as [RouteSettings.name] on the page kaisel builds, so
+  /// `NavigatorObserver`s can identify the screen via `route.settings.name`.
+  /// Defaults to the runtime type name; override for a custom (or
+  /// obfuscation-stable) one.
+  String get name => runtimeType.toString();
+
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;

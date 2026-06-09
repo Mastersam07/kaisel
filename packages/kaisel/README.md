@@ -593,13 +593,28 @@ KaiselRouterConfig<AppRoute>(
 );
 ```
 
-It's a builder (`List<NavigatorObserver> Function()`), not a list, on purpose: a `NavigatorObserver` instance belongs to a **single** `Navigator`, and kaisel has many — the main stack plus one per shell branch, module, and active flow. kaisel calls the builder **once per navigator**, so each gets its **own fresh instance** (cached, so it isn't rebuilt every frame). Return new instances each call; don't hand back a shared one.
+You pass it **once**, on the config — kaisel then attaches observers to **every** navigator it manages: the main stack *and* each shell branch, module, and active flow. You don't wire shells (or modules or flows) separately, and you don't miss their events.
+
+It's a builder (`List<NavigatorObserver> Function()`), not a list, on purpose: a `NavigatorObserver` instance belongs to a **single** `Navigator`, and kaisel has many — exactly those listed above. kaisel calls the builder **once per navigator**, so each gets its **own fresh instance** (cached, so it isn't rebuilt every frame). Return new instances each call; don't hand back a shared one — that's the only catch.
 
 Because each navigator has its own observer, a bottom-nav app gets one observer per tab — each logging that tab's routes. If instead you want a single, unified "where is the user now" stream (e.g. to label events by tab), listen to the routers directly — the stack is observable state:
 
 ```dart
 router.addListener(() => analytics.logScreenView(screenName: '${router.stack.last}'));
 ```
+
+**Route names.** Off-the-shelf observers (e.g. `FirebaseAnalyticsObserver`) read `route.settings.name`. kaisel sets it from each route's `name` getter — which defaults to the route's runtime type (`'ProductDetail'`) — and puts the route itself in `settings.arguments`. Override `name` for a custom screen name:
+
+```dart
+final class ProductDetail extends AppRoute {
+  const ProductDetail(this.id);
+  final String id;
+  @override
+  String get name => 'product_detail';
+}
+```
+
+> **Obfuscation caveat.** The default `name` is `runtimeType.toString()`, which is **minified** in release builds compiled with `--obfuscate` (`ProductDetail` → `a`). For stable analytics names in obfuscated builds, override `name` with a string literal as above — string literals aren't obfuscated.
 
 ## Why no equality codegen
 

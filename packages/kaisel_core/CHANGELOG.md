@@ -10,6 +10,10 @@
 - **`KaiselRouter.debugHistory`** — a capped, debug-only history of the stacks
   the router has held (real routes), powering DevTools time-travel.
 - **`KaiselRootSnapshot.history`** — the stringified history, on the snapshot.
+- **`KaiselRoute.name`** — a name for the route (defaults to the runtime type),
+  set as `RouteSettings.name` on the page kaisel builds so
+  `NavigatorObserver`-based analytics can identify the screen. Override for a
+  custom or obfuscation-stable name.
 
 ### Changed
 

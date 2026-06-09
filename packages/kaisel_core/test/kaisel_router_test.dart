@@ -20,6 +20,12 @@ final class _C extends _R {
   const _C();
 }
 
+final class _Named extends _R {
+  const _Named();
+  @override
+  String get name => 'custom-name';
+}
+
 void main() {
   group('KaiselRouter', () {
     test('starts with the initial route on top', () {
@@ -304,6 +310,15 @@ void main() {
     test('toString includes props', () {
       expect(const _A().toString(), '_A');
       expect(const _B('x').toString(), '_B(x)');
+    });
+
+    test('name defaults to the runtime type, ignoring props', () {
+      expect(const _A().name, '_A');
+      expect(const _B('x').name, '_B');
+    });
+
+    test('name can be overridden', () {
+      expect(const _Named().name, 'custom-name');
     });
   });
 }
