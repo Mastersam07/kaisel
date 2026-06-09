@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Route names for observers** — pages now carry `settings.name` (from
+  `KaiselRoute.name`, defaulting to the runtime type) and the route in
+  `settings.arguments`, so off-the-shelf `NavigatorObserver`s like
+  `FirebaseAnalyticsObserver` can identify the screen. Override `name` with a
+  string literal for a custom or `--obfuscate`-stable name. Requires the matching
+  `kaisel_core`.
+
 ## 0.15.1
 
 ### Fixed

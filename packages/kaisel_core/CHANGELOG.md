@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **`KaiselRoute.name`** — a name for the route (defaults to the runtime type),
+  set as `RouteSettings.name` on the page kaisel builds so
+  `NavigatorObserver`-based analytics can identify the screen. Override for a
+  custom or obfuscation-stable name.
+
 ## 0.14.0
 
 ### Added

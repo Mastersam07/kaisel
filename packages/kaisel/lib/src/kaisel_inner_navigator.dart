@@ -127,13 +127,23 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
   Page<Object?> _wrapSimple(KaiselPageWrapperContext<R> ctx) {
     final wrapper = widget.pageWrapper;
     if (wrapper != null) return wrapper(ctx);
-    return MaterialPage<Object?>(key: ctx.key, child: ctx.child);
+    return MaterialPage<Object?>(
+      key: ctx.key,
+      name: ctx.route.name,
+      arguments: ctx.route,
+      child: ctx.child,
+    );
   }
 
   Page<Object?> _wrapAdaptive(KaiselPageWrapperContext<R> ctx) {
     final wrapper = widget.pageWrapper;
     if (wrapper != null) return wrapper(ctx);
-    return MaterialPage<Object?>(key: ctx.key, child: ctx.child);
+    return MaterialPage<Object?>(
+      key: ctx.key,
+      name: ctx.route.name,
+      arguments: ctx.route,
+      child: ctx.child,
+    );
   }
 
   @override

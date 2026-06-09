@@ -22,9 +22,15 @@ final class _Detail extends _R {
 class _RecordingObserver extends NavigatorObserver {
   int pushes = 0;
   int pops = 0;
+  String? lastPushedName;
+  Object? lastPushedArguments;
 
   @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) => pushes++;
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    pushes++;
+    lastPushedName = route.settings.name;
+    lastPushedArguments = route.settings.arguments;
+  }
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) => pops++;
@@ -62,6 +68,8 @@ void main() {
     await router.push(const _Detail('a'));
     await tester.pumpAndSettle();
     expect(main.pushes, initialPushes + 1);
+    expect(main.lastPushedName, '_Detail');
+    expect(main.lastPushedArguments, const _Detail('a'));
 
     await router.pop();
     await tester.pumpAndSettle();
