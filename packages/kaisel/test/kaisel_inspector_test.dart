@@ -20,11 +20,14 @@ final class _Detail extends _R {
   List<Object?> get props => <Object?>[id];
 }
 
-// Has a field but no `props` override — the missing-props bug.
 final class _NoProps extends _R {
   const _NoProps(this.id);
 
   final String id;
+}
+
+final class _Flow extends _R implements KaiselModalRoute<void> {
+  const _Flow();
 }
 
 class _Codec implements KaiselConfigCodec<_R> {
@@ -35,13 +38,13 @@ class _Codec implements KaiselConfigCodec<_R> {
     _Home() => Uri(path: '/'),
     _Detail(:final id) => Uri(path: '/detail/$id'),
     _NoProps(:final id) => Uri(path: '/np/$id'),
+    _Flow() => Uri(path: '/flow'),
   };
 
   @override
   KaiselConfig<_R>? decode(Uri uri) => null;
 }
 
-// Decodes a few URLs back to real configs, for the deep-link preview.
 class _RoundTripCodec implements KaiselConfigCodec<_R> {
   const _RoundTripCodec();
 
@@ -75,10 +78,9 @@ class _ThrowingCodec implements KaiselConfigCodec<_R> {
   Uri encode(KaiselConfig<_R> config) => throw StateError('boom');
 
   @override
-  KaiselConfig<_R>? decode(Uri uri) => null;
+  KaiselConfig<_R>? decode(Uri uri) => throw StateError('boom');
 }
 
-// A nested handle that looks like a mounted module (configType + stack).
 class _FakeModuleHandle implements KaiselNestedHandle {
   @override
   Type get configType => KaiselModuleConfig;
@@ -122,7 +124,6 @@ void main() {
     expect(after.main.entries.last.type, '_Detail');
     expect(after.main.entries.last.props, <String>['a']);
     expect(after.main.entries.last.label, '_Detail(a)');
-    // The bottom entry keeps its identity-stable id across the push.
     expect(after.main.entries.first.id, before.main.entries.first.id);
 
     delegate.dispose();
@@ -161,7 +162,6 @@ void main() {
       _Detail('a'),
     ]);
     final delegate = _delegate(router);
-    // Simulate an adaptive build that collapsed position 0 (the master).
     router.debugSetAbsorbedPositions(const <int>{0});
     final entries = delegate.debugSnapshot().main.entries;
     expect(entries[0].absorbed, isTrue);
@@ -262,8 +262,6 @@ void main() {
 
   test('debugSnapshot flags a broken codec round-trip', () {
     final router = KaiselRouter<_R>(initial: const _Home());
-    // _Codec.encode works but its decode always returns null — the current
-    // state encodes to a URL that won't decode back.
     final delegate = KaiselRouterDelegate<_R>(
       router: router,
       builder: (_, _) => const SizedBox.shrink(),
@@ -319,7 +317,6 @@ void main() {
     expect(delegate.debugDecode('/shell'), contains('shell: branch 1 → _Home'));
     expect(delegate.debugDecode('/module'), contains('module: _Home'));
     expect(delegate.debugDecode('/nope'), isNull);
-    // Previewing does not navigate.
     expect(router.stack, const <_R>[_Home()]);
 
     delegate.dispose();
@@ -344,7 +341,6 @@ void main() {
     await branch.push(const _NoProps('a'));
     expect(delegate.debugSnapshot().problems, isEmpty);
 
-    // _NoProps('a') == _NoProps('b') (no props), so this is a no-op.
     await branch.pushOrReplaceTop(const _NoProps('b'));
 
     final problems = delegate.debugSnapshot().problems;
@@ -364,7 +360,6 @@ void main() {
 
     final router = KaiselRouter<_R>(initial: const _Home());
     final delegate = _delegate(router);
-    // kDebugMode is true under flutter test, so creation registers a root.
     expect(inspector.snapshot().roots.length, before + 1);
 
     delegate.dispose();
@@ -460,6 +455,54 @@ void main() {
       },
     );
 
+    test('deepLink reports a URL that does not decode', () async {
+      final router = KaiselRouter<_R>(initial: const _Home());
+      final delegate = KaiselRouterDelegate<_R>(
+        router: router,
+        builder: (_, _) => const SizedBox.shrink(),
+        codec: const _Codec(),
+      );
+      final result = await delegate.debugApplyCommand(<String, Object?>{
+        'cmd': 'deepLink',
+        'url': '/nope',
+      });
+      expect(result['ok'], isFalse);
+      expect('${result['message']}', contains('decode'));
+      delegate.dispose();
+      router.dispose();
+    });
+
+    test('deepLink reports a codec that throws', () async {
+      final router = KaiselRouter<_R>(initial: const _Home());
+      final delegate = KaiselRouterDelegate<_R>(
+        router: router,
+        builder: (_, _) => const SizedBox.shrink(),
+        codec: const _ThrowingCodec(),
+      );
+      final result = await delegate.debugApplyCommand(<String, Object?>{
+        'cmd': 'deepLink',
+        'url': '/x',
+      });
+      expect(result['ok'], isFalse);
+      expect('${result['message']}', contains('failed'));
+      delegate.dispose();
+      router.dispose();
+    });
+
+    test('switchBranch with no matching shell fails', () async {
+      final router = KaiselRouter<_R>(initial: const _Home());
+      final delegate = _delegate(router);
+      final result = await delegate.debugApplyCommand(<String, Object?>{
+        'cmd': 'switchBranch',
+        'shell': 0,
+        'branch': 0,
+      });
+      expect(result['ok'], isFalse);
+      expect('${result['message']}', contains('shell'));
+      delegate.dispose();
+      router.dispose();
+    });
+
     test('dismissFlow fails when no flow is active', () async {
       final router = KaiselRouter<_R>(initial: const _Home());
       final delegate = _delegate(router);
@@ -467,6 +510,23 @@ void main() {
         'cmd': 'dismissFlow',
       });
       expect(result['ok'], isFalse);
+      delegate.dispose();
+      router.dispose();
+    });
+
+    test('dismissFlow dismisses the active flow', () async {
+      final router = KaiselRouter<_R>(initial: const _Home());
+      final delegate = _delegate(router);
+      final flow = router.run<void>(const _Flow());
+      expect(router.activeFlows, isNotEmpty);
+
+      final result = await delegate.debugApplyCommand(<String, Object?>{
+        'cmd': 'dismissFlow',
+      });
+      expect(result['ok'], isTrue);
+      await flow;
+      expect(router.activeFlows, isEmpty);
+
       delegate.dispose();
       router.dispose();
     });
