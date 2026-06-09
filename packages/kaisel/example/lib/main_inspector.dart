@@ -109,6 +109,8 @@ final class MessageDetail extends InboxRoute {
 final class BuggyMessageDetail extends InboxRoute {
   const BuggyMessageDetail(this.id);
   final String id;
+  @override
+  List<Object?> get props => [id];
 }
 
 // ── Module routes ──

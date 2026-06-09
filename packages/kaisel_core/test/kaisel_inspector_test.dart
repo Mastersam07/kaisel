@@ -20,7 +20,6 @@ final class _C extends _TestRoute {
   const _C();
 }
 
-// Has a field but deliberately no `props` override — the missing-props bug.
 final class _Bug extends _TestRoute {
   const _Bug(this.id);
   final String id;
@@ -41,12 +40,24 @@ class _FakeRoot implements KaiselInspectable {
 
   final String id;
   final _FakeRevision revision = _FakeRevision();
+  Map<String, Object?>? lastCommand;
 
   @override
   KaiselListenable get debugRevision => revision;
 
   @override
   List<String>? debugDecode(String url) => null;
+
+  @override
+  Future<Map<String, Object?>> debugApplyCommand(
+    Map<String, Object?> command,
+  ) async {
+    lastCommand = command;
+    return <String, Object?>{
+      'ok': true,
+      'message': 'applied ${command['cmd']}',
+    };
+  }
 
   @override
   KaiselRootSnapshot debugSnapshot() => KaiselRootSnapshot(
@@ -210,6 +221,16 @@ void main() {
   });
 
   group('KaiselInspector registry', () {
+    test('commandJson reports no root when none is registered', () async {
+      final result =
+          jsonDecode(
+                await KaiselInspector.instance.commandJson('{"cmd":"pop"}'),
+              )
+              as Map<String, Object?>;
+      expect(result['ok'], isFalse);
+      expect(result['message'], 'No root.');
+    });
+
     test('register exposes the root; deregister removes it', () {
       final inspector = KaiselInspector.instance;
       final before = inspector.snapshot().roots.length;
@@ -275,6 +296,48 @@ void main() {
         const <String, String>{'url': '/x'},
       );
       expect(decoded, isA<developer.ServiceExtensionResponse>());
+
+      final command = await inspector.commandResponse(
+        'ext.kaisel.command',
+        const <String, String>{'command': '{"cmd":"pop"}'},
+      );
+      expect(command, isA<developer.ServiceExtensionResponse>());
+
+      inspector.deregister(token);
+    });
+
+    test(
+      'commandJson dispatches the parsed command to the first root',
+      () async {
+        final inspector = KaiselInspector.instance;
+        final root = _FakeRoot('cmd-root');
+        final token = inspector.register(root);
+
+        final result =
+            jsonDecode(
+                  await inspector.commandJson('{"cmd":"pop","target":"main"}'),
+                )
+                as Map<String, Object?>;
+        expect(result['ok'], isTrue);
+        expect(root.lastCommand, <String, Object?>{
+          'cmd': 'pop',
+          'target': 'main',
+        });
+
+        inspector.deregister(token);
+      },
+    );
+
+    test('commandJson rejects malformed JSON without dispatching', () async {
+      final inspector = KaiselInspector.instance;
+      final root = _FakeRoot('cmd-root-2');
+      final token = inspector.register(root);
+
+      final result =
+          jsonDecode(await inspector.commandJson('not json'))
+              as Map<String, Object?>;
+      expect(result['ok'], isFalse);
+      expect(root.lastCommand, isNull);
 
       inspector.deregister(token);
     });
@@ -358,7 +421,6 @@ void main() {
         reason: 'a real push is not a no-op',
       );
 
-      // _Bug('x') == _Bug('y') (no props), so this replaceTop changes nothing.
       await router.pushOrReplaceTop(const _Bug('y'));
       final noOp = router.debugLastNoOp;
       expect(noOp, isNotNull);
@@ -381,8 +443,6 @@ void main() {
       'URL restoration re-applying the current stack is NOT flagged',
       () async {
         final router = KaiselRouter<_TestRoute>(initial: const _A());
-        // The platform route-information provider re-applies the initial route
-        // on startup; that benign sync must not look like the missing-props bug.
         await router.applyFromInformation(const <_TestRoute>[_A()]);
         expect(router.debugLastNoOp, isNull);
         router.dispose();
@@ -399,7 +459,6 @@ void main() {
     test('set re-applying a value-equal stack is NOT flagged', () async {
       final router = KaiselRouter<_TestRoute>(initial: const _A());
       await router.push(const _Bug('x'));
-      // A reactive app re-deriving the stack from state may set an equal one.
       await router.set(const <_TestRoute>[_A(), _Bug('y')]);
       expect(router.debugLastNoOp, isNull);
       router.dispose();
@@ -408,7 +467,6 @@ void main() {
     test('popUntil when already at the target is NOT flagged', () async {
       final router = KaiselRouter<_TestRoute>(initial: const _A());
       await router.push(const _B());
-      // "Ensure we're at _B" — already there, so this is an expected no-op.
       await router.popUntil((r) => r is _B);
       expect(router.debugLastNoOp, isNull);
       router.dispose();
@@ -420,13 +478,10 @@ void main() {
         final router = KaiselRouter<_TestRoute>(
           initial: const _A(),
           guards: <KaiselGuard<_TestRoute>>[
-            // Block _B by redirecting back to the current [_A] stack.
             (current, proposed) =>
                 proposed.last is _B ? const <_TestRoute>[_A()] : proposed,
           ],
         );
-        // The proposal [_A, _B] genuinely differs from current; the guard
-        // collapses it to [_A]. That no-op is the guard's doing, not a bug.
         await router.push(const _B());
         expect(router.debugLastNoOp, isNull);
         router.dispose();

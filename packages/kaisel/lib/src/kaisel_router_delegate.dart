@@ -695,6 +695,52 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     }
   }
 
+  @override
+  Future<Map<String, Object?>> debugApplyCommand(
+    Map<String, Object?> command,
+  ) async {
+    try {
+      switch (command['cmd']) {
+        case 'deepLink':
+          final codec = _codec;
+          if (codec == null) return _cmd(false, 'No codec wired.');
+          final config = codec.decode(Uri.parse('${command['url'] ?? ''}'));
+          if (config == null) return _cmd(false, 'URL did not decode.');
+          await setNewRoutePath(config);
+          return _cmd(true, 'Applied ${command['url']}.');
+        case 'pop':
+          final popped = await router.pop();
+          return _cmd(popped, popped ? 'Popped.' : 'Nothing to pop.');
+        case 'switchBranch':
+          final shellIndex = (command['shell'] as num?)?.toInt() ?? 0;
+          final branch = (command['branch'] as num?)?.toInt() ?? 0;
+          final shells = _nested.whereType<BranchedShellRouter>().toList();
+          if (shellIndex < 0 || shellIndex >= shells.length) {
+            return _cmd(false, 'No shell $shellIndex.');
+          }
+          final shell = shells[shellIndex];
+          if (branch < 0 || branch >= shell.branchCount) {
+            return _cmd(false, 'No branch $branch.');
+          }
+          shell.switchTo(branch);
+          return _cmd(true, 'Switched shell $shellIndex to branch $branch.');
+        case 'dismissFlow':
+          if (router.activeFlows.isEmpty) return _cmd(false, 'No active flow.');
+          router.dismissFlow();
+          return _cmd(true, 'Dismissed the active flow.');
+        case _:
+          return _cmd(false, 'Unknown command: ${command['cmd']}.');
+      }
+    } catch (e) {
+      return _cmd(false, 'Command failed: $e');
+    }
+  }
+
+  Map<String, Object?> _cmd(bool ok, String message) => <String, Object?>{
+    'ok': ok,
+    'message': message,
+  };
+
   KaiselGuardTraceSnapshot? _guardTraceSnapshot() {
     final run = router.debugLastGuardRun;
     if (run == null) return null;

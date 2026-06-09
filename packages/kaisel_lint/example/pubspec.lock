@@ -153,15 +153,15 @@ packages:
       path: "../../kaisel"
       relative: true
     source: path
-    version: "0.15.0"
+    version: "0.15.1"
   kaisel_core:
     dependency: transitive
     description:
       name: kaisel_core
-      sha256: "1ec86d43460d43ba0e85f78f91eeadb6fab9a6038978238d82b3cca4680797ef"
+      sha256: "60b1309f7f398094e78cfb10e4794ac0c3a12e5e6c54b5ff9014e2cbe73fc263"
       url: "https://pub.dev"
     source: hosted
-    version: "0.13.0"
+    version: "0.14.0"
   kaisel_lint:
     dependency: "direct dev"
     description:

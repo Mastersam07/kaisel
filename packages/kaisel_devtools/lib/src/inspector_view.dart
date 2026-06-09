@@ -51,6 +51,7 @@ class _KaiselInspectorViewState extends State<KaiselInspectorView> {
         }
         final previousRoots = _controller.previous?.roots;
         final view = _RootView(
+          controller: _controller,
           root: snapshot.roots.first,
           previous: (previousRoots != null && previousRoots.isNotEmpty)
               ? previousRoots.first
@@ -95,11 +96,13 @@ class _VersionBanner extends StatelessWidget {
 
 class _RootView extends StatefulWidget {
   const _RootView({
+    required this.controller,
     required this.root,
     required this.previous,
     required this.transitions,
   });
 
+  final InspectorController controller;
   final RootSnapshot root;
   final RootSnapshot? previous;
   final List<Transition> transitions;
@@ -134,7 +137,11 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
         'Stack',
         Memo(
           value: (root.main, previousMain),
-          child: _StackList(stack: root.main, previous: previousMain),
+          child: _StackList(
+            controller: widget.controller,
+            stack: root.main,
+            previous: previousMain,
+          ),
         ),
       ),
       if (root.branches.isNotEmpty)
@@ -142,7 +149,10 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
           'Shells',
           Memo(
             value: root.branches,
-            child: _BranchesPanel(shells: root.branches),
+            child: _BranchesPanel(
+              controller: widget.controller,
+              shells: root.branches,
+            ),
           ),
         ),
       if (root.flows.isNotEmpty)
@@ -150,7 +160,10 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
           'Flows',
           Memo(
             value: root.flows,
-            child: _FlowsPanel(flows: root.flows),
+            child: _FlowsPanel(
+              controller: widget.controller,
+              flows: root.flows,
+            ),
           ),
         ),
       if (root.modules.isNotEmpty)
@@ -180,7 +193,7 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
         'URL',
         Memo(
           value: root.url,
-          child: _UrlPanel(url: root.url),
+          child: _UrlPanel(controller: widget.controller, url: root.url),
         ),
       ),
       if (widget.transitions.isNotEmpty)
@@ -214,7 +227,7 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Header(root: root),
+        _Header(controller: widget.controller, root: root),
         TabBar(
           controller: _tabs,
           isScrollable: true,
@@ -238,8 +251,9 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.root});
+  const _Header({required this.controller, required this.root});
 
+  final InspectorController controller;
   final RootSnapshot root;
 
   @override
@@ -252,7 +266,7 @@ class _Header extends StatelessWidget {
       if (root.flows.isNotEmpty) '${root.flows.length} flow(s)',
     ];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 4),
       child: Row(
         children: [
           Icon(
@@ -262,17 +276,85 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(root.id, style: theme.textTheme.titleSmall),
-          const Spacer(),
+          const SizedBox(width: 12),
           Text(parts.join('  ·  '), style: theme.textTheme.bodySmall),
+          const Spacer(),
+          ValueListenableBuilder<String?>(
+            valueListenable: controller.lastCommandResult,
+            builder: (context, result, _) => result == null
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Text(
+                      result,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: result.startsWith('✓')
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.error,
+                      ),
+                    ),
+                  ),
+          ),
+          ValueListenableBuilder<bool>(
+            valueListenable: controller.writeMode,
+            builder: (context, write, _) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Tooltip(
+                  message:
+                      'Enable commands that drive (mutate) the running app',
+                  child: Text('Write', style: theme.textTheme.bodySmall),
+                ),
+                Switch(
+                  value: write,
+                  onChanged: (v) => controller.writeMode.value = v,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _StackList extends StatelessWidget {
-  const _StackList({required this.stack, this.previous});
+/// A button that sends [command] via the controller — enabled only in write
+/// mode (the global "drive the app" toggle).
+class _WriteButton extends StatelessWidget {
+  const _WriteButton({
+    required this.controller,
+    required this.icon,
+    required this.label,
+    required this.command,
+  });
 
+  final InspectorController controller;
+  final IconData icon;
+  final String label;
+  final Map<String, Object?> command;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: controller.writeMode,
+      builder: (context, write, _) => OutlinedButton.icon(
+        onPressed: write ? () => controller.applyCommand(command) : null,
+        icon: Icon(icon, size: 14),
+        label: Text(label),
+        style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+      ),
+    );
+  }
+}
+
+class _StackList extends StatelessWidget {
+  const _StackList({
+    required this.controller,
+    required this.stack,
+    this.previous,
+  });
+
+  final InspectorController controller;
   final StackSnapshot stack;
 
   /// The previous main stack, for the diff highlight. Entries whose id is absent
@@ -281,20 +363,42 @@ class _StackList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (stack.entries.isEmpty) return const _Message('Empty.');
     final previousIds = previous == null
         ? null
         : <int>{for (final e in previous!.entries) e.id};
     final ordered = stack.entries.reversed.toList();
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      itemCount: ordered.length,
-      itemBuilder: (context, i) {
-        final entry = ordered[i];
-        final isTop = i == 0;
-        final isNew = previousIds != null && !previousIds.contains(entry.id);
-        return _EntryTile(entry: entry, isTop: isTop, isNew: isNew);
-      },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+          child: Row(
+            children: [
+              _WriteButton(
+                controller: controller,
+                icon: Icons.undo,
+                label: 'Pop top',
+                command: const <String, Object?>{'cmd': 'pop'},
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ordered.isEmpty
+              ? const _Message('Empty.')
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  itemCount: ordered.length,
+                  itemBuilder: (context, i) {
+                    final entry = ordered[i];
+                    final isTop = i == 0;
+                    final isNew =
+                        previousIds != null && !previousIds.contains(entry.id);
+                    return _EntryTile(entry: entry, isTop: isTop, isNew: isNew);
+                  },
+                ),
+        ),
+      ],
     );
   }
 }
@@ -346,8 +450,9 @@ class _EntryTile extends StatelessWidget {
 }
 
 class _BranchesPanel extends StatelessWidget {
-  const _BranchesPanel({required this.shells});
+  const _BranchesPanel({required this.controller, required this.shells});
 
+  final InspectorController controller;
   final List<ShellSnapshot> shells;
 
   @override
@@ -356,13 +461,14 @@ class _BranchesPanel extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
-        for (final shell in shells) ...[
+        for (var s = 0; s < shells.length; s++) ...[
           Text(
-            '${shell.type}  ·  branch ${shell.activeBranch} / ${shell.branchCount}',
+            '${shells[s].type}  ·  branch '
+            '${shells[s].activeBranch} / ${shells[s].branchCount}',
             style: theme.textTheme.titleSmall,
           ),
           const SizedBox(height: 6),
-          for (final branch in shell.branches)
+          for (final branch in shells[s].branches)
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(10),
@@ -376,8 +482,19 @@ class _BranchesPanel extends StatelessWidget {
                           style: theme.textTheme.labelLarge,
                         ),
                         const SizedBox(width: 8),
-                        if (branch.index == shell.activeBranch)
-                          const _Tag(text: 'active', tone: _Tone.added),
+                        if (branch.index == shells[s].activeBranch)
+                          const _Tag(text: 'active', tone: _Tone.added)
+                        else
+                          _WriteButton(
+                            controller: controller,
+                            icon: Icons.swap_horiz,
+                            label: 'Switch',
+                            command: <String, Object?>{
+                              'cmd': 'switchBranch',
+                              'shell': s,
+                              'branch': branch.index,
+                            },
+                          ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -394,8 +511,9 @@ class _BranchesPanel extends StatelessWidget {
 }
 
 class _FlowsPanel extends StatelessWidget {
-  const _FlowsPanel({required this.flows});
+  const _FlowsPanel({required this.controller, required this.flows});
 
+  final InspectorController controller;
   final List<FlowSnapshot> flows;
 
   @override
@@ -404,6 +522,17 @@ class _FlowsPanel extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
+        Row(
+          children: [
+            _WriteButton(
+              controller: controller,
+              icon: Icons.close,
+              label: 'Dismiss top flow',
+              command: const <String, Object?>{'cmd': 'dismissFlow'},
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
         for (final flow in flows)
           Card(
             child: Padding(
@@ -596,8 +725,9 @@ class _GuardPanel extends StatelessWidget {
 }
 
 class _UrlPanel extends StatefulWidget {
-  const _UrlPanel({required this.url});
+  const _UrlPanel({required this.controller, required this.url});
 
+  final InspectorController controller;
   final String? url;
 
   @override
@@ -639,6 +769,15 @@ class _UrlPanelState extends State<_UrlPanel> {
     }
   }
 
+  Future<void> _apply() async {
+    final url = _input.text.trim();
+    if (url.isEmpty) return;
+    await widget.controller.applyCommand(<String, Object?>{
+      'cmd': 'deepLink',
+      'url': url,
+    });
+  }
+
   @override
   void dispose() {
     _input.dispose();
@@ -667,7 +806,7 @@ class _UrlPanelState extends State<_UrlPanel> {
           ),
         const Divider(height: 28),
         Text(
-          'Decode a URL (preview only — does not navigate)',
+          'Decode a URL (preview), or Apply it (navigates — write mode)',
           style: theme.textTheme.labelLarge,
         ),
         const SizedBox(height: 6),
@@ -688,6 +827,14 @@ class _UrlPanelState extends State<_UrlPanel> {
             FilledButton(
               onPressed: _busy ? null : _decode,
               child: const Text('Decode'),
+            ),
+            const SizedBox(width: 8),
+            ValueListenableBuilder<bool>(
+              valueListenable: widget.controller.writeMode,
+              builder: (context, write, _) => OutlinedButton(
+                onPressed: write ? _apply : null,
+                child: const Text('Apply'),
+              ),
             ),
           ],
         ),
