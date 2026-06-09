@@ -95,11 +95,13 @@ void main() {
           'output': <Object?>['A'],
         },
         'url': '/here',
+        'history': <Object?>['Home', 'Home → Detail'],
       });
       expect(root.modules.single.routeType, 'Checkout');
       expect(root.flows.single.type, 'AddCard');
       expect(root.guardTrace, isNotNull);
       expect(root.url, '/here');
+      expect(root.history, <String>['Home', 'Home → Detail']);
     });
 
     test('shell / module / flow / guard decode nested stacks', () {
