@@ -160,7 +160,7 @@ packages:
       path: "../../kaisel_core"
       relative: true
     source: path
-    version: "0.15.0"
+    version: "0.16.0"
   kaisel_lint:
     dependency: "direct dev"
     description:

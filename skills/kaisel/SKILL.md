@@ -166,11 +166,12 @@ one observer per tab in a shell app; for a single unified "current screen"
 stream instead, listen to the router(s) directly — the stack is observable
 state (`router.addListener(...)`).
 
-Observers read `route.settings.name`; kaisel sets it from each route's `name`
-getter (defaults to the runtime type, e.g. `'ProductDetail'`) and puts the route
-in `settings.arguments`. Override `name` with a string **literal** for a custom
-screen name — and you must, for stable names under `--obfuscate` (the runtime
-type name is minified).
+Observers read `route.settings.name`; kaisel sets it from each route's
+`routeName` getter (defaults to the runtime type, e.g. `'ProductDetail'`; named
+`routeName` not `name` to avoid clashing with a domain field) and puts the route
+in `settings.arguments`. Override `routeName` with a string **literal** for a
+custom screen name — and you must, for stable names under `--obfuscate` (the
+runtime type name is minified).
 
 The `switch` is exhaustive. Add a new sealed variant and the compiler
 points at every page builder, codec, and transition wrapper that needs

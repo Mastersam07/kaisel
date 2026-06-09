@@ -79,7 +79,7 @@ codec entirely.
 | `StatefulShellRoute.indexedStack`               | `KaiselBranchedShell.specs` with N branches         |
 | `context.push('/products/42')`                  | `context.push(const ProductDetail('42'))`           |
 | `context.go('/products/42')`                    | `context.set([const Home(), ProductDetail('42')])` (replace stack) or `context.replaceTop(...)` |
-| `context.pop()`                                 | `context.pop()`                                     |
+| `context.pop()`                                 | `context.pop()` (also closes a sheet/dialog from inside one — see the note below) |
 | `context.replace('/login')`                     | `context.replaceTop(const Login())`                 |
 | `go_router_builder` (optional codegen)          | Sealed types; no build step                         |
 | `errorBuilder:`                                 | An error route variant in your sealed type          |
@@ -90,6 +90,14 @@ A row-by-row read can hide the conceptual shift: the left column
 treats URLs as the primary representation; the right column treats
 sealed values as primary. Everything else cascades from that
 distinction.
+
+> ℹ️ `context.push` / `pop` / `replaceTop` / … act on the kaisel **router** (the
+> typed stack), not on whatever `Navigator` you're under. `context.pop()` closes
+> a `showModalBottomSheet` / `showDialog` when called from inside one (as in
+> go_router), and pops the typed stack on a kaisel page. To pop the route
+> *underneath* an overlay, use a held router (`context.router<R>().pop()`). For a
+> modal that should live on the typed stack with a typed result, reach for
+> `context.run<T>(SomeFlow())` instead of `showModalBottomSheet`.
 
 ## The migration in six steps
 

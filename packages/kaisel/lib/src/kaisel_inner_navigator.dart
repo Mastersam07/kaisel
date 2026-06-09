@@ -129,7 +129,7 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
     if (wrapper != null) return wrapper(ctx);
     return MaterialPage<Object?>(
       key: ctx.key,
-      name: ctx.route.name,
+      name: ctx.route.routeName,
       arguments: ctx.route,
       child: ctx.child,
     );
@@ -140,7 +140,7 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
     if (wrapper != null) return wrapper(ctx);
     return MaterialPage<Object?>(
       key: ctx.key,
-      name: ctx.route.name,
+      name: ctx.route.routeName,
       arguments: ctx.route,
       child: ctx.child,
     );

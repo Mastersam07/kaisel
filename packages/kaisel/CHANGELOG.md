@@ -11,15 +11,24 @@
   navigated to), and **time-travel** — jump back to any previous stack from a
   recorded history. Debug-only, like the rest of the inspector.
 - **Route names for observers** — pages now carry `settings.name` (from
-  `KaiselRoute.name`, defaulting to the runtime type) and the route in
+  `KaiselRoute.routeName`, defaulting to the runtime type) and the route in
   `settings.arguments`, so off-the-shelf `NavigatorObserver`s like
-  `FirebaseAnalyticsObserver` can identify the screen. Override `name` with a
-  string literal for a custom or `--obfuscate`-stable name. Requires the matching
-  `kaisel_core`.
+  `FirebaseAnalyticsObserver` can identify the screen. Override `routeName` with
+  a string literal for a custom or `--obfuscate`-stable name. (Named `routeName`,
+  not `name`, so it never clashes with a domain field on your route.)
 
 ### Changed
 
-- Requires `kaisel_core: ^0.15.0` (for the command + history APIs).
+- Requires `kaisel_core: ^0.16.0` (for the command + history APIs and the
+  `routeName` getter).
+
+### Fixed
+
+- **`context.pop()` inside a `showModalBottomSheet` / `showDialog` now closes
+  that overlay** instead of popping the route beneath it. On a kaisel page it
+  still pops the typed router stack (guards run) as before. To pop the
+  underlying route from inside an overlay, call `pop()` on a held `KaiselRouter`
+  (e.g. `context.router<R>().pop()`).
 
 ## 0.15.1
 

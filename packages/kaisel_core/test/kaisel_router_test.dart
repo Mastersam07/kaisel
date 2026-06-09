@@ -23,7 +23,7 @@ final class _C extends _R {
 final class _Named extends _R {
   const _Named();
   @override
-  String get name => 'custom-name';
+  String get routeName => 'custom-name';
 }
 
 void main() {
@@ -312,13 +312,13 @@ void main() {
       expect(const _B('x').toString(), '_B(x)');
     });
 
-    test('name defaults to the runtime type, ignoring props', () {
-      expect(const _A().name, '_A');
-      expect(const _B('x').name, '_B');
+    test('routeName defaults to the runtime type, ignoring props', () {
+      expect(const _A().routeName, '_A');
+      expect(const _B('x').routeName, '_B');
     });
 
-    test('name can be overridden', () {
-      expect(const _Named().name, 'custom-name');
+    test('routeName can be overridden', () {
+      expect(const _Named().routeName, 'custom-name');
     });
   });
 }

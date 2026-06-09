@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.16.0
+
+### Changed (breaking)
+
+- **`KaiselRoute.name` → `KaiselRoute.routeName`.** Renamed so the getter can't
+  clash with a domain field named `name` (a route may legitimately carry its
+  own). If you overrode `name` for a custom screen name, rename the override to
+  `routeName`.
+
 ## 0.15.0
 
 ### Added

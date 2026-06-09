@@ -603,18 +603,18 @@ Because each navigator has its own observer, a bottom-nav app gets one observer 
 router.addListener(() => analytics.logScreenView(screenName: '${router.stack.last}'));
 ```
 
-**Route names.** Off-the-shelf observers (e.g. `FirebaseAnalyticsObserver`) read `route.settings.name`. kaisel sets it from each route's `name` getter — which defaults to the route's runtime type (`'ProductDetail'`) — and puts the route itself in `settings.arguments`. Override `name` for a custom screen name:
+**Route names.** Off-the-shelf observers (e.g. `FirebaseAnalyticsObserver`) read `route.settings.name`. kaisel sets it from each route's `routeName` getter — which defaults to the route's runtime type (`'ProductDetail'`) — and puts the route itself in `settings.arguments`. Override `routeName` for a custom screen name (it's `routeName`, not `name`, so it never clashes with a domain field your route carries):
 
 ```dart
 final class ProductDetail extends AppRoute {
   const ProductDetail(this.id);
   final String id;
   @override
-  String get name => 'product_detail';
+  String get routeName => 'product_detail';
 }
 ```
 
-> **Obfuscation caveat.** The default `name` is `runtimeType.toString()`, which is **minified** in release builds compiled with `--obfuscate` (`ProductDetail` → `a`). For stable analytics names in obfuscated builds, override `name` with a string literal as above — string literals aren't obfuscated.
+> **Obfuscation caveat.** The default `routeName` is `runtimeType.toString()`, which is **minified** in release builds compiled with `--obfuscate` (`ProductDetail` → `a`). For stable analytics names in obfuscated builds, override `routeName` with a string literal as above — string literals aren't obfuscated.
 
 ## Why no equality codegen
 
