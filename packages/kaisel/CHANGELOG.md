@@ -1,15 +1,25 @@
 # Changelog
 
-## Unreleased
+## 0.16.0
 
 ### Added
 
+- **DevTools read-write** — the kaisel DevTools extension can now *drive* the
+  app, not just inspect it. Behind a **Write** toggle (off by default, since it
+  mutates the running app): pop the main stack, switch a shell branch, dismiss
+  the active flow, **apply** a deep-link URL (decoded through your codec and
+  navigated to), and **time-travel** — jump back to any previous stack from a
+  recorded history. Debug-only, like the rest of the inspector.
 - **Route names for observers** — pages now carry `settings.name` (from
   `KaiselRoute.name`, defaulting to the runtime type) and the route in
   `settings.arguments`, so off-the-shelf `NavigatorObserver`s like
   `FirebaseAnalyticsObserver` can identify the screen. Override `name` with a
   string literal for a custom or `--obfuscate`-stable name. Requires the matching
   `kaisel_core`.
+
+### Changed
+
+- Requires `kaisel_core: ^0.15.0` (for the command + history APIs).
 
 ## 0.15.1
 
@@ -18,8 +28,7 @@
 - Require `kaisel_core: ^0.14.0`. The DevTools inspector added in 0.15.0 uses
   APIs introduced in `kaisel_core 0.14.0`, but the constraint was still
   `^0.13.0` — so against a published `kaisel_core` the package failed to resolve
-  and analyse (0.15.0 scored poorly on pub.dev for this reason). Publish
-  `kaisel_core 0.14.0` before this release.
+  and analyse (0.15.0 scored poorly on pub.dev for this reason).
 
 ## 0.15.0
 

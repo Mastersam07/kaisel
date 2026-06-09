@@ -599,6 +599,10 @@ class KaiselRouterDelegate<R extends KaiselRoute>
       problems: _problems(codec.problem),
       guardTrace: _guardTraceSnapshot(),
       url: codec.url,
+      history: <String>[
+        for (final stack in router.debugHistory)
+          stack.map((r) => '$r').join(' → '),
+      ],
     );
   }
 
@@ -738,6 +742,14 @@ class KaiselRouterDelegate<R extends KaiselRoute>
           if (router.activeFlows.isEmpty) return _cmd(false, 'No active flow.');
           router.dismissFlow();
           return _cmd(true, 'Dismissed the active flow.');
+        case 'timeTravel':
+          final index = (command['index'] as num?)?.toInt() ?? -1;
+          final history = router.debugHistory;
+          if (index < 0 || index >= history.length) {
+            return _cmd(false, 'No history entry $index.');
+          }
+          await router.set(history[index]);
+          return _cmd(true, 'Restored history entry $index.');
         case _:
           return _cmd(false, 'Unknown command: ${command['cmd']}.');
       }

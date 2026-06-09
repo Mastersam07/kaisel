@@ -22,3 +22,7 @@ dev_dependencies:
     sdk: flutter
   kaisel_lint:
     path: ../
+
+dependency_overrides:
+  kaisel_core:
+    path: ../../kaisel_core

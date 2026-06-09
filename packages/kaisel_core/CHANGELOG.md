@@ -1,13 +1,25 @@
 # Changelog
 
-## Unreleased
+## 0.15.0
 
 ### Added
 
+- **DevTools read-write surface**, for the kaisel DevTools extension's "drive the
+  app" controls: `KaiselInspectable.debugApplyCommand` and an
+  `ext.kaisel.command` service extension on `KaiselInspector`.
+- **`KaiselRouter.debugHistory`** — a capped, debug-only history of the stacks
+  the router has held (real routes), powering DevTools time-travel.
+- **`KaiselRootSnapshot.history`** — the stringified history, on the snapshot.
 - **`KaiselRoute.name`** — a name for the route (defaults to the runtime type),
   set as `RouteSettings.name` on the page kaisel builds so
   `NavigatorObserver`-based analytics can identify the screen. Override for a
   custom or obfuscation-stable name.
+
+### Changed
+
+- `KaiselInspectable` gains a `debugApplyCommand` member. Breaking only for code
+  that implements the (framework-facing) interface directly; the kaisel delegate
+  is updated.
 
 ## 0.14.0
 

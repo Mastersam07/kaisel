@@ -109,8 +109,6 @@ final class MessageDetail extends InboxRoute {
 final class BuggyMessageDetail extends InboxRoute {
   const BuggyMessageDetail(this.id);
   final String id;
-  @override
-  List<Object?> get props => [id];
 }
 
 // ── Module routes ──
@@ -178,13 +176,9 @@ class _CheckoutCodec extends ModuleStackCodec<CheckoutRoute> {
 
 // ── Guards (main router) ──
 
-// An identity guard, so the Guards panel always shows a no-op first step
-// alongside any rewriting guard below.
 List<AppRoute> _passthroughGuard(List<AppRoute> current, List<AppRoute> next) =>
     next;
 
-// Redirects any navigation whose top is [Locked] back to the hub. The Guards
-// panel shows this step as "changed".
 List<AppRoute> _lockGuard(List<AppRoute> current, List<AppRoute> next) =>
     (next.isNotEmpty && next.last is Locked) ? const [Hub()] : next;
 
@@ -195,7 +189,6 @@ class _AppCodec implements KaiselConfigCodec<AppRoute> {
 
   @override
   Uri encode(KaiselConfig<AppRoute> config) {
-    // Flows overlay the app; encode the state beneath them.
     final base = config.mainStack
         .where((r) => r is! ConfirmFlow && r is! InfoFlow)
         .toList();
@@ -205,7 +198,6 @@ class _AppCodec implements KaiselConfigCodec<AppRoute> {
       (Locked(), _) => Uri(path: '/locked'),
       (AppShell(), final KaiselShellConfig shell) => _encodeShell(shell),
       (AppShell(), _) => Uri(path: '/app/feed'),
-      // CheckoutMount is handled by the module composer before reaching here.
       (CheckoutMount(), _) => Uri(path: '/checkout'),
       (ConfirmFlow() || InfoFlow(), _) => Uri(path: '/'),
     };
@@ -554,10 +546,10 @@ class _InboxListScreen extends StatelessWidget {
               leading: const Icon(Icons.check_circle_outline),
               selected: !selectedBuggy && id == selectedId,
               title: Text('Message $id'),
-              // Correct: MessageDetail overrides props, so pushOrReplaceTop to
-              // a new id switches the detail.
               onTap: () => context.router<InboxRoute>().pushOrReplaceTop(
                 MessageDetail(id),
+                when: (top) =>
+                    top is MessageDetail || top is BuggyMessageDetail,
               ),
             ),
           const Divider(),
@@ -568,11 +560,10 @@ class _InboxListScreen extends StatelessWidget {
               selected: selectedBuggy && id == selectedId,
               title: Text('Message $id'),
               subtitle: const Text('open one, then tap another → no change'),
-              // Buggy: BuggyMessageDetail has no props, so every instance is
-              // value-equal. pushOrReplaceTop from one to another is a no-op;
-              // the detail pane stays put. Watch the inspector show 0 changes.
               onTap: () => context.router<InboxRoute>().pushOrReplaceTop(
                 BuggyMessageDetail(id),
+                when: (top) =>
+                    top is MessageDetail || top is BuggyMessageDetail,
               ),
             ),
         ],
@@ -657,7 +648,6 @@ class _ConfirmFlowScreen extends StatelessWidget {
             const Text('A modal flow on the main router.'),
             const SizedBox(height: 12),
             OutlinedButton(
-              // Open a SECOND flow over this one — the Flows panel shows two.
               onPressed: () => _config.router.run(const InfoFlow()),
               child: const Text('Open nested info flow'),
             ),
