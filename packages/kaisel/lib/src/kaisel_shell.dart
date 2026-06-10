@@ -254,7 +254,11 @@ class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
       content = scope(context, index, content);
     }
     // Each branch installs its own RouterScope so context.router<R>()
-    // inside a branch screen resolves to that branch's router.
-    return RouterScope<R>(router: router, child: content);
+    // inside a branch screen resolves to that branch's router, and its own
+    // restoration scope so the branch's pages restore independently.
+    return KaiselRestorationScope(
+      restorationId: 'kaisel-branch-$index',
+      child: RouterScope<R>(router: router, child: content),
+    );
   }
 }

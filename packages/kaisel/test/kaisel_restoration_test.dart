@@ -155,6 +155,49 @@ class _CounterAppState extends State<_CounterApp> {
       MaterialApp.router(routerConfig: config, restorationScopeId: 'app');
 }
 
+sealed class _Tab extends KaiselRoute {
+  const _Tab();
+}
+
+final class _TabRoot extends _Tab {
+  const _TabRoot();
+}
+
+class _ShellApp extends StatefulWidget {
+  const _ShellApp();
+
+  @override
+  State<_ShellApp> createState() => _ShellAppState();
+}
+
+class _ShellAppState extends State<_ShellApp> {
+  late final KaiselRouterConfig<_R> config = KaiselRouterConfig<_R>(
+    initial: const _Home(),
+    restorationScopeId: 'main',
+    builder: (context, route) => switch (route) {
+      _Home() => KaiselShell<_Tab>(
+        branchInitials: const <_Tab>[_TabRoot()],
+        pageBuilder: (context, route) => switch (route) {
+          _TabRoot() => const Scaffold(body: Center(child: _Counter())),
+        },
+        chromeBuilder: (context, active, branchContent, switchBranch) =>
+            branchContent,
+      ),
+      _Detail() => const Scaffold(),
+    },
+  );
+
+  @override
+  void dispose() {
+    config.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      MaterialApp.router(routerConfig: config, restorationScopeId: 'app');
+}
+
 void main() {
   testWidgets('a codec app restores the main stack across a restart', (
     tester,
@@ -223,5 +266,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('count: 0'), findsOneWidget);
+  });
+
+  testWidgets('a shell branch page restores its inner state across a restart', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _ShellApp());
+    await tester.tap(find.text('inc'));
+    await tester.pumpAndSettle();
+    expect(find.text('count: 1'), findsOneWidget);
+
+    await tester.restartAndRestore();
+    await tester.pumpAndSettle();
+
+    expect(find.text('count: 1'), findsOneWidget);
   });
 }

@@ -190,6 +190,7 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
       child: Navigator(
         key: widget.navigatorKey,
         observers: _observers,
+        restorationScopeId: KaiselRestorationScope.of(context),
         pages: pages,
         onDidRemovePage: (page) {
           final entryId = adaptiveEntryIdFromPageKey(page.key);
@@ -200,4 +201,31 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
       ),
     );
   }
+}
+
+/// Carries the restoration scope id for the [KaiselInnerNavigator] below it.
+///
+/// Shells install one per branch (`kaisel-branch-<i>`) and modules one per
+/// mount, so each nested navigator gets a stable, unique
+/// [Navigator.restorationScopeId]. Absent (null) for the main stack and flows,
+/// which don't restore through it.
+class KaiselRestorationScope extends InheritedWidget {
+  /// Create a scope carrying [restorationId] for the navigator below.
+  const KaiselRestorationScope({
+    super.key,
+    required this.restorationId,
+    required super.child,
+  });
+
+  /// The id handed to the nested navigator's [Navigator.restorationScopeId].
+  final String? restorationId;
+
+  /// The nearest scope's [restorationId], or null when there is none.
+  static String? of(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<KaiselRestorationScope>()
+      ?.restorationId;
+
+  @override
+  bool updateShouldNotify(KaiselRestorationScope oldWidget) =>
+      oldWidget.restorationId != restorationId;
 }

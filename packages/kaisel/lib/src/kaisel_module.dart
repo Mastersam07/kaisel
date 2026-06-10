@@ -248,18 +248,21 @@ class _KaiselModuleMountState<R extends KaiselRoute>
         if (didPop) return;
         if (_router.canPop) _router.pop();
       },
-      child: RouterScope<R>(
-        router: _router,
-        child: KaiselInnerNavigator<R>(
+      child: KaiselRestorationScope(
+        restorationId: 'kaisel-module-${widget.module.runtimeType}',
+        child: RouterScope<R>(
           router: _router,
-          navigatorKey: _navKey,
-          pageBuilder: widget.module.isAdaptive
-              ? null
-              : widget.module.buildPage,
-          adaptivePageBuilder: widget.module.isAdaptive
-              ? widget.module.buildAdaptivePage
-              : null,
-          pageWrapper: widget.module.pageWrapper,
+          child: KaiselInnerNavigator<R>(
+            router: _router,
+            navigatorKey: _navKey,
+            pageBuilder: widget.module.isAdaptive
+                ? null
+                : widget.module.buildPage,
+            adaptivePageBuilder: widget.module.isAdaptive
+                ? widget.module.buildAdaptivePage
+                : null,
+            pageWrapper: widget.module.pageWrapper,
+          ),
         ),
       ),
     );

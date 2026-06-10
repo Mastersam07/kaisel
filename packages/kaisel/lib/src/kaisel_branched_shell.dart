@@ -532,14 +532,24 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
         child: ShellChromeScope(
           child: Builder(
             builder: (context) {
+              final restorableBranches = <Widget>[
+                for (var i = 0; i < _branches.length; i++)
+                  KaiselRestorationScope(
+                    restorationId: 'kaisel-branch-$i',
+                    child: _branches[i],
+                  ),
+              ];
               final branchContent =
                   widget.branchContentBuilder?.call(
                     context,
                     _shell.activeBranch,
-                    _branches,
+                    restorableBranches,
                     _shell.switchTo,
                   ) ??
-                  IndexedStack(index: _shell.activeBranch, children: _branches);
+                  IndexedStack(
+                    index: _shell.activeBranch,
+                    children: restorableBranches,
+                  );
               return widget.chromeBuilder(
                 context,
                 _shell.activeBranch,
