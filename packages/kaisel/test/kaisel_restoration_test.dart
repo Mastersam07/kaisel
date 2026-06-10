@@ -138,11 +138,6 @@ class _CounterAppState extends State<_CounterApp> {
   late final KaiselRouterConfig<_R> config = KaiselRouterConfig<_R>(
     initial: const _Home(),
     restorationScopeId: widget.navScopeId,
-    pageWrapper: (ctx) => MaterialPage<void>(
-      key: ctx.key,
-      restorationId: 'page',
-      child: ctx.child,
-    ),
     builder: (context, route) => switch (route) {
       _Home() => const Scaffold(body: Center(child: _Counter())),
       _Detail() => const Scaffold(),

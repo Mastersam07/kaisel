@@ -26,6 +26,15 @@ final class _Named extends _R {
   String get routeName => 'custom-name';
 }
 
+final class _Restorable extends _R {
+  const _Restorable(this.id);
+  final String id;
+  @override
+  List<Object?> get props => [id];
+  @override
+  String get restorationId => 'restorable-$id';
+}
+
 void main() {
   group('KaiselRouter', () {
     test('starts with the initial route on top', () {
@@ -319,6 +328,19 @@ void main() {
 
     test('routeName can be overridden', () {
       expect(const _Named().routeName, 'custom-name');
+    });
+
+    test('restorationId defaults to routeName for parameterless routes', () {
+      expect(const _A().restorationId, '_A');
+      expect(const _Named().restorationId, 'custom-name');
+    });
+
+    test('restorationId is null for routes with props', () {
+      expect(const _B('x').restorationId, isNull);
+    });
+
+    test('restorationId can be overridden for a parameterized route', () {
+      expect(const _Restorable('x').restorationId, 'restorable-x');
     });
   });
 }

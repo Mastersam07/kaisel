@@ -61,6 +61,13 @@ abstract class KaiselRoute {
   /// obfuscation-stable) one.
   String get routeName => runtimeType.toString();
 
+  /// Stable id set as the page's `restorationId`, so the page's inner widget
+  /// state (scroll, text fields via `RestorationMixin`) survives process death.
+  /// Defaults to [routeName] for parameterless routes and `null` for routes
+  /// with [props] (whose instances would otherwise share a bucket) — override
+  /// with a param-aware id like `'product-$id'` to opt those in.
+  String? get restorationId => props.isEmpty ? routeName : null;
+
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
