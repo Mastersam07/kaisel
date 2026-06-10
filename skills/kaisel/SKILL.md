@@ -263,19 +263,18 @@ the terseness clearly earns that trade (a single-router screen, say).
 Be honest about gaps before assuming kaisel can drop into any existing
 codebase as a one-for-one replacement.
 
-- **State restoration.** Not shipped yet — on the roadmap. If the
-  app relies on stack restoration after Android process death, wait.
-- **DevTools extension.** Not shipped yet — on the roadmap. Until
-  then, debugging is `print` statements or a listener you attach to
-  the router yourself.
+- **State restoration.** Set `restorationScopeId` on
+  `MaterialApp`; codec apps restore the stack for free, `restorationScopeId`
+  on the config restores within-page state, and `restoreRoute` covers
+  codec-less apps. See README §12.
+- **DevTools extension.** A live navigation inspector —
+  depend on kaisel and open DevTools.
 - **Browser back integration on the web.** Works via the codec, but less
   polished than go_router's native integration. Test on a migration
   branch if web is the primary target.
 - **Pre-built page transitions.** No library of named transitions. Wire
   them via the `pageWrapper` mechanism — see
   [TRANSITIONS.md](./TRANSITIONS.md).
-
-See `packages/kaisel/ROADMAP.md` for current status of each.
 
 ## 5. Adding a new screen — checklist
 

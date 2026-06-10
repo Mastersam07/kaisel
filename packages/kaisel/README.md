@@ -616,6 +616,50 @@ final class ProductDetail extends AppRoute {
 
 > **Obfuscation caveat.** The default `routeName` is `runtimeType.toString()`, which is **minified** in release builds compiled with `--obfuscate` (`ProductDetail` → `a`). For stable analytics names in obfuscated builds, override `routeName` with a string literal as above — string literals aren't obfuscated.
 
+### 12. State restoration
+
+Survive an OS process-kill (iOS background-kill, Android low-memory) and relaunch where the user left off. Turn it on with `restorationScopeId` on your `MaterialApp`:
+
+```dart
+MaterialApp.router(routerConfig: _config, restorationScopeId: 'app');
+```
+
+**Stack restoration — URL/codec apps.** If you pass a `codec`, the main stack (plus shell/module state your codec encodes) restores through Flutter's `Router` for free — the app `restorationScopeId` above is all you need. The codec is just a serializer: on mobile its `Uri` is internal, never shown.
+
+**Within-page state** (scroll offset, text fields via `RestorationMixin`). Give the navigators a restoration scope and the pages an id:
+
+```dart
+KaiselRouterConfig<AppRoute>(
+  restorationScopeId: 'main',   // scopes the main navigator
+  builder: ...,                 // shell branches + modules get their own scope automatically
+);
+```
+
+The page id comes from `KaiselRoute.restorationId`, which defaults to `routeName` for parameterless routes and `null` for parameterized ones (they'd share a bucket). Opt a parameterized route in with a param-aware id:
+
+```dart
+final class ProductDetail extends AppRoute {
+  const ProductDetail(this.id);
+  final String id;
+  @override
+  String get restorationId => 'product-$id';
+}
+```
+
+**No codec? Restore the stack anyway.** Apps without URLs can restore the **main** stack with a small rebuild function — no codec needed. kaisel saves each route's `routeName` + `props`; you map them back:
+
+```dart
+KaiselRouterConfig<AppRoute>(
+  restoreRoute: (name, props) => switch (name) {
+    'ProductDetail' => ProductDetail(props[0] as String),
+    _               => const Home(),
+  },
+  builder: ...,
+);
+```
+
+It's deserialize-only (kaisel auto-serializes), and `props` must be JSON-encodable. Under `--obfuscate`, override `routeName` so the saved name matches your switch (a debug warning fires if it doesn't). Nested shell/module state still needs a codec.
+
 ## Why no equality codegen
 
 Routing libraries that bake in `freezed` force codegen on every consumer. `kaisel` provides default `props`-based equality on `KaiselRoute` itself, so the common case is a one-line override. Prefer `freezed sealed`? That still works. Prefer `Equatable`? Declare your routes with `extends KaiselRoute with EquatableMixin`. The library doesn't impose a choice — your override always wins.
@@ -669,11 +713,7 @@ npx skills add Mastersam07/kaisel
 
 ## Status
 
-**v0.13, pre-1.0.** The core surface is in place: routes, guards, shells (homogeneous and per-branch typed), modal flows with typed results and nesting, URL-addressable shell and module state, composable modules with URL composition, adaptive layouts at every level, route-pair-aware transitions, and `KaiselPageScope`. The public API is shaped for stability but not yet frozen — expect occasional breaking changes before 1.0, each with a migration note in the [changelog](CHANGELOG.md).
-
-## Roadmap
-
-The DevTools extension shipped in 0.15–0.16 (see the [changelog](CHANGELOG.md)). The main open track is **state restoration** via `RestorationManager`: URL-addressable apps already restore through the codec, and `RestorationBucket` stack persistence for non-URL apps is the remaining gap.
+**v0.17, pre-1.0.** The core surface is in place: routes, guards, shells (homogeneous and per-branch typed), modal flows with typed results and nesting, URL-addressable shell and module state, composable modules with URL composition, adaptive layouts at every level, route-pair-aware transitions, `KaiselPageScope`, navigator observers, a DevTools extension, and state restoration. The public API is shaped for stability but not yet frozen — expect occasional breaking changes before 1.0, each with a migration note in the [changelog](CHANGELOG.md).
 
 ## Example
 
