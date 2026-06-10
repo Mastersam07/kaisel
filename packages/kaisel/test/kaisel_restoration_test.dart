@@ -198,6 +198,40 @@ class _ShellAppState extends State<_ShellApp> {
       MaterialApp.router(routerConfig: config, restorationScopeId: 'app');
 }
 
+class _BucketApp extends StatefulWidget {
+  const _BucketApp();
+
+  @override
+  State<_BucketApp> createState() => _BucketAppState();
+}
+
+class _BucketAppState extends State<_BucketApp> {
+  late final KaiselRouterConfig<_R> config = KaiselRouterConfig<_R>(
+    initial: const _Home(),
+    restoreRoute: (name, props) => switch (name) {
+      '_Detail' => _Detail(props[0] as String),
+      _ => const _Home(),
+    },
+    builder: (context, route) => switch (route) {
+      _Home() => const Scaffold(body: Center(child: Text('home'))),
+      _Detail(:final id) => Scaffold(body: Center(child: Text('detail $id'))),
+    },
+  );
+
+  @override
+  void dispose() {
+    config.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      MaterialApp.router(routerConfig: config, restorationScopeId: 'app');
+}
+
+KaiselRouter<_R> _bucketRouterOf(WidgetTester tester) =>
+    tester.state<_BucketAppState>(find.byType(_BucketApp)).config.router;
+
 void main() {
   testWidgets('a codec app restores the main stack across a restart', (
     tester,
@@ -280,5 +314,23 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('count: 1'), findsOneWidget);
+  });
+
+  testWidgets('a codec-less app restores the main stack via restoreRoute', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _BucketApp());
+    await _bucketRouterOf(tester).push(const _Detail('x'));
+    await tester.pumpAndSettle();
+    expect(find.text('detail x'), findsOneWidget);
+
+    await tester.restartAndRestore();
+    await tester.pumpAndSettle();
+
+    expect(find.text('detail x'), findsOneWidget);
+    expect(_bucketRouterOf(tester).stack, <_R>[
+      const _Home(),
+      const _Detail('x'),
+    ]);
   });
 }

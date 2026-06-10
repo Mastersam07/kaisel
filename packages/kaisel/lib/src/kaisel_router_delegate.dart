@@ -10,6 +10,7 @@ import 'kaisel_inner_navigator.dart';
 import 'kaisel_page_scope.dart';
 import 'kaisel_page_wrapper.dart';
 import 'kaisel_scope.dart';
+import 'kaisel_stack_restorer.dart';
 
 /// Signature for the function that turns a route into a screen.
 ///
@@ -114,6 +115,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.modalBuilder,
     this.observers,
     this.restorationScopeId,
+    this.restoreRoute,
     KaiselConfigCodec<R>? codec,
   }) : _builder = builder,
        _adaptiveBuilder = null,
@@ -164,6 +166,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.modalBuilder,
     this.observers,
     this.restorationScopeId,
+    this.restoreRoute,
     KaiselConfigCodec<R>? codec,
   }) : _builder = null,
        _adaptiveBuilder = builder,
@@ -207,6 +210,12 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   /// `RestorationMixin`) survives process death. The app must also have a
   /// `restorationScopeId` (e.g. on `MaterialApp`). Null disables it.
   final String? restorationScopeId;
+
+  /// Rebuilds routes for codec-less stack restoration. When set, the **main**
+  /// stack is saved to and restored from a `RestorationMixin` bucket — no URL
+  /// codec needed. Use this *or* a `codec`, not both. The app must also have a
+  /// `restorationScopeId` (e.g. on `MaterialApp`).
+  final KaiselRouteRestorer<R>? restoreRoute;
 
   /// The main stack's observers, built once from [observers] and reused for the
   /// delegate's lifetime (so they aren't rebuilt every frame).
@@ -436,7 +445,16 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     content = KaiselNestedHostScope(host: this, child: content);
     // Carry the observers builder down so nested navigators can attach their
     // own fresh observer instances.
-    return KaiselObserverScope(observers: observers, child: content);
+    content = KaiselObserverScope(observers: observers, child: content);
+    final restore = restoreRoute;
+    if (restore != null) {
+      content = KaiselStackRestorer<R>(
+        router: router,
+        restore: restore,
+        child: content,
+      );
+    }
+    return content;
   }
 
   Widget _buildFlowLayer({
