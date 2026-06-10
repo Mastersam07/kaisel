@@ -198,23 +198,47 @@ class _ShellAppState extends State<_ShellApp> {
       MaterialApp.router(routerConfig: config, restorationScopeId: 'app');
 }
 
+sealed class _BR extends KaiselRoute {
+  const _BR();
+}
+
+final class _BHome extends _BR {
+  const _BHome();
+}
+
+final class _BDetail extends _BR {
+  const _BDetail(this.id);
+
+  final String id;
+
+  @override
+  List<Object?> get props => <Object?>[id];
+}
+
+final class _BBad extends _BR {
+  const _BBad();
+
+  @override
+  List<Object?> get props => <Object?>[DateTime(2020)];
+}
+
 class _BucketApp extends StatefulWidget {
-  const _BucketApp();
+  const _BucketApp({required this.restore});
+
+  final KaiselRouteRestorer<_BR> restore;
 
   @override
   State<_BucketApp> createState() => _BucketAppState();
 }
 
 class _BucketAppState extends State<_BucketApp> {
-  late final KaiselRouterConfig<_R> config = KaiselRouterConfig<_R>(
-    initial: const _Home(),
-    restoreRoute: (name, props) => switch (name) {
-      '_Detail' => _Detail(props[0] as String),
-      _ => const _Home(),
-    },
+  late final KaiselRouterConfig<_BR> config = KaiselRouterConfig<_BR>(
+    initial: const _BHome(),
+    restoreRoute: widget.restore,
     builder: (context, route) => switch (route) {
-      _Home() => const Scaffold(body: Center(child: Text('home'))),
-      _Detail(:final id) => Scaffold(body: Center(child: Text('detail $id'))),
+      _BHome() => const Scaffold(body: Center(child: Text('home'))),
+      _BDetail(:final id) => Scaffold(body: Center(child: Text('detail $id'))),
+      _BBad() => const Scaffold(body: Center(child: Text('bad'))),
     },
   );
 
@@ -229,7 +253,12 @@ class _BucketAppState extends State<_BucketApp> {
       MaterialApp.router(routerConfig: config, restorationScopeId: 'app');
 }
 
-KaiselRouter<_R> _bucketRouterOf(WidgetTester tester) =>
+_BR _restoreBR(String name, List<Object?> props) => switch (name) {
+  '_BDetail' => _BDetail(props[0] as String),
+  _ => const _BHome(),
+};
+
+KaiselRouter<_BR> _bucketRouterOf(WidgetTester tester) =>
     tester.state<_BucketAppState>(find.byType(_BucketApp)).config.router;
 
 void main() {
@@ -319,8 +348,8 @@ void main() {
   testWidgets('a codec-less app restores the main stack via restoreRoute', (
     tester,
   ) async {
-    await tester.pumpWidget(const _BucketApp());
-    await _bucketRouterOf(tester).push(const _Detail('x'));
+    await tester.pumpWidget(const _BucketApp(restore: _restoreBR));
+    await _bucketRouterOf(tester).push(const _BDetail('x'));
     await tester.pumpAndSettle();
     expect(find.text('detail x'), findsOneWidget);
 
@@ -328,9 +357,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('detail x'), findsOneWidget);
-    expect(_bucketRouterOf(tester).stack, <_R>[
-      const _Home(),
-      const _Detail('x'),
+    expect(_bucketRouterOf(tester).stack, <_BR>[
+      const _BHome(),
+      const _BDetail('x'),
+    ]);
+  });
+
+  testWidgets('a route whose props are not JSON-able is dropped, not crashed', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _BucketApp(restore: _restoreBR));
+    await _bucketRouterOf(tester).push(const _BBad());
+    await tester.pumpAndSettle();
+
+    await tester.restartAndRestore();
+    await tester.pumpAndSettle();
+
+    expect(_bucketRouterOf(tester).stack, <_BR>[const _BHome()]);
+  });
+
+  testWidgets('a restoreRoute that returns a mismatching route falls back', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _BucketApp(restore: (name, props) => const _BHome()),
+    );
+    await _bucketRouterOf(tester).push(const _BDetail('x'));
+    await tester.pumpAndSettle();
+
+    await tester.restartAndRestore();
+    await tester.pumpAndSettle();
+
+    expect(_bucketRouterOf(tester).stack, <_BR>[
+      const _BHome(),
+      const _BHome(),
     ]);
   });
 }

@@ -62,15 +62,6 @@ class _KaiselStackRestorerState<R extends KaiselRoute>
   }
 
   @override
-  void didUpdateWidget(KaiselStackRestorer<R> oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.router, widget.router)) {
-      oldWidget.router.removeListener(_onChange);
-      widget.router.addListener(_onChange);
-    }
-  }
-
-  @override
   void restoreState(RestorationBucket? oldBucket, bool initialRestore) {
     registerForRestoration(_saved, 'stack');
     final routes = _decode(_saved.value);
