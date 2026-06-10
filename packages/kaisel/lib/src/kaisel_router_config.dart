@@ -60,6 +60,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
     KaiselModalBuilder? modalBuilder,
     KaiselObserversBuilder? observers,
     KaiselConfigCodec<R>? codec,
+    String? restorationScopeId,
     List<R>? fallback,
   }) {
     final router = KaiselRouter<R>(initial: initial, guards: guards);
@@ -71,6 +72,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
         pageWrapper: pageWrapper,
         modalBuilder: modalBuilder,
         observers: observers,
+        restorationScopeId: restorationScopeId,
         codec: codec,
       ),
       codec: codec,
@@ -89,6 +91,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
     KaiselModalBuilder? modalBuilder,
     KaiselObserversBuilder? observers,
     KaiselConfigCodec<R>? codec,
+    String? restorationScopeId,
     List<R>? fallback,
   }) {
     final router = KaiselRouter<R>(initial: initial, guards: guards);
@@ -100,6 +103,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
         pageWrapper: pageWrapper,
         modalBuilder: modalBuilder,
         observers: observers,
+        restorationScopeId: restorationScopeId,
         codec: codec,
       ),
       codec: codec,

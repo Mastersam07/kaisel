@@ -113,6 +113,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.pageWrapper,
     this.modalBuilder,
     this.observers,
+    this.restorationScopeId,
     KaiselConfigCodec<R>? codec,
   }) : _builder = builder,
        _adaptiveBuilder = null,
@@ -162,6 +163,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.pageWrapper,
     this.modalBuilder,
     this.observers,
+    this.restorationScopeId,
     KaiselConfigCodec<R>? codec,
   }) : _builder = null,
        _adaptiveBuilder = builder,
@@ -199,6 +201,12 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   /// shell branch, module, and flow), so each gets its own fresh instances.
   /// Null for no observers. See [KaiselObserversBuilder].
   final KaiselObserversBuilder? observers;
+
+  /// Passed to the main [Navigator.restorationScopeId]. Set it to give the main
+  /// stack a restoration scope so its pages' inner widget state (via
+  /// `RestorationMixin`) survives process death. The app must also have a
+  /// `restorationScopeId` (e.g. on `MaterialApp`). Null disables it.
+  final String? restorationScopeId;
 
   /// The main stack's observers, built once from [observers] and reused for the
   /// delegate's lifetime (so they aren't rebuilt every frame).
@@ -387,6 +395,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
       key: navigatorKey,
       pages: mainPages,
       observers: _mainObservers,
+      restorationScopeId: restorationScopeId,
       onDidRemovePage: _onDidRemovePage,
     );
 
