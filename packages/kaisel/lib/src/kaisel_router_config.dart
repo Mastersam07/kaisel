@@ -59,6 +59,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
     KaiselPageWrapper<R>? pageWrapper,
     KaiselModalBuilder? modalBuilder,
     KaiselObserversBuilder? observers,
+    GlobalKey<NavigatorState>? navigatorKey,
     KaiselConfigCodec<R>? codec,
     List<R>? fallback,
   }) {
@@ -71,6 +72,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
         pageWrapper: pageWrapper,
         modalBuilder: modalBuilder,
         observers: observers,
+        navigatorKey: navigatorKey,
         codec: codec,
       ),
       codec: codec,
@@ -88,6 +90,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
     KaiselPageWrapper<R>? pageWrapper,
     KaiselModalBuilder? modalBuilder,
     KaiselObserversBuilder? observers,
+    GlobalKey<NavigatorState>? navigatorKey,
     KaiselConfigCodec<R>? codec,
     List<R>? fallback,
   }) {
@@ -100,6 +103,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
         pageWrapper: pageWrapper,
         modalBuilder: modalBuilder,
         observers: observers,
+        navigatorKey: navigatorKey,
         codec: codec,
       ),
       codec: codec,
@@ -139,6 +143,14 @@ class KaiselRouterConfig<R extends KaiselRoute>
 
   /// The bundled router, for imperative navigation outside the widget tree.
   final KaiselRouter<R> router;
+
+  /// The main [Navigator]'s key, for raw [NavigatorState] access (e.g. handing
+  /// it to a third-party SDK). Pass one in via `navigatorKey:`, or read the
+  /// auto-created one here. For navigation, prefer [router].
+  GlobalKey<NavigatorState> get navigatorKey => _delegate.navigatorKey;
+
+  /// The main [Navigator]'s current state, once mounted, or null before it is.
+  NavigatorState? get navigator => _delegate.navigatorKey.currentState;
 
   final KaiselRouterDelegate<R> _delegate;
   final RouteInformationProvider? _provider;

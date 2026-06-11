@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **`navigatorKey`** on `KaiselRouterConfig` / `KaiselRouterDelegate` — pass a
+  `GlobalKey<NavigatorState>` for the main navigator (e.g. to hand to a
+  third-party SDK), or read the auto-created one via `config.navigatorKey` /
+  `config.navigator` for raw `NavigatorState` access. For context-free
+  *navigation*, the typed `router` stays the idiomatic handle.
+
 ## 0.16.0
 
 ### Added
