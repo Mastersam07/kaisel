@@ -156,6 +156,11 @@ for you — the app is URL-addressable. The bundled router is reachable as
 outside the widget tree. Call `_config.dispose()` only when a `State`
 owns its lifecycle; a top-level `final` lives for the whole app.
 
+For a raw `GlobalKey<NavigatorState>` (a third-party SDK, or `Navigator.of`
+overlays without a `BuildContext`), pass `navigatorKey:` to the config or read
+`_config.navigatorKey` / `_config.navigator`. For navigation, prefer
+`_config.router` — the key is for raw navigator access only.
+
 **Navigator observers.** Pass `observers: () => [MyAnalyticsObserver()]` to
 attach `NavigatorObserver`s (analytics, Sentry, `RouteObserver`). It's a
 **builder**, not a list: a `NavigatorObserver` belongs to a single

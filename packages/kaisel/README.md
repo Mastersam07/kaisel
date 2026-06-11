@@ -101,6 +101,8 @@ Add a variant and the switch fails to compile until you handle it. That's the en
 
 `_config.router` is the underlying `KaiselRouter<AppRoute>` for imperative navigation outside the tree; pass `codec:` to make the app URL-addressable ([§6](#6-urls-optional)). For full control you can still construct the `KaiselRouterDelegate` and parser yourself — `KaiselRouterConfig` is the convenience layer over them.
 
+Need a raw `GlobalKey<NavigatorState>` (for a third-party SDK, or `Navigator.of`-style overlays without a `BuildContext`)? Pass `navigatorKey:` to the config, or read the auto-created one via `_config.navigatorKey` / `_config.navigator`. For *navigation* itself, prefer `_config.router` — it's the context-free handle.
+
 ### 3. Guards
 
 Guards are `FutureOr<List<R>> Function(current, proposed)`. They run in order, each receiving the previous's output:

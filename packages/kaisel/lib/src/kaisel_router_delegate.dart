@@ -113,9 +113,11 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.pageWrapper,
     this.modalBuilder,
     this.observers,
+    GlobalKey<NavigatorState>? navigatorKey,
     KaiselConfigCodec<R>? codec,
   }) : _builder = builder,
        _adaptiveBuilder = null,
+       navigatorKey = navigatorKey ?? GlobalKey<NavigatorState>(),
        _codec = codec {
     router.addListener(_safeNotifyListeners);
     _registerWithInspector();
@@ -162,9 +164,11 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.pageWrapper,
     this.modalBuilder,
     this.observers,
+    GlobalKey<NavigatorState>? navigatorKey,
     KaiselConfigCodec<R>? codec,
   }) : _builder = null,
        _adaptiveBuilder = builder,
+       navigatorKey = navigatorKey ?? GlobalKey<NavigatorState>(),
        _codec = codec {
     router.addListener(_safeNotifyListeners);
     _registerWithInspector();
@@ -205,8 +209,12 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   late final List<NavigatorObserver> _mainObservers =
       observers?.call() ?? const <NavigatorObserver>[];
 
+  /// Key for the main [Navigator]. Pass one to reach the navigator imperatively
+  /// (e.g. a third-party SDK that wants a `GlobalKey<NavigatorState>`); defaults
+  /// to a freshly created key. For context-free *navigation*, prefer the typed
+  /// `router` — the key is for raw `NavigatorState` access.
   @override
-  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> navigatorKey;
 
   /// Stable [GlobalKey]s for each active modal flow's inner Navigator.
   /// Indexed parallel to `router.activeFlows`. Grown lazily in [build]
