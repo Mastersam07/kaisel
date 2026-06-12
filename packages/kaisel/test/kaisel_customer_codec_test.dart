@@ -2,21 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaisel/kaisel.dart';
 
-// A faithful reproduction of a customer's bottom-nav shell codec, distilled to
-// the routes that exercise the reported defect: a deep link into a non-default
-// branch (`/home/sublets_filter`) that ended up on the matches tab.
-//
-// The shape mirrors the original AppCodec: branch-index constants, a `decode`
-// that pattern-matches `uri.pathSegments`, a `_branchConfig` helper that wraps a
-// branch + stack in a `KaiselShellConfig`, and an `encode` that rebuilds the
-// canonical URLs. The `type=lookingFor` redirect — a `/home` URL carrying that
-// query is sent to the matches branch — is preserved exactly, because it is the
-// crux of the bug.
-//
-// `filterKey` toggles the one-line difference between the original codec (which
-// encodes the home filter under `type`, colliding with the redirect sentinel)
-// and the fix (which encodes it under `filterType`). It defaults to the
-// original, so `_AppCodec()` is the customer's code as shipped.
+// A faithful reproduction of a customer's bottom-nav shell codec: the same
+// branch-index constants, `pathSegments` decode, and the `type=lookingFor`
+// redirect that sends a `/home` URL to the matches branch. `filterKey` toggles
+// the original codec (home filter under `type`) against the fix (`filterType`),
+// defaulting to the original.
 
 enum SubletPostType {
   lookingFor,
@@ -81,6 +71,32 @@ final class ChatsTab extends ChatsRoute {
   const ChatsTab();
 }
 
+sealed class ProfileRoute extends KaiselRoute {
+  const ProfileRoute();
+}
+
+final class ProfileTab extends ProfileRoute {
+  const ProfileTab();
+}
+
+// Favorites (4) and bookings (5) are desktop-only branches the mobile shell
+// below doesn't mount.
+sealed class FavoritesRoute extends KaiselRoute {
+  const FavoritesRoute();
+}
+
+final class FavoritesTab extends FavoritesRoute {
+  const FavoritesTab();
+}
+
+sealed class BookingsRoute extends KaiselRoute {
+  const BookingsRoute();
+}
+
+final class BookingsTab extends BookingsRoute {
+  const BookingsTab();
+}
+
 class _AppCodec extends KaiselConfigCodec<AppRoute> {
   const _AppCodec({this.filterKey = 'type'});
 
@@ -91,6 +107,9 @@ class _AppCodec extends KaiselConfigCodec<AppRoute> {
   static const _homeBranch = 0;
   static const _matchesBranch = 1;
   static const _chatsBranch = 2;
+  static const _profileBranch = 3;
+  static const _favoritesBranch = 4;
+  static const _bookingsBranch = 5;
 
   KaiselConfig<AppRoute> _branchConfig(int branch, List<KaiselRoute> stack) =>
       KaiselConfig(
@@ -122,6 +141,9 @@ class _AppCodec extends KaiselConfigCodec<AppRoute> {
         MatchesTab(refresh: bool.tryParse(query['refresh'] ?? '')),
       ]),
       ['chat'] => _branchConfig(_chatsBranch, [const ChatsTab()]),
+      ['user-profile'] => _branchConfig(_profileBranch, [const ProfileTab()]),
+      ['favorites'] => _branchConfig(_favoritesBranch, [const FavoritesTab()]),
+      ['bookings'] => _branchConfig(_bookingsBranch, [const BookingsTab()]),
       _ => _branchConfig(_homeBranch, [const HomeTab()]),
     };
   }
@@ -157,6 +179,9 @@ class _AppCodec extends KaiselConfigCodec<AppRoute> {
           queryParameters: refresh == null ? null : {'refresh': '$refresh'},
         ),
         [ChatsTab()] => Uri(path: '/chat'),
+        [ProfileTab()] => Uri(path: '/user-profile'),
+        [FavoritesTab()] => Uri(path: '/favorites'),
+        [BookingsTab()] => Uri(path: '/bookings'),
         _ => Uri(path: '/home'),
       };
 
@@ -179,8 +204,6 @@ class _AppCodec extends KaiselConfigCodec<AppRoute> {
     );
   }
 
-  // Mirrors the original: custom-scheme and http(s) deep links normalize to the
-  // in-app path form before decoding.
   Uri _normalizeUri(Uri uri) {
     const customSchemes = ['app-staging', 'app'];
     const httpSchemes = ['https', 'http'];
@@ -218,9 +241,13 @@ class _AppCodec extends KaiselConfigCodec<AppRoute> {
 }
 
 class _App extends StatefulWidget {
-  const _App({this.codec = const _AppCodec()});
+  const _App({this.codec = const _AppCodec(), this.initialBranch = 0});
 
   final _AppCodec codec;
+
+  /// The mobile shell mounts four branches (home, matches, chats, profile);
+  /// [initialBranch] is the one shown first, i.e. the default to fall back on.
+  final int initialBranch;
 
   @override
   State<_App> createState() => _AppState();
@@ -232,7 +259,7 @@ class _AppState extends State<_App> {
     codec: widget.codec,
     builder: (context, route) => switch (route) {
       ShellHost() => KaiselBranchedShell.specs(
-        initialBranch: 0,
+        initialBranch: widget.initialBranch,
         branches: [
           KaiselBranchSpec<HomeRoute>(
             initial: const HomeTab(),
@@ -257,6 +284,14 @@ class _AppState extends State<_App> {
               ChatsTab() => const Scaffold(body: Center(child: Text('chats'))),
             },
           ),
+          KaiselBranchSpec<ProfileRoute>(
+            initial: const ProfileTab(),
+            builder: (context, r) => switch (r) {
+              ProfileTab() => const Scaffold(
+                body: Center(child: Text('profile')),
+              ),
+            },
+          ),
         ],
         chromeBuilder: (context, active, content, switchBranch) => content,
       ),
@@ -278,10 +313,11 @@ Future<void> _coldStart(
   WidgetTester tester,
   String route, {
   _AppCodec codec = const _AppCodec(),
+  int initialBranch = 0,
 }) async {
   tester.platformDispatcher.defaultRouteNameTestValue = route;
   addTearDown(tester.platformDispatcher.clearDefaultRouteNameTestValue);
-  await tester.pumpWidget(_App(codec: codec));
+  await tester.pumpWidget(_App(codec: codec, initialBranch: initialBranch));
   await tester.pumpAndSettle();
 }
 
@@ -336,6 +372,35 @@ void main() {
 
       expect(find.text('matches'), findsOneWidget);
     });
+  });
+
+  group('a deep link to a desktop-only branch degrades gracefully', () {
+    testWidgets('/favorites does not throw and stays on the default branch '
+        '(here, matches)', (tester) async {
+      await _coldStart(tester, '/favorites', initialBranch: 1);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('matches'), findsOneWidget);
+      expect(find.text('favorites'), findsNothing);
+    });
+
+    testWidgets('/bookings likewise stays on the default branch '
+        '(here, home)', (tester) async {
+      await _coldStart(tester, '/bookings', initialBranch: 0);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('home'), findsOneWidget);
+    });
+
+    testWidgets(
+      'an in-range branch still restores normally on the same shell',
+      (tester) async {
+        await _coldStart(tester, '/user-profile', initialBranch: 0);
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('profile'), findsOneWidget);
+      },
+    );
   });
 
   group('the original codec collides on type=lookingFor', () {

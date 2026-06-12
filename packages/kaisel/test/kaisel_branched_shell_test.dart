@@ -267,21 +267,25 @@ void main() {
       expect(home.stack, const [_HomeRoot(), _ProductDetail('preserved')]);
     });
 
-    test('restoreFromConfig throws on out-of-range activeBranch', () async {
+    test('restoreFromConfig ignores an out-of-range activeBranch instead of '
+        'throwing', () async {
       final home = KaiselRouter<_HomeRoute>(initial: const _HomeRoot());
       final shell = BranchedShellRouter(branches: [home]);
       addTearDown(shell.dispose);
       addTearDown(home.dispose);
 
-      await expectLater(
-        () => shell.restoreFromConfig(
-          KaiselShellConfig(
-            activeBranch: 99,
-            activeBranchStack: const [_HomeRoot()],
-          ),
+      // A restored config is external input (a deep link or codec). Naming a
+      // branch this shell doesn't mount must not throw or abort the restore —
+      // it degrades to a no-op, leaving the shell on its current branch.
+      await shell.restoreFromConfig(
+        KaiselShellConfig(
+          activeBranch: 99,
+          activeBranchStack: const [_HomeRoot()],
         ),
-        throwsRangeError,
       );
+
+      expect(shell.activeBranch, 0);
+      expect(home.stack, const [_HomeRoot()]);
     });
 
     test('restoreFromConfig with a route of the wrong type throws', () async {
