@@ -2,6 +2,16 @@
 
 ## 0.17.0
 
+### Fixed
+
+- **`initial:` is now honored on a normal launch**, even with a `codec`. The
+  platform's default route (`/`) was always decoded and applied at startup, so a
+  router whose `initial` mapped elsewhere (e.g. a splash) would render that
+  screen and then flash straight to the decoded `/` route before its own onward
+  navigation could run. A bare launch (no path segments) now keeps `initial:`; a
+  real cold-start deep link still wins. No change for apps whose `initial`
+  already maps to `/`.
+
 ### Added
 
 - **`navigatorKey`** on `KaiselRouterConfig` / `KaiselRouterDelegate` — pass a

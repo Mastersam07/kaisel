@@ -125,12 +125,14 @@ class KaiselRouterConfig<R extends KaiselRoute>
         codec: codec,
         fallback: fallback,
       );
+      final platformUri = Uri.parse(
+        WidgetsBinding.instance.platformDispatcher.defaultRouteName,
+      );
+      final initialUri = platformUri.pathSegments.isEmpty
+          ? codec.encode(KaiselConfig<R>(mainStack: router.stack))
+          : platformUri;
       provider = PlatformRouteInformationProvider(
-        initialRouteInformation: RouteInformation(
-          uri: Uri.parse(
-            WidgetsBinding.instance.platformDispatcher.defaultRouteName,
-          ),
-        ),
+        initialRouteInformation: RouteInformation(uri: initialUri),
       );
     }
     return KaiselRouterConfig<R>._(
