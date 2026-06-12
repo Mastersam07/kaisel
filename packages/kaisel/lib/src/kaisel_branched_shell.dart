@@ -55,6 +55,16 @@ class BranchedShellRouter extends ChangeNotifier
   final List<KaiselNavigator> _branches;
   int _activeBranch;
 
+  StackTrace? _debugLastSwitchOrigin;
+  int _debugLastSwitchSeq = 0;
+
+  /// The call site of the most recent [switchTo], for DevTools. Debug only;
+  /// null in release.
+  StackTrace? get debugLastSwitchOrigin => _debugLastSwitchOrigin;
+
+  /// A monotonic stamp paired with [debugLastSwitchOrigin]. Debug only.
+  int get debugLastSwitchSeq => _debugLastSwitchSeq;
+
   /// The branches, as a non-generic view. Use your own typed
   /// references to access type-safe navigation methods.
   List<KaiselNavigator> get branches => _branches;
@@ -86,6 +96,11 @@ class BranchedShellRouter extends ChangeNotifier
     }
     if (branch == _activeBranch) return;
     _activeBranch = branch;
+    assert(() {
+      _debugLastSwitchOrigin = StackTrace.current;
+      _debugLastSwitchSeq = kaiselNextOriginSeq();
+      return true;
+    }());
     notifyListeners();
   }
 

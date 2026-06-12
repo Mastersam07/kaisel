@@ -52,6 +52,7 @@ class KaiselRootSnapshot {
     this.guardTrace,
     this.url,
     this.history = const <String>[],
+    this.origin = const <String>[],
   });
 
   /// Stable id distinguishing this root from others (multi-delegate apps).
@@ -82,6 +83,11 @@ class KaiselRootSnapshot {
   /// DevTools time-travel. Empty in release.
   final List<String> history;
 
+  /// App-code call frames behind the most recent transition (closest first),
+  /// for the Transitions log — "who navigated". Empty in release, or when the
+  /// change had no app call site (e.g. a system-back pop).
+  final List<String> origin;
+
   /// Serialise to the wire format.
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
@@ -93,6 +99,7 @@ class KaiselRootSnapshot {
     'guardTrace': guardTrace?.toJson(),
     'url': url,
     'history': history,
+    'origin': origin,
   };
 }
 

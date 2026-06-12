@@ -532,4 +532,35 @@ void main() {
       router.dispose();
     });
   });
+
+  group('kaiselOriginFrames', () {
+    test('keeps app frames and drops kaisel, Flutter, SDK, and async lines', () {
+      final trace = StackTrace.fromString(
+        '#0 KaiselRouter._captureOrigin (package:kaisel_core/src/kaisel_router.dart:1:1)\n'
+        '#1 BranchedShellRouter.switchTo (package:kaisel/src/kaisel_branched_shell.dart:90:7)\n'
+        '#2 MyNotifier.onAuth (package:myapp/notifier.dart:42:10)\n'
+        '<asynchronous suspension>\n'
+        '#3 _rootRun (dart:async/zone.dart:1:1)\n'
+        '#4 Widget.build (package:flutter/src/widgets/framework.dart:1:1)',
+      );
+
+      expect(kaiselOriginFrames(trace), [
+        '#2 MyNotifier.onAuth (package:myapp/notifier.dart:42:10)',
+      ]);
+    });
+
+    test('returns empty for a null trace', () {
+      expect(kaiselOriginFrames(null), isEmpty);
+    });
+
+    test('honours the frame limit', () {
+      final trace = StackTrace.fromString(
+        '#0 a (package:myapp/a.dart:1:1)\n'
+        '#1 b (package:myapp/b.dart:1:1)\n'
+        '#2 c (package:myapp/c.dart:1:1)',
+      );
+
+      expect(kaiselOriginFrames(trace, limit: 2), hasLength(2));
+    });
+  });
 }
