@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 
 import 'kaisel_guard.dart';
+import 'kaisel_inspector.dart' show KaiselOriginFrame;
 import 'kaisel_notifier.dart';
 import 'kaisel_route.dart';
 
@@ -23,19 +24,34 @@ const _frameworkFramePrefixes = <String>[
 // which distinguishes it from a `foo.dart:42` file-and-line in any frame.
 final _sdkFrame = RegExp(r'dart:[a-z]');
 
+// A source location in either trace format: VM `(uri:line:col)` or web
+// `uri line:col` (colon vs whitespace before the line).
+final _frameLocation = RegExp(
+  r'((?:package:|dart:|file://)[^\s():]+\.dart)[:\s](\d+):(\d+)',
+);
+
 /// Reduces a captured navigation origin to the app call frames behind it —
 /// dropping kaisel, Flutter, and SDK frames plus async-suspension markers, and
-/// keeping the closest [limit]. Empty for a null trace. Exposed via
-/// `kaisel_core/framework.dart`; used by the delegate to fill the snapshot.
-List<String> kaiselOriginFrames(StackTrace? trace, {int limit = 5}) {
-  if (trace == null) return const <String>[];
-  final frames = <String>[];
+/// keeping the closest [limit]. Each frame keeps its display line and, when the
+/// location parses, the source uri/line/column (so a host can open it in an
+/// editor). Empty for a null trace. Exposed via `kaisel_core/framework.dart`.
+List<KaiselOriginFrame> kaiselOriginFrames(StackTrace? trace, {int limit = 5}) {
+  if (trace == null) return const <KaiselOriginFrame>[];
+  final frames = <KaiselOriginFrame>[];
   for (final raw in trace.toString().split('\n')) {
     final line = raw.trim();
     if (line.isEmpty || line == '<asynchronous suspension>') continue;
     if (_sdkFrame.hasMatch(line)) continue;
     if (_frameworkFramePrefixes.any(line.contains)) continue;
-    frames.add(line);
+    final match = _frameLocation.firstMatch(line);
+    frames.add(
+      KaiselOriginFrame(
+        display: line,
+        uri: match?.group(1),
+        line: int.tryParse(match?.group(2) ?? ''),
+        column: int.tryParse(match?.group(3) ?? ''),
+      ),
+    );
     if (frames.length >= limit) break;
   }
   return frames;

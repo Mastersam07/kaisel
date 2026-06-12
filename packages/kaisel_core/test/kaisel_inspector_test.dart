@@ -544,9 +544,40 @@ void main() {
         '#4 Widget.build (package:flutter/src/widgets/framework.dart:1:1)',
       );
 
-      expect(kaiselOriginFrames(trace), [
+      final frames = kaiselOriginFrames(trace);
+      expect(frames, hasLength(1));
+      expect(
+        frames.single.display,
         '#2 MyNotifier.onAuth (package:myapp/notifier.dart:42:10)',
-      ]);
+      );
+    });
+
+    test('parses the source location of a VM-format frame', () {
+      final trace = StackTrace.fromString(
+        '#0 onAuth (package:myapp/notifier.dart:42:10)',
+      );
+      final frame = kaiselOriginFrames(trace).single;
+      expect(frame.uri, 'package:myapp/notifier.dart');
+      expect(frame.line, 42);
+      expect(frame.column, 10);
+    });
+
+    test('parses the source location of a web-format frame', () {
+      final trace = StackTrace.fromString(
+        'package:myapp/notifier.dart 42:10  onAuth',
+      );
+      final frame = kaiselOriginFrames(trace).single;
+      expect(frame.uri, 'package:myapp/notifier.dart');
+      expect(frame.line, 42);
+      expect(frame.column, 10);
+    });
+
+    test('keeps an unparseable frame as display-only', () {
+      final trace = StackTrace.fromString('some opaque frame');
+      final frame = kaiselOriginFrames(trace).single;
+      expect(frame.display, 'some opaque frame');
+      expect(frame.uri, isNull);
+      expect(frame.line, isNull);
     });
 
     test('returns empty for a null trace', () {

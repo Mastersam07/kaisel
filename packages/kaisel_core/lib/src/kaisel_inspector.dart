@@ -38,6 +38,50 @@ class KaiselNavSnapshot {
   };
 }
 
+/// One app call frame behind a navigation, for the "who navigated" view: a
+/// [display] line plus the parsed [uri] / [line] / [column] when the frame
+/// could be located, so a DevTools host can open it in an editor.
+class KaiselOriginFrame {
+  /// Create an origin frame.
+  const KaiselOriginFrame({
+    required this.display,
+    this.uri,
+    this.line,
+    this.column,
+  });
+
+  /// The trimmed frame line, as shown.
+  final String display;
+
+  /// The source URI (`package:…` / `file://…`), or null if unparsed.
+  final String? uri;
+
+  /// 1-based line, or null if unparsed.
+  final int? line;
+
+  /// 1-based column, or null if unparsed.
+  final int? column;
+
+  /// Serialise to the wire format.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'display': display,
+    if (uri != null) 'uri': uri,
+    if (line != null) 'line': line,
+    if (column != null) 'column': column,
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is KaiselOriginFrame &&
+      other.display == display &&
+      other.uri == uri &&
+      other.line == line &&
+      other.column == column;
+
+  @override
+  int get hashCode => Object.hash(display, uri, line, column);
+}
+
 /// One root's navigation state: its main stack plus any shells, modules,
 /// active flows, the last guard run, and the encoded URL.
 class KaiselRootSnapshot {
@@ -52,7 +96,7 @@ class KaiselRootSnapshot {
     this.guardTrace,
     this.url,
     this.history = const <String>[],
-    this.origin = const <String>[],
+    this.origin = const <KaiselOriginFrame>[],
   });
 
   /// Stable id distinguishing this root from others (multi-delegate apps).
@@ -86,7 +130,7 @@ class KaiselRootSnapshot {
   /// App-code call frames behind the most recent transition (closest first),
   /// for the Transitions log — "who navigated". Empty in release, or when the
   /// change had no app call site (e.g. a system-back pop).
-  final List<String> origin;
+  final List<KaiselOriginFrame> origin;
 
   /// Serialise to the wire format.
   Map<String, Object?> toJson() => <String, Object?>{
@@ -99,7 +143,7 @@ class KaiselRootSnapshot {
     'guardTrace': guardTrace?.toJson(),
     'url': url,
     'history': history,
-    'origin': origin,
+    'origin': <Object?>[for (final frame in origin) frame.toJson()],
   };
 }
 

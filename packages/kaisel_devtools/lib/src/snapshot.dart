@@ -110,7 +110,10 @@ class RootSnapshot {
         : GuardTrace.fromJson(_obj(json['guardTrace'])),
     url: json['url'] as String?,
     history: _strings(json['history']),
-    origin: _strings(json['origin']),
+    origin: <OriginFrame>[
+      for (final frame in _list(json['origin']))
+        OriginFrame.fromJson(_obj(frame)),
+    ],
   );
 
   /// Stable root id.
@@ -143,7 +146,48 @@ class RootSnapshot {
   /// App call frames behind the most recent transition (closest first) — the
   /// "who navigated" for the Transitions log. Empty when there was no app call
   /// site (a system-back pop) or in release.
-  final List<String> origin;
+  final List<OriginFrame> origin;
+}
+
+/// One app call frame behind a navigation: a display line plus, when parsed,
+/// the source location the host can open in an editor.
+class OriginFrame {
+  /// Create an origin frame.
+  OriginFrame({required this.display, this.uri, this.line, this.column});
+
+  /// Decode from the wire format.
+  factory OriginFrame.fromJson(Map<String, Object?> json) => OriginFrame(
+    display: '${json['display'] ?? ''}',
+    uri: json['uri'] as String?,
+    line: (json['line'] as num?)?.toInt(),
+    column: (json['column'] as num?)?.toInt(),
+  );
+
+  /// The trimmed frame line, as shown.
+  final String display;
+
+  /// The source URI (`package:…` / `file://…`), or null if unparsed.
+  final String? uri;
+
+  /// 1-based line, or null if unparsed.
+  final int? line;
+
+  /// 1-based column, or null if unparsed.
+  final int? column;
+
+  /// Whether this frame has enough location to open in an editor.
+  bool get canOpen => uri != null && line != null;
+
+  @override
+  bool operator ==(Object other) =>
+      other is OriginFrame &&
+      other.display == display &&
+      other.uri == uri &&
+      other.line == line &&
+      other.column == column;
+
+  @override
+  int get hashCode => Object.hash(display, uri, line, column);
 }
 
 /// A detected problem in the navigation state.

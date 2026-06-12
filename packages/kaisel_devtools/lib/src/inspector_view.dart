@@ -201,7 +201,10 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
           'Log (${widget.transitions.length})',
           Memo(
             value: widget.transitions,
-            child: _TransitionsPanel(transitions: widget.transitions),
+            child: _TransitionsPanel(
+              controller: widget.controller,
+              transitions: widget.transitions,
+            ),
           ),
         ),
       if (root.history.isNotEmpty)
@@ -869,8 +872,12 @@ class _UrlPanelState extends State<_UrlPanel> {
 }
 
 class _TransitionsPanel extends StatelessWidget {
-  const _TransitionsPanel({required this.transitions});
+  const _TransitionsPanel({
+    required this.controller,
+    required this.transitions,
+  });
 
+  final InspectorController controller;
   final List<Transition> transitions;
 
   @override
@@ -906,7 +913,7 @@ class _TransitionsPanel extends StatelessWidget {
             ],
           ),
           subtitle: Text(
-            t.origin.first,
+            t.origin.first.display,
             style: origin,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -914,13 +921,56 @@ class _TransitionsPanel extends StatelessWidget {
           childrenPadding: const EdgeInsets.fromLTRB(24, 0, 16, 10),
           children: [
             for (final frame in t.origin)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: SelectableText(frame, style: origin),
-              ),
+              _OriginRow(controller: controller, frame: frame, style: origin),
           ],
         );
       },
+    );
+  }
+}
+
+class _OriginRow extends StatelessWidget {
+  const _OriginRow({
+    required this.controller,
+    required this.frame,
+    required this.style,
+  });
+
+  final InspectorController controller;
+  final OriginFrame frame;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!frame.canOpen) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: SelectableText(frame.display, style: style),
+      );
+    }
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: () => controller.openInEditor(frame),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                frame.display,
+                style: style?.copyWith(
+                  color: theme.colorScheme.primary,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+            Tooltip(
+              message: 'Open in editor',
+              child: Icon(Icons.open_in_new, size: 12, color: theme.hintColor),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

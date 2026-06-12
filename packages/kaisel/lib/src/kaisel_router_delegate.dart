@@ -617,7 +617,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
 
   // The app call site behind the most recent transition across the main
   // router, the shells, and their branches — the highest origin stamp wins.
-  List<String> _originFrames() {
+  List<KaiselOriginFrame> _originFrames() {
     StackTrace? best;
     var bestSeq = 0;
     void consider(StackTrace? trace, int seq) {

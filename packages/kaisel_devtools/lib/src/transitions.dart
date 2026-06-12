@@ -7,7 +7,7 @@ class Transition {
     this.op,
     this.router,
     this.label, {
-    this.origin = const <String>[],
+    this.origin = const <OriginFrame>[],
   });
 
   /// The inferred operation: push / pop / replaceTop / set / switchBranch /
@@ -22,7 +22,7 @@ class Transition {
 
   /// App call frames behind this navigation (closest first), or empty when the
   /// running app reported none (a system-back pop, or a release build).
-  final List<String> origin;
+  final List<OriginFrame> origin;
 }
 
 /// Infer the navigations between two consecutive snapshots (main stack, then
@@ -108,7 +108,7 @@ Transition _transition(
   String router,
   List<EntrySnapshot> a,
   List<EntrySnapshot> b,
-  List<String> origin,
+  List<OriginFrame> origin,
 ) {
   final label = op == 'pop'
       ? (a.isNotEmpty ? a.last.label : '?')

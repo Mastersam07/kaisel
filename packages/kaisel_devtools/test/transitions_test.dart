@@ -14,7 +14,7 @@ Map<String, Object?> _stackJson(List<String> labels) => <String, Object?>{
 NavSnapshot _navMain(
   List<String> labels, {
   List<Map<String, Object?>> problems = const <Map<String, Object?>>[],
-  List<String> origin = const <String>[],
+  List<Map<String, Object?>> origin = const <Map<String, Object?>>[],
 }) => NavSnapshot.fromJson(<String, Object?>{
   'v': 1,
   'roots': <Object?>[
@@ -30,7 +30,7 @@ NavSnapshot _navMain(
 NavSnapshot _navShell({
   required int active,
   required List<List<String>> branches,
-  List<String> origin = const <String>[],
+  List<Map<String, Object?>> origin = const <Map<String, Object?>>[],
 }) => NavSnapshot.fromJson(<String, Object?>{
   'v': 1,
   'roots': <Object?>[
@@ -233,18 +233,29 @@ void main() {
 
   group('transition origin', () {
     test('a main push carries the snapshot origin (who navigated)', () {
-      const frames = <String>['#0 onTap (package:myapp/home.dart:12:3)'];
       final ts = diffTransitions(
         _navMain(<String>['Home']),
-        _navMain(<String>['Home', 'Detail'], origin: frames),
+        _navMain(
+          <String>['Home', 'Detail'],
+          origin: <Map<String, Object?>>[
+            <String, Object?>{
+              'display': '#0 onTap (package:myapp/home.dart:12:3)',
+              'uri': 'package:myapp/home.dart',
+              'line': 12,
+              'column': 3,
+            },
+          ],
+        ),
       );
 
       expect(ts.single.op, 'push');
-      expect(ts.single.origin, frames);
+      final frame = ts.single.origin.single;
+      expect(frame.uri, 'package:myapp/home.dart');
+      expect(frame.line, 12);
+      expect(frame.canOpen, isTrue);
     });
 
     test('a branch switch carries the snapshot origin', () {
-      const frames = <String>['#0 selectTab (package:myapp/nav.dart:8:1)'];
       final ts = diffTransitions(
         _navShell(
           active: 0,
@@ -259,25 +270,31 @@ void main() {
             <String>['A'],
             <String>['B'],
           ],
-          origin: frames,
+          origin: <Map<String, Object?>>[
+            <String, Object?>{
+              'display': '#0 selectTab',
+              'uri': 'package:myapp/nav.dart',
+              'line': 8,
+            },
+          ],
         ),
       );
 
       expect(ts.single.op, 'switchBranch');
-      expect(ts.single.origin, frames);
+      expect(ts.single.origin.single.uri, 'package:myapp/nav.dart');
     });
 
     test('each transition in a sequence keeps its own origin', () {
-      // Five pushes, each from a distinct call site. Diffing consecutive
-      // snapshots yields one transition per step, and each carries the origin
-      // of the snapshot that produced it — so the log shows all five, not just
-      // the most recent.
+      // Five pushes from distinct call sites; each delta yields one transition
+      // carrying the origin of the snapshot that produced it.
       final snaps = <NavSnapshot>[
         _navMain(<String>['S0']),
         for (var i = 1; i <= 5; i++)
           _navMain(
             <String>[for (var j = 0; j <= i; j++) 'S$j'],
-            origin: <String>['#0 step$i (package:myapp/x.dart:$i:1)'],
+            origin: <Map<String, Object?>>[
+              <String, Object?>{'display': 'step$i'},
+            ],
           ),
       ];
 
@@ -288,8 +305,22 @@ void main() {
 
       expect(log, hasLength(5));
       for (var i = 0; i < 5; i++) {
-        expect(log[i].origin.single, contains('step${i + 1}'));
+        expect(log[i].origin.single.display, 'step${i + 1}');
       }
+    });
+
+    test('an unparsed frame is not openable', () {
+      final ts = diffTransitions(
+        _navMain(<String>['Home']),
+        _navMain(
+          <String>['Home', 'Detail'],
+          origin: <Map<String, Object?>>[
+            <String, Object?>{'display': 'opaque frame'},
+          ],
+        ),
+      );
+
+      expect(ts.single.origin.single.canOpen, isFalse);
     });
   });
 }
