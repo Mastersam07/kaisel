@@ -82,6 +82,7 @@ class RootSnapshot {
     required this.guardTrace,
     required this.url,
     required this.history,
+    required this.origin,
   });
 
   /// Decode from the wire format.
@@ -109,6 +110,7 @@ class RootSnapshot {
         : GuardTrace.fromJson(_obj(json['guardTrace'])),
     url: json['url'] as String?,
     history: _strings(json['history']),
+    origin: _strings(json['origin']),
   );
 
   /// Stable root id.
@@ -137,6 +139,11 @@ class RootSnapshot {
 
   /// The main router's past stacks (oldest first), each as a "A → B" label.
   final List<String> history;
+
+  /// App call frames behind the most recent transition (closest first) — the
+  /// "who navigated" for the Transitions log. Empty when there was no app call
+  /// site (a system-back pop) or in release.
+  final List<String> origin;
 }
 
 /// A detected problem in the navigation state.

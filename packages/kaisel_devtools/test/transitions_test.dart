@@ -14,6 +14,7 @@ Map<String, Object?> _stackJson(List<String> labels) => <String, Object?>{
 NavSnapshot _navMain(
   List<String> labels, {
   List<Map<String, Object?>> problems = const <Map<String, Object?>>[],
+  List<String> origin = const <String>[],
 }) => NavSnapshot.fromJson(<String, Object?>{
   'v': 1,
   'roots': <Object?>[
@@ -21,6 +22,7 @@ NavSnapshot _navMain(
       'id': 'r',
       'main': _stackJson(labels),
       'problems': problems,
+      'origin': origin,
     },
   ],
 });
@@ -28,12 +30,14 @@ NavSnapshot _navMain(
 NavSnapshot _navShell({
   required int active,
   required List<List<String>> branches,
+  List<String> origin = const <String>[],
 }) => NavSnapshot.fromJson(<String, Object?>{
   'v': 1,
   'roots': <Object?>[
     <String, Object?>{
       'id': 'r',
       'main': _stackJson(<String>['Home']),
+      'origin': origin,
       'branches': <Object?>[
         <String, Object?>{
           'type': 'Shell',
@@ -224,6 +228,68 @@ void main() {
         ),
         isTrue,
       );
+    });
+  });
+
+  group('transition origin', () {
+    test('a main push carries the snapshot origin (who navigated)', () {
+      const frames = <String>['#0 onTap (package:myapp/home.dart:12:3)'];
+      final ts = diffTransitions(
+        _navMain(<String>['Home']),
+        _navMain(<String>['Home', 'Detail'], origin: frames),
+      );
+
+      expect(ts.single.op, 'push');
+      expect(ts.single.origin, frames);
+    });
+
+    test('a branch switch carries the snapshot origin', () {
+      const frames = <String>['#0 selectTab (package:myapp/nav.dart:8:1)'];
+      final ts = diffTransitions(
+        _navShell(
+          active: 0,
+          branches: <List<String>>[
+            <String>['A'],
+            <String>['B'],
+          ],
+        ),
+        _navShell(
+          active: 1,
+          branches: <List<String>>[
+            <String>['A'],
+            <String>['B'],
+          ],
+          origin: frames,
+        ),
+      );
+
+      expect(ts.single.op, 'switchBranch');
+      expect(ts.single.origin, frames);
+    });
+
+    test('each transition in a sequence keeps its own origin', () {
+      // Five pushes, each from a distinct call site. Diffing consecutive
+      // snapshots yields one transition per step, and each carries the origin
+      // of the snapshot that produced it — so the log shows all five, not just
+      // the most recent.
+      final snaps = <NavSnapshot>[
+        _navMain(<String>['S0']),
+        for (var i = 1; i <= 5; i++)
+          _navMain(
+            <String>[for (var j = 0; j <= i; j++) 'S$j'],
+            origin: <String>['#0 step$i (package:myapp/x.dart:$i:1)'],
+          ),
+      ];
+
+      final log = <Transition>[];
+      for (var i = 1; i < snaps.length; i++) {
+        log.addAll(diffTransitions(snaps[i - 1], snaps[i]));
+      }
+
+      expect(log, hasLength(5));
+      for (var i = 0; i < 5; i++) {
+        expect(log[i].origin.single, contains('step${i + 1}'));
+      }
     });
   });
 }

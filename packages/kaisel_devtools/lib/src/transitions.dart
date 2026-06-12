@@ -3,7 +3,12 @@ import 'snapshot.dart';
 /// One inferred navigation in the transitions log.
 class Transition {
   /// Create a transition.
-  Transition(this.op, this.router, this.label);
+  Transition(
+    this.op,
+    this.router,
+    this.label, {
+    this.origin = const <String>[],
+  });
 
   /// The inferred operation: push / pop / replaceTop / set / switchBranch /
   /// no-op.
@@ -14,6 +19,10 @@ class Transition {
 
   /// The route (or branch) involved.
   final String label;
+
+  /// App call frames behind this navigation (closest first), or empty when the
+  /// running app reported none (a system-back pop, or a release build).
+  final List<String> origin;
 }
 
 /// Infer the navigations between two consecutive snapshots (main stack, then
@@ -25,9 +34,14 @@ List<Transition> diffTransitions(NavSnapshot? prev, NavSnapshot next) {
   final p = prev.roots.first;
   final n = next.roots.first;
 
+  // The snapshot's origin belongs to the change this delta surfaces.
+  final origin = n.origin;
+
   final mainOp = stackOp(p.main.entries, n.main.entries);
   if (mainOp != null) {
-    added.add(_transition(mainOp, 'main', p.main.entries, n.main.entries));
+    added.add(
+      _transition(mainOp, 'main', p.main.entries, n.main.entries, origin),
+    );
   }
 
   for (var s = 0; s < p.branches.length && s < n.branches.length; s++) {
@@ -35,7 +49,12 @@ List<Transition> diffTransitions(NavSnapshot? prev, NavSnapshot next) {
     final ns = n.branches[s];
     if (ps.activeBranch != ns.activeBranch) {
       added.add(
-        Transition('switchBranch', 'shell$s', 'branch ${ns.activeBranch}'),
+        Transition(
+          'switchBranch',
+          'shell$s',
+          'branch ${ns.activeBranch}',
+          origin: origin,
+        ),
       );
     }
     for (var b = 0; b < ps.branches.length && b < ns.branches.length; b++) {
@@ -50,6 +69,7 @@ List<Transition> diffTransitions(NavSnapshot? prev, NavSnapshot next) {
             'shell$s.branch$b',
             ps.branches[b].stack.entries,
             ns.branches[b].stack.entries,
+            origin,
           ),
         );
       }
@@ -88,9 +108,10 @@ Transition _transition(
   String router,
   List<EntrySnapshot> a,
   List<EntrySnapshot> b,
+  List<String> origin,
 ) {
   final label = op == 'pop'
       ? (a.isNotEmpty ? a.last.label : '?')
       : (b.isNotEmpty ? b.last.label : '?');
-  return Transition(op, router, label);
+  return Transition(op, router, label, origin: origin);
 }

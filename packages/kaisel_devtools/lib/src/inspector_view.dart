@@ -877,17 +877,48 @@ class _TransitionsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final mono = theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace');
+    final origin = mono?.copyWith(fontSize: 11, color: theme.hintColor);
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 6),
       itemCount: transitions.length,
       itemBuilder: (context, i) {
         final t = transitions[i];
         final noOp = t.op == 'no-op';
-        return ListTile(
+        final tag = _Tag(text: t.op, tone: noOp ? _Tone.added : _Tone.neutral);
+        final badge = _Badge(text: t.router);
+        if (t.origin.isEmpty) {
+          return ListTile(
+            dense: true,
+            leading: tag,
+            title: Text(t.label, style: mono),
+            trailing: badge,
+          );
+        }
+        return ExpansionTile(
           dense: true,
-          leading: _Tag(text: t.op, tone: noOp ? _Tone.added : _Tone.neutral),
-          title: Text(t.label, style: mono),
-          trailing: _Badge(text: t.router),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+          leading: tag,
+          title: Row(
+            children: [
+              Expanded(child: Text(t.label, style: mono)),
+              const SizedBox(width: 8),
+              badge,
+            ],
+          ),
+          subtitle: Text(
+            t.origin.first,
+            style: origin,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          childrenPadding: const EdgeInsets.fromLTRB(24, 0, 16, 10),
+          children: [
+            for (final frame in t.origin)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: SelectableText(frame, style: origin),
+              ),
+          ],
         );
       },
     );
