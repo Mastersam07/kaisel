@@ -113,6 +113,58 @@ void main() {
       expect(json['url'], isNull);
     });
 
+    test('origin frame serialises and compares by value', () {
+      const located = KaiselOriginFrame(
+        display: 'onTap',
+        uri: 'package:app/x.dart',
+        line: 12,
+        column: 3,
+      );
+      expect(located.toJson(), <String, Object?>{
+        'display': 'onTap',
+        'uri': 'package:app/x.dart',
+        'line': 12,
+        'column': 3,
+      });
+
+      const same = KaiselOriginFrame(
+        display: 'onTap',
+        uri: 'package:app/x.dart',
+        line: 12,
+        column: 3,
+      );
+      const displayOnly = KaiselOriginFrame(display: 'onTap');
+      expect(located, same);
+      expect(located.hashCode, same.hashCode);
+      expect(located == displayOnly, isFalse);
+
+      // A display-only frame omits the null location fields.
+      expect(displayOnly.toJson(), <String, Object?>{'display': 'onTap'});
+    });
+
+    test('root serialises its origin frames', () {
+      const root = KaiselRootSnapshot(
+        id: 'root-0',
+        main: KaiselStackSnapshot(
+          depth: 0,
+          canPop: false,
+          entries: <KaiselEntrySnapshot>[],
+        ),
+        origin: <KaiselOriginFrame>[
+          KaiselOriginFrame(
+            display: 'onTap',
+            uri: 'package:app/x.dart',
+            line: 1,
+          ),
+        ],
+      );
+      expect((root.toJson()['origin'] as List).single, <String, Object?>{
+        'display': 'onTap',
+        'uri': 'package:app/x.dart',
+        'line': 1,
+      });
+    });
+
     test('shell uses kind/branched and nests branch stacks', () {
       const shell = KaiselShellSnapshot(
         type: 'BranchedShellRouter',
