@@ -12,12 +12,6 @@
   closest frame inline, expandable to the full trace. Turns "which tab am I on
   and why" into one glance. Debug-only; compiled out of release.
 
-### Changed
-
-- Requires `kaisel_core: ^0.17.0` (for the navigation-origin APIs).
-
-## 0.17.0
-
 ### Fixed
 
 - **A deep link to a shell branch the current build doesn't mount no longer
@@ -29,6 +23,12 @@
   warning explaining why — and applies the rest of the configuration.
   Programmatic `shell.switchTo(badIndex)` still throws, since that index comes
   from app code rather than an external URL.
+
+### Changed
+
+- Requires `kaisel_core: ^0.17.0` (for the navigation-origin APIs).
+
+## 0.17.0
 
 ### Added
 
