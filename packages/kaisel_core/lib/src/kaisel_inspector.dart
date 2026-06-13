@@ -65,9 +65,9 @@ class KaiselOriginFrame {
   /// Serialise to the wire format.
   Map<String, Object?> toJson() => <String, Object?>{
     'display': display,
-    if (uri != null) 'uri': uri,
-    if (line != null) 'line': line,
-    if (column != null) 'column': column,
+    'uri': ?uri,
+    'line': ?line,
+    'column': ?column,
   };
 
   @override
