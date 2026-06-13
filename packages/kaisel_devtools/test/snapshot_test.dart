@@ -307,5 +307,21 @@ void main() {
       expect(problem('d'), problem('d'));
       expect(problem('d'), isNot(problem('e')));
     });
+
+    test('origin frame equality + canOpen', () {
+      OriginFrame frame({int? line}) => OriginFrame.fromJson(<String, Object?>{
+        'display': 'onTap',
+        'uri': 'package:app/x.dart',
+        'line': ?line,
+        'column': 3,
+      });
+
+      expect(frame(line: 12), frame(line: 12));
+      expect(frame(line: 12).hashCode, frame(line: 12).hashCode);
+      expect(frame(line: 12), isNot(frame(line: 9)));
+
+      expect(frame(line: 12).canOpen, isTrue);
+      expect(frame().canOpen, isFalse);
+    });
   });
 }

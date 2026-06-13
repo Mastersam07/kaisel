@@ -55,6 +55,16 @@ class BranchedShellRouter extends ChangeNotifier
   final List<KaiselNavigator> _branches;
   int _activeBranch;
 
+  StackTrace? _debugLastSwitchOrigin;
+  int _debugLastSwitchSeq = 0;
+
+  /// The call site of the most recent [switchTo], for DevTools. Debug only;
+  /// null in release.
+  StackTrace? get debugLastSwitchOrigin => _debugLastSwitchOrigin;
+
+  /// A monotonic stamp paired with [debugLastSwitchOrigin]. Debug only.
+  int get debugLastSwitchSeq => _debugLastSwitchSeq;
+
   /// The branches, as a non-generic view. Use your own typed
   /// references to access type-safe navigation methods.
   List<KaiselNavigator> get branches => _branches;
@@ -86,6 +96,11 @@ class BranchedShellRouter extends ChangeNotifier
     }
     if (branch == _activeBranch) return;
     _activeBranch = branch;
+    assert(() {
+      _debugLastSwitchOrigin = StackTrace.current;
+      _debugLastSwitchSeq = kaiselNextOriginSeq();
+      return true;
+    }());
     notifyListeners();
   }
 
@@ -109,13 +124,20 @@ class BranchedShellRouter extends ChangeNotifier
   @override
   Future<void> restoreFromConfig(KaiselNestedConfig config) async {
     if (config is! KaiselShellConfig) return;
+    // A restored config is external input: a deep link can name a branch this
+    // build doesn't mount. Skip it rather than throw (switchTo still throws).
     if (config.activeBranch < 0 || config.activeBranch >= _branches.length) {
-      throw RangeError.range(
-        config.activeBranch,
-        0,
-        _branches.length - 1,
-        'config.activeBranch',
-      );
+      assert(() {
+        debugPrint(
+          'kaisel: ignoring restored shell branch ${config.activeBranch} — '
+          'this shell mounts ${_branches.length} '
+          'branch${_branches.length == 1 ? '' : 'es'} '
+          '(0..${_branches.length - 1}). The deep link or codec targets a '
+          'branch that does not exist on this build.',
+        );
+        return true;
+      }());
+      return;
     }
     // Restore the target branch's stack first so when we switch to it
     // the UI is already in the right state. Inactive branches are
