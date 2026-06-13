@@ -611,7 +611,35 @@ class KaiselRouterDelegate<R extends KaiselRoute>
         for (final stack in router.debugHistory)
           stack.map((r) => '$r').join(' → '),
       ],
+      origin: _originFrames(),
     );
+  }
+
+  // The app call site behind the most recent transition across the main
+  // router, the shells, and their branches — the highest origin stamp wins.
+  List<KaiselOriginFrame> _originFrames() {
+    StackTrace? best;
+    var bestSeq = 0;
+    void consider(StackTrace? trace, int seq) {
+      if (seq > bestSeq) {
+        bestSeq = seq;
+        best = trace;
+      }
+    }
+
+    consider(router.debugLastTransitionOrigin, router.debugLastTransitionSeq);
+    for (final handle in _nested) {
+      if (handle is BranchedShellRouter) {
+        consider(handle.debugLastSwitchOrigin, handle.debugLastSwitchSeq);
+        for (final branch in handle.branches) {
+          consider(
+            branch.debugLastTransitionOrigin,
+            branch.debugLastTransitionSeq,
+          );
+        }
+      }
+    }
+    return kaiselOriginFrames(best);
   }
 
   List<KaiselProblemSnapshot> _problems(KaiselProblemSnapshot? codecProblem) {

@@ -3,8 +3,59 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 
 import 'kaisel_guard.dart';
+import 'kaisel_inspector.dart' show KaiselOriginFrame;
 import 'kaisel_notifier.dart';
 import 'kaisel_route.dart';
+
+int _originSeq = 0;
+
+/// Issues the next monotonic stamp for a navigation origin, shared across
+/// every router and shell so a DevTools host can order transitions by
+/// recency. Debug-only bookkeeping; exposed via `kaisel_core/framework.dart`.
+int kaiselNextOriginSeq() => ++_originSeq;
+
+const _frameworkFramePrefixes = <String>[
+  'package:kaisel/',
+  'package:kaisel_core/',
+  'package:flutter/',
+];
+
+// The dart: SDK scheme is a library letter after the colon (`dart:async`),
+// which distinguishes it from a `foo.dart:42` file-and-line in any frame.
+final _sdkFrame = RegExp(r'dart:[a-z]');
+
+// A source location in either trace format: VM `(uri:line:col)` or web
+// `uri line:col` (colon vs whitespace before the line).
+final _frameLocation = RegExp(
+  r'((?:package:|dart:|file://)[^\s():]+\.dart)[:\s](\d+):(\d+)',
+);
+
+/// Reduces a captured navigation origin to the app call frames behind it —
+/// dropping kaisel, Flutter, and SDK frames plus async-suspension markers, and
+/// keeping the closest [limit]. Each frame keeps its display line and, when the
+/// location parses, the source uri/line/column (so a host can open it in an
+/// editor). Empty for a null trace. Exposed via `kaisel_core/framework.dart`.
+List<KaiselOriginFrame> kaiselOriginFrames(StackTrace? trace, {int limit = 5}) {
+  if (trace == null) return const <KaiselOriginFrame>[];
+  final frames = <KaiselOriginFrame>[];
+  for (final raw in trace.toString().split('\n')) {
+    final line = raw.trim();
+    if (line.isEmpty || line == '<asynchronous suspension>') continue;
+    if (_sdkFrame.hasMatch(line)) continue;
+    if (_frameworkFramePrefixes.any(line.contains)) continue;
+    final match = _frameLocation.firstMatch(line);
+    frames.add(
+      KaiselOriginFrame(
+        display: line,
+        uri: match?.group(1),
+        line: int.tryParse(match?.group(2) ?? ''),
+        column: int.tryParse(match?.group(3) ?? ''),
+      ),
+    );
+    if (frames.length >= limit) break;
+  }
+  return frames;
+}
 
 /// Non-generic view of a [KaiselRouter]'s navigation primitives.
 ///
@@ -37,6 +88,15 @@ abstract class KaiselNavigator implements KaiselListenable {
   /// The most recent no-op navigation on this router, for DevTools. Debug
   /// only; null in release. See [KaiselRouter.debugLastNoOp].
   KaiselNoOp? get debugLastNoOp;
+
+  /// The call site that issued this router's most recent committed
+  /// navigation, for DevTools. Debug only; null in release (and for changes
+  /// with no app call site, e.g. a system-back pop).
+  StackTrace? get debugLastTransitionOrigin;
+
+  /// A monotonic stamp paired with [debugLastTransitionOrigin], so a host can
+  /// tell which router transitioned most recently. Debug only; 0 in release.
+  int get debugLastTransitionSeq;
 
   /// Stack positions absorbed by adaptive rendering, for DevTools. Empty for
   /// non-adaptive routers. See [KaiselRouter.debugAbsorbedPositions].
@@ -139,6 +199,10 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   final List<List<R>> _debugHistory = <List<R>>[];
   static const int _debugHistoryCap = 30;
 
+  StackTrace? _activeOrigin;
+  StackTrace? _debugLastOrigin;
+  int _debugLastOriginSeq = 0;
+
   /// The current stack as a read-only list of routes.
   @override
   List<R> get stack => List<R>.unmodifiable(_entries.map((e) => e.route));
@@ -208,6 +272,35 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   /// routes, oldest first), for DevTools time-travel. Empty in release.
   List<List<R>> get debugHistory => List<List<R>>.unmodifiable(_debugHistory);
 
+  @override
+  StackTrace? get debugLastTransitionOrigin => _debugLastOrigin;
+
+  @override
+  int get debugLastTransitionSeq => _debugLastOriginSeq;
+
+  /// Captures the caller's stack as a navigation origin. Debug-only: the
+  /// `assert` side-effect is stripped in release, so it returns null and
+  /// costs nothing there.
+  StackTrace? _captureOrigin() {
+    StackTrace? origin;
+    assert(() {
+      origin = StackTrace.current;
+      return true;
+    }());
+    return origin;
+  }
+
+  /// Like [_enqueue], but tags the task with the caller's stack so a
+  /// committed change records where it came from. The origin is captured now
+  /// (the call site) and made active when the serialized task runs.
+  Future<T> _enqueueOrigin<T>(Future<T> Function() task) {
+    final origin = _captureOrigin();
+    return _enqueue(() {
+      _activeOrigin = origin;
+      return task();
+    });
+  }
+
   void _recordHistory() {
     assert(() {
       _debugHistory.add(<R>[for (final entry in _entries) entry.route]);
@@ -217,7 +310,8 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   }
 
   /// Push a route onto the top of the stack. Runs through guards.
-  Future<void> push(R route) => _enqueue(() => _navigate([...stack, route]));
+  Future<void> push(R route) =>
+      _enqueueOrigin(() => _navigate([...stack, route]));
 
   /// Pop the top route. Returns `false` if the stack has only one route
   /// (we never pop to empty). Runs through guards.
@@ -226,7 +320,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   /// stack, so two pops in a row from a 3-deep stack pop both routes
   /// rather than silently coalescing.
   @override
-  Future<bool> pop() => _enqueue(() async {
+  Future<bool> pop() => _enqueueOrigin(() async {
     if (!canPop) return false;
     final next = stack.sublist(0, stack.length - 1);
     await _navigate(next);
@@ -237,7 +331,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   ///
   /// Only ever touches the top entry; the rest of the stack is
   /// untouched.
-  Future<void> replaceTop(R route) => _enqueue(() {
+  Future<void> replaceTop(R route) => _enqueueOrigin(() {
     final next = [...stack];
     if (next.isEmpty) {
       // coverage:ignore-start
@@ -288,12 +382,12 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       throw ArgumentError('Stack must contain at least one route.');
     }
     final captured = List<R>.of(routes);
-    return _enqueue(() => _navigate(captured));
+    return _enqueueOrigin(() => _navigate(captured));
   }
 
   /// Pop routes until [predicate] returns true for the top route, or
   /// only one route remains on the stack. Runs through guards.
-  Future<void> popUntil(bool Function(R route) predicate) => _enqueue(() {
+  Future<void> popUntil(bool Function(R route) predicate) => _enqueueOrigin(() {
     final next = [...stack];
     while (next.length > 1 && !predicate(next.last)) {
       next.removeLast();
@@ -317,13 +411,18 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     if (i == -1) return; // already removed
     if (_entries.length == 1) return; // refuse to pop to empty
     _entries.removeAt(i);
+    assert(() {
+      _debugLastOrigin = null; // system back — no app call site
+      _debugLastOriginSeq = kaiselNextOriginSeq();
+      return true;
+    }());
     notifyListeners();
   }
 
   /// Called by the delegate on incoming deep links / route information.
   /// Framework-facing; exposed via `package:kaisel_core/framework.dart`.
   Future<void> applyFromInformation(List<R> stack) =>
-      _enqueue(() => _navigate(stack));
+      _enqueueOrigin(() => _navigate(stack));
 
   /// Type-erased restore from a URL decode. Each element of [stack]
   /// must be assignable to `R`; if not, throws [ArgumentError] before
@@ -534,6 +633,8 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       ..addAll(newEntries);
     assert(() {
       _debugLastNoOp = null;
+      _debugLastOrigin = _activeOrigin;
+      _debugLastOriginSeq = kaiselNextOriginSeq();
       return true;
     }());
     _recordHistory();

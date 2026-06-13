@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:devtools_app_shared/service.dart';
 import 'package:devtools_extensions/devtools_extensions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kaisel_devtools/src/transitions.dart';
@@ -67,6 +68,47 @@ class InspectorController extends ChangeNotifier {
           '${ok ? '✓' : '✗'} ${json?['message'] ?? (ok ? 'ok' : 'failed')}';
     } catch (e) {
       lastCommandResult.value = '✗ $e';
+    }
+  }
+
+  /// Open [frame]'s source in the connected IDE. Resolves a `package:` URI to a
+  /// file via the VM service, then posts a navigate event — a no-op when no IDE
+  /// is listening.
+  Future<void> openInEditor(OriginFrame frame) async {
+    final uri = frame.uri;
+    final line = frame.line;
+    if (uri == null || line == null) return;
+    final service = serviceManager.service;
+    if (service == null) return;
+
+    String? fileUri;
+    if (uri.startsWith('file:')) {
+      fileUri = uri;
+    } else {
+      final isolateId = serviceManager.isolateManager.mainIsolate.value?.id;
+      if (isolateId == null) return;
+      try {
+        final resolved = await service.lookupResolvedPackageUris(
+          isolateId,
+          <String>[uri],
+        );
+        final uris = resolved.uris;
+        if (uris != null && uris.isNotEmpty) fileUri = uris.first;
+      } catch (_) {
+        return;
+      }
+    }
+    if (fileUri == null) return;
+
+    try {
+      await service.navigateToCode(
+        fileUriString: fileUri,
+        line: line,
+        column: frame.column ?? 1,
+        source: 'kaisel.transitions',
+      );
+    } catch (_) {
+      // No IDE listening, or the navigate failed.
     }
   }
 
