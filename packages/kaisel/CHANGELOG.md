@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.18.0
+
+### Added
+
+- **"Who navigated" in DevTools** — every entry in the Transitions log now
+  carries the app call site that triggered it. In debug, each `push` / `pop` /
+  `set` / `replaceTop` and each shell `switchTo` records the caller's stack;
+  `debugSnapshot()` reports the app frames (kaisel, Flutter, and SDK frames
+  trimmed away) on `KaiselRootSnapshot.origin`, and the extension shows the
+  closest frame inline, expandable to the full trace. Turns "which tab am I on
+  and why" into one glance. Debug-only; compiled out of release.
+
+### Changed
+
+- Requires `kaisel_core: ^0.17.0` (for the navigation-origin APIs).
+
 ## 0.17.0
 
 ### Fixed

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.17.0
+
+### Added
+
+- **Navigation origin tracking** for DevTools. Each committed navigation now
+  records the app call site that issued it: `KaiselNavigator` exposes
+  `debugLastTransitionOrigin` (the captured `StackTrace`) and a monotonic
+  `debugLastTransitionSeq`, and `KaiselRootSnapshot` carries an `origin` list of
+  the app frames behind the most recent transition. Two helpers back it —
+  `kaiselNextOriginSeq()` and `kaiselOriginFrames()` (trims kaisel, Flutter, and
+  SDK frames to the caller) — exposed via `kaisel_core/framework.dart`. Each
+  frame is a `KaiselOriginFrame` carrying its display line plus a parsed
+  `uri`/`line`/`column` (when locatable), so a DevTools host can open it in an
+  editor. Capture is `assert`-gated, so it costs nothing and is null in release.
+
 ## 0.16.0
 
 ### Changed (breaking)
