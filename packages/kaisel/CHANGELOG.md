@@ -12,6 +12,18 @@
   closest frame inline, expandable to the full trace. Turns "which tab am I on
   and why" into one glance. Debug-only; compiled out of release.
 
+### Fixed
+
+- **A deep link to a shell branch the current build doesn't mount no longer
+  throws.** `BranchedShellRouter.restoreFromConfig` treated an out-of-range
+  branch index as a fatal `RangeError`, so a codec that addresses a branch
+  present only on some form factors (e.g. a desktop-only tab opened on a build
+  with fewer branches) would abort the restore and silently strand the user on
+  the default branch. The restore now skips an unknown branch — with a debug
+  warning explaining why — and applies the rest of the configuration.
+  Programmatic `shell.switchTo(badIndex)` still throws, since that index comes
+  from app code rather than an external URL.
+
 ### Changed
 
 - Requires `kaisel_core: ^0.17.0` (for the navigation-origin APIs).

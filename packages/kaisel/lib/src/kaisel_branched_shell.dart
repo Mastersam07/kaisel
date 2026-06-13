@@ -124,13 +124,20 @@ class BranchedShellRouter extends ChangeNotifier
   @override
   Future<void> restoreFromConfig(KaiselNestedConfig config) async {
     if (config is! KaiselShellConfig) return;
+    // A restored config is external input: a deep link can name a branch this
+    // build doesn't mount. Skip it rather than throw (switchTo still throws).
     if (config.activeBranch < 0 || config.activeBranch >= _branches.length) {
-      throw RangeError.range(
-        config.activeBranch,
-        0,
-        _branches.length - 1,
-        'config.activeBranch',
-      );
+      assert(() {
+        debugPrint(
+          'kaisel: ignoring restored shell branch ${config.activeBranch} — '
+          'this shell mounts ${_branches.length} '
+          'branch${_branches.length == 1 ? '' : 'es'} '
+          '(0..${_branches.length - 1}). The deep link or codec targets a '
+          'branch that does not exist on this build.',
+        );
+        return true;
+      }());
+      return;
     }
     // Restore the target branch's stack first so when we switch to it
     // the UI is already in the right state. Inactive branches are
