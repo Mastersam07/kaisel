@@ -28,8 +28,8 @@ class RouteCodec<R extends KaiselRoute> extends KaiselConfigCodec<R> {
   @override
   KaiselConfig<R>? decode(Uri uri) {
     for (final rule in _rules) {
-      final stack = rule.decode(uri);
-      if (stack != null) return KaiselConfig<R>(mainStack: stack);
+      final config = rule.decode(uri);
+      if (config != null) return config;
     }
     final fb = fallback?.call(uri);
     return fb == null ? null : KaiselConfig<R>(mainStack: fb);
@@ -37,12 +37,11 @@ class RouteCodec<R extends KaiselRoute> extends KaiselConfigCodec<R> {
 
   @override
   Uri encode(KaiselConfig<R> config) {
-    final leaf = config.mainStack.last;
     for (final rule in _rules) {
-      final uri = rule.encode(leaf);
+      final uri = rule.encode(config);
       if (uri != null) return uri;
     }
-    // No rule owns this leaf — fall back to the index path. A complete codec
+    // No rule owns this config — fall back to the index path. A complete codec
     // has a rule for every route; `debugAssertRoundTrips` surfaces the gap.
     return Uri(path: '/');
   }

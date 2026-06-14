@@ -25,17 +25,19 @@ final class _Order extends _App {
   List<Object?> get props => [id, page];
 }
 
+KaiselConfig<_App> _cfg(List<_App> stack) => KaiselConfig(mainStack: stack);
+
 void main() {
   group('fixed', () {
     final Rule<_App> rule = fixed(const _Home(), root);
 
     test('decodes / to [Home] and encodes Home to /', () {
-      expect(rule.decode(Uri.parse('/')), const [_Home()]);
-      expect(rule.encode(const _Home()).toString(), '/');
+      expect(rule.decode(Uri.parse('/'))?.mainStack, const [_Home()]);
+      expect(rule.encode(_cfg(const [_Home()]))?.toString(), '/');
     });
 
     test('does not own a different route or a different url', () {
-      expect(rule.encode(const _ProductDetail('x')), isNull);
+      expect(rule.encode(_cfg(const [_ProductDetail('x')])), isNull);
       expect(rule.decode(Uri.parse('/products/x')), isNull);
     });
   });
@@ -46,27 +48,20 @@ void main() {
         .from((r) => r is _ProductDetail ? r.props : null);
 
     test('decodes a single-param url to the leaf', () {
-      expect(rule.decode(Uri.parse('/products/sku-9')), const [
+      expect(rule.decode(Uri.parse('/products/sku-9'))?.mainStack, const [
         _ProductDetail('sku-9'),
       ]);
     });
 
     test('encodes via props', () {
       expect(
-        rule.encode(const _ProductDetail('sku-9')).toString(),
+        rule.encode(_cfg(const [_ProductDetail('sku-9')]))?.toString(),
         '/products/sku-9',
       );
     });
 
     test('does not own another route type', () {
-      expect(rule.encode(const _Home()), isNull);
-    });
-
-    test('round-trips', () {
-      const route = _ProductDetail('abc');
-      final encoded = rule.encode(route);
-      expect(encoded, isNotNull);
-      expect(rule.decode(encoded ?? Uri()), const [route]);
+      expect(rule.encode(_cfg(const [_Home()])), isNull);
     });
   });
 
@@ -77,8 +72,8 @@ void main() {
 
     test('round-trips two captures in props order', () {
       const route = _Order('o-1', 3);
-      expect(rule.decode(Uri.parse('/orders/o-1/3')), const [route]);
-      expect(rule.encode(route).toString(), '/orders/o-1/3');
+      expect(rule.decode(Uri.parse('/orders/o-1/3'))?.mainStack, const [route]);
+      expect(rule.encode(_cfg(const [route]))?.toString(), '/orders/o-1/3');
     });
   });
 
@@ -89,11 +84,14 @@ void main() {
         .from((r) => r is _ProductDetail ? r.props : null);
 
     test('decodes onto the breadcrumb; encode still keys on the leaf', () {
-      expect(rule.decode(Uri.parse('/products/x')), const [
+      expect(rule.decode(Uri.parse('/products/x'))?.mainStack, const [
         _Home(),
         _ProductDetail('x'),
       ]);
-      expect(rule.encode(const _ProductDetail('x')).toString(), '/products/x');
+      expect(
+        rule.encode(_cfg(const [_ProductDetail('x')]))?.toString(),
+        '/products/x',
+      );
     });
   });
 
@@ -103,21 +101,26 @@ void main() {
         .from((r) => r is _ProductDetail ? [r.id] : null);
 
     test('round-trips', () {
-      expect(rule.decode(Uri.parse('/p/z')), const [_ProductDetail('z')]);
-      expect(rule.encode(const _ProductDetail('z')).toString(), '/p/z');
+      expect(rule.decode(Uri.parse('/p/z'))?.mainStack, const [
+        _ProductDetail('z'),
+      ]);
+      expect(
+        rule.encode(_cfg(const [_ProductDetail('z')]))?.toString(),
+        '/p/z',
+      );
     });
   });
 
   group('Rule.custom', () {
-    final rule = Rule<_App>.custom(
-      decode: (uri) => uri.path == '/legacy' ? const [_Home()] : null,
-      encode: (route) => null,
+    final Rule<_App> rule = Rule<_App>.custom(
+      decode: (uri) => uri.path == '/legacy' ? _cfg(const [_Home()]) : null,
+      encode: (config) => null,
     );
 
     test('uses the hand-written directions', () {
-      expect(rule.decode(Uri.parse('/legacy')), const [_Home()]);
+      expect(rule.decode(Uri.parse('/legacy'))?.mainStack, const [_Home()]);
       expect(rule.decode(Uri.parse('/other')), isNull);
-      expect(rule.encode(const _Home()), isNull);
+      expect(rule.encode(_cfg(const [_Home()])), isNull);
     });
   });
 }

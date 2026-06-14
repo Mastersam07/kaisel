@@ -105,7 +105,9 @@ void main() {
           fixed(const _Home(), seg('wrong')),
           Rule<_App>.custom(
             decode: (uri) => null,
-            encode: (r) => r is _ProductDetail ? Uri(path: '/wrong') : null,
+            encode: (config) => config.mainStack.last is _ProductDetail
+                ? Uri(path: '/wrong')
+                : null,
           ),
         ],
       );
