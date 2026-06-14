@@ -1,5 +1,6 @@
 # kaisel — monorepo
 
+[![pub package](https://img.shields.io/pub/v/kaisel.svg?color=blue)](https://pub.dev/packages/kaisel)
 [![CI](https://github.com/Mastersam07/kaisel/actions/workflows/ci.yml/badge.svg)](https://github.com/Mastersam07/kaisel/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/github/Mastersam07/kaisel/branch/dev/graph/badge.svg?token=tHYIe4iPGo)](https://codecov.io/github/Mastersam07/kaisel)
 
