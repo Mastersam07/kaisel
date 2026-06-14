@@ -14,6 +14,14 @@
 
 ### Fixed
 
+- **`initial:` is now honored on a normal launch**, even with a `codec`. The
+  platform's default route (`/`) was always decoded and applied at startup, so a
+  router whose `initial` mapped elsewhere (e.g. a splash) would render that
+  screen and then flash straight to the decoded `/` route before its own onward
+  navigation could run. A bare launch (no path segments) now keeps `initial:`; a
+  real cold-start deep link still wins. No change for apps whose `initial`
+  already maps to `/`.
+
 - **A deep link to a shell branch the current build doesn't mount no longer
   throws.** `BranchedShellRouter.restoreFromConfig` treated an out-of-range
   branch index as a fatal `RangeError`, so a codec that addresses a branch
