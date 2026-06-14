@@ -5,5 +5,6 @@
 /// barrel) while it is exploratory. See `doc/design/codec-dsl.md`.
 library;
 
+export 'src/codec/route_codec.dart';
 export 'src/codec/rule.dart';
 export 'src/codec/url_pattern.dart';
