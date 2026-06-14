@@ -91,10 +91,56 @@ void main() {
     });
   });
 
+  group('query params', () {
+    test('required: captures when present, no match when absent', () {
+      final p = path.seg('search').query(queryStr('q'));
+      expect(p.parseUri(Uri.parse('/search?q=shoes')), ('shoes',));
+      expect(p.parseUri(Uri.parse('/search')), isNull); // required, absent
+      expect(p.printUri(('shoes',)).toString(), '/search?q=shoes');
+    });
+
+    test('optional: null when absent, value when present, always matches', () {
+      final p = path.seg('search').query(queryStrOpt('city'));
+      expect(p.parseUri(Uri.parse('/search')), (null,));
+      expect(p.parseUri(Uri.parse('/search?city=NYC')), ('NYC',));
+      expect(p.printUri((null,)).toString(), '/search'); // omitted when null
+      expect(p.printUri(('NYC',)).toString(), '/search?city=NYC');
+    });
+
+    test('orElse: absent reads as default; default value omits the key', () {
+      final p = path.seg('list').query(queryInt('page', orElse: 1));
+      expect(p.parseUri(Uri.parse('/list')), (1,)); // absent → default
+      expect(p.parseUri(Uri.parse('/list?page=3')), (3,));
+      expect(p.printUri((1,)).toString(), '/list'); // default omitted
+      expect(p.printUri((3,)).toString(), '/list?page=3');
+    });
+
+    test('path + multiple query params capture in order', () {
+      final p = path
+          .seg('search')
+          .query(queryStr('q'))
+          .query(queryInt('page', orElse: 1));
+      final caps = p.parseUri(Uri.parse('/search?q=shoes&page=2'));
+      expect(caps, ('shoes', 2));
+      expect(caps?.$1, 'shoes');
+      expect(caps?.$2, 2);
+    });
+
+    test('query does not consume path segments', () {
+      final p = path.seg('search').query(queryStrOpt('q'));
+      expect(p.parseUri(Uri.parse('/search/extra')), isNull); // trailing path
+    });
+  });
+
   group('round-trip property', () {
-    test('parse(print(x)) == x', () {
-      final p = path.seg('chat').param(str).param(intg).param(boolg);
-      const x = ('room', 5, false);
+    test('parse(print(x)) == x for path + query', () {
+      final p = path
+          .seg('chat')
+          .param(str)
+          .param(intg)
+          .query(queryStr('q'))
+          .query(queryInt('page', orElse: 1));
+      const x = ('room', 5, 'hi', 3);
       expect(p.parseUri(p.printUri(x)), x);
     });
   });

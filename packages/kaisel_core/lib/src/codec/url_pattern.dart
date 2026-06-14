@@ -138,6 +138,105 @@ class _EnumParam<E extends Enum> extends UrlParam<E> {
   String format(E v) => v.name;
 }
 
+/// A query parameter that captures a value of type [A] in both directions.
+abstract class QueryParam<A> {
+  /// Const base so query params can be const.
+  const QueryParam();
+
+  /// Read from [query]: null means no match (fails the pattern); otherwise the
+  /// (possibly-null) captured value.
+  ({A value})? read(Map<String, String> query);
+
+  /// Write [value] into [query] — may omit it (e.g. when it equals a default).
+  void write(A value, Map<String, String> query);
+}
+
+/// A required query param captured as a `String` (no match if the key is
+/// absent).
+QueryParam<String> queryStr(String key) =>
+    _ReqQuery<String>(key, (s) => s, (v) => v);
+
+/// A required query param parsed as an `int` (no match if absent or not an int).
+QueryParam<int> queryIntReq(String key) =>
+    _ReqQuery<int>(key, int.tryParse, (v) => '$v');
+
+/// An optional query param as a `String?` — null when the key is absent.
+QueryParam<String?> queryStrOpt(String key) =>
+    _OptQuery<String>(key, (s) => s, (v) => v);
+
+/// An optional query param parsed as an `int?` — null when absent or invalid.
+QueryParam<int?> queryIntOpt(String key) =>
+    _OptQuery<int>(key, int.tryParse, (v) => '$v');
+
+/// An optional query param parsed as a `bool?`.
+QueryParam<bool?> queryBoolOpt(String key) =>
+    _OptQuery<bool>(key, boolg.parse, (v) => '$v');
+
+/// An optional query param matched against an enum's `.name`.
+QueryParam<E?> queryEnumOpt<E extends Enum>(String key, List<E> values) {
+  final param = enumParam(values);
+  return _OptQuery<E>(key, param.parse, (v) => v.name);
+}
+
+/// A query param with a default: absent reads as [orElse]; writing a value
+/// equal to [orElse] omits the key, so a default-valued state has a clean URL.
+QueryParam<int> queryInt(String key, {required int orElse}) =>
+    _DefQuery<int>(key, int.tryParse, (v) => '$v', orElse);
+
+class _ReqQuery<A> extends QueryParam<A> {
+  const _ReqQuery(this.key, this._parse, this._format);
+  final String key;
+  final A? Function(String) _parse;
+  final String Function(A) _format;
+  @override
+  ({A value})? read(Map<String, String> q) {
+    final s = q[key];
+    if (s == null) return null;
+    final v = _parse(s);
+    return v == null ? null : (value: v);
+  }
+
+  @override
+  void write(A value, Map<String, String> q) => q[key] = _format(value);
+}
+
+class _OptQuery<A> extends QueryParam<A?> {
+  const _OptQuery(this.key, this._parse, this._format);
+  final String key;
+  final A? Function(String) _parse;
+  final String Function(A) _format;
+  @override
+  ({A? value})? read(Map<String, String> q) {
+    final s = q[key];
+    return (value: s == null ? null : _parse(s));
+  }
+
+  @override
+  void write(A? value, Map<String, String> q) {
+    if (value != null) q[key] = _format(value);
+  }
+}
+
+class _DefQuery<A> extends QueryParam<A> {
+  const _DefQuery(this.key, this._parse, this._format, this.orElse);
+  final String key;
+  final A? Function(String) _parse;
+  final String Function(A) _format;
+  final A orElse;
+  @override
+  ({A value})? read(Map<String, String> q) {
+    final s = q[key];
+    if (s == null) return (value: orElse);
+    final v = _parse(s);
+    return v == null ? null : (value: v);
+  }
+
+  @override
+  void write(A value, Map<String, String> q) {
+    if (value != orElse) q[key] = _format(value);
+  }
+}
+
 /// A URL fragment that captures a value of type [T] in both directions.
 abstract class UrlPattern<T> {
   /// Const base so patterns can be const.
@@ -191,6 +290,17 @@ class _Par extends _Step {
 _Par _par<A>(UrlParam<A> param) =>
     _Par((s) => param.parse(s), (v) => param.format(v as A));
 
+class _Query extends _Step {
+  const _Query(this.read, this.write);
+  final List<Object?>? Function(Map<String, String> query) read;
+  final void Function(Object? value, Map<String, String> query) write;
+}
+
+_Query _query<A>(QueryParam<A> param) => _Query((query) {
+  final result = param.read(query);
+  return result == null ? null : <Object?>[result.value];
+}, (value, query) => param.write(value as A, query));
+
 /// Shared parse/write over the ordered [steps]; subclasses construct the
 /// typed record from the raw captures.
 abstract class _Path<T> extends UrlPattern<T> {
@@ -211,6 +321,10 @@ abstract class _Path<T> extends UrlPattern<T> {
           if (value == null) return null;
           r.take();
           captures.add(value);
+        case _Query(:final read):
+          final result = read(r.query);
+          if (result == null) return null;
+          captures.add(result[0]);
       }
     }
     return captures;
@@ -224,6 +338,8 @@ abstract class _Path<T> extends UrlPattern<T> {
           w.segments.add(literal);
         case _Par(:final format):
           w.segments.add(format(captures[i++]));
+        case _Query(:final write):
+          write(captures[i++], w.query);
       }
     }
   }
@@ -239,6 +355,9 @@ class Path0 extends _Path<Unit> {
 
   /// Append a typed param, capturing [A].
   Path1<A> param<A>(UrlParam<A> p) => Path1<A>(<_Step>[...steps, _par(p)]);
+
+  /// Append a query param, capturing [A].
+  Path1<A> query<A>(QueryParam<A> q) => Path1<A>(<_Step>[...steps, _query(q)]);
 
   @override
   Unit? parse(UrlReader r) => parseRaw(r) == null ? null : ();
@@ -257,6 +376,10 @@ class Path1<A> extends _Path<(A,)> {
   /// Append a typed param, capturing [B].
   Path2<A, B> param<B>(UrlParam<B> p) =>
       Path2<A, B>(<_Step>[...steps, _par(p)]);
+
+  /// Append a query param, capturing [B].
+  Path2<A, B> query<B>(QueryParam<B> q) =>
+      Path2<A, B>(<_Step>[...steps, _query(q)]);
 
   @override
   (A,)? parse(UrlReader r) {
@@ -281,6 +404,10 @@ class Path2<A, B> extends _Path<(A, B)> {
   Path3<A, B, C> param<C>(UrlParam<C> p) =>
       Path3<A, B, C>(<_Step>[...steps, _par(p)]);
 
+  /// Append a query param, capturing [C].
+  Path3<A, B, C> query<C>(QueryParam<C> q) =>
+      Path3<A, B, C>(<_Step>[...steps, _query(q)]);
+
   @override
   (A, B)? parse(UrlReader r) {
     final c = parseRaw(r);
@@ -304,6 +431,10 @@ class Path3<A, B, C> extends _Path<(A, B, C)> {
   /// Append a typed param, capturing [D].
   Path4<A, B, C, D> param<D>(UrlParam<D> p) =>
       Path4<A, B, C, D>(<_Step>[...steps, _par(p)]);
+
+  /// Append a query param, capturing [D].
+  Path4<A, B, C, D> query<D>(QueryParam<D> q) =>
+      Path4<A, B, C, D>(<_Step>[...steps, _query(q)]);
 
   @override
   (A, B, C)? parse(UrlReader r) {
