@@ -1,30 +1,18 @@
 /// Bidirectional URL patterns — the substrate of the typed codec DSL.
 ///
-/// A [UrlPattern] both *parses* a URL into a typed capture and *writes* that
-/// capture back into a URL, from one declaration, so the two directions are
-/// inverse by construction. Captures are records: the empty [Unit] for a
-/// path with no params, `(String,)` for one, `(String, int)` for two, …
+/// A [UrlPattern] both *parses* a URL into captured values and *writes* those
+/// values back into a URL, from one declaration, so the two directions are
+/// inverse by construction. Patterns compose with `/` to any arity; captures
+/// accumulate positionally and are read at the build boundary through the
+/// typed [Captures] accessors (`c.string(0)`, `c.integer(1)`, …).
 ///
-/// Build a pattern fluently from [path], adding literal segments with `.seg`
-/// and typed params with `.param`:
-///
-/// ```dart
-/// final chat = path.seg('chat').param(str).param(intg); // UrlPattern<(String, int)>
-/// chat.printUri(('room', 5));        // Uri /chat/room/5
-/// chat.parseUri(Uri.parse('/chat/room/5')); // ('room', 5)
-/// ```
-///
-/// Composition is a fluent builder rather than a `/` operator because Dart has
-/// no type-level record concatenation (an operator can't turn `(A,)` and
-/// `(B,)` into `(A, B)`). The builder threads the arity through [Path0]–[Path4],
-/// so captures stay flat and typed (`c.$1`, `c.$2`) with no casts. Four params
-/// is the cap; beyond that, a custom [UrlPattern].
-///
-/// See `doc/design/codec-dsl.md` for the full design.
+/// Captures are a `List<Object?>` rather than a record tuple because Dart can't
+/// append to a record type generically (an operator can't turn `(A,)` and
+/// `(B,)` into `(A, B)`, and records have no spread). The list model takes no
+/// per-arity classes and no generator and composes to any depth; the typed
+/// accessors recover safety at the one boundary where a route is built, and the
+/// codec's round-trip self-check (a later step) catches any mismatch at startup.
 library;
-
-/// The empty capture — a path with no params.
-typedef Unit = ();
 
 /// A forward cursor over a URL's path segments and query, for parsing.
 class UrlReader {
@@ -71,399 +59,326 @@ class UrlWriter {
   );
 }
 
-/// A single path segment that captures a value of type [A] in both directions.
-abstract class UrlParam<A> {
-  /// Const base so params can be const.
-  const UrlParam();
+/// A cursor over captured values, consumed positionally while writing.
+class CaptureCursor {
+  /// Cursor over [values].
+  CaptureCursor(this.values);
 
-  /// Parse one [segment]; null if it doesn't match.
-  A? parse(String segment);
+  /// The captures, in pattern order.
+  final List<Object?> values;
+  int _index = 0;
 
-  /// Render [value] as one segment.
-  String format(A value);
+  /// Consume the next capture.
+  Object? take() => values[_index++];
 }
 
-/// Captures one path segment verbatim as a `String`.
-const UrlParam<String> str = _StrParam();
+/// Typed, positional access to a pattern's captures, for building a route.
+class Captures {
+  /// Wrap the raw [values].
+  const Captures(this.values);
 
-/// Captures one path segment parsed as an `int` (no match if not an int).
-const UrlParam<int> intg = _IntParam();
+  /// The captures, in pattern order.
+  final List<Object?> values;
 
-/// Captures one path segment parsed as a `bool` (`true`/`false`).
-const UrlParam<bool> boolg = _BoolParam();
+  /// The capture at [i] as a `String`.
+  String string(int i) => values[i] as String;
 
-/// Captures one path segment matched against an enum's `.name`.
-UrlParam<E> enumParam<E extends Enum>(List<E> values) => _EnumParam<E>(values);
+  /// The capture at [i] as a `String?` (e.g. an optional query param).
+  String? stringOrNull(int i) => values[i] as String?;
 
-class _StrParam extends UrlParam<String> {
-  const _StrParam();
-  @override
-  String? parse(String s) => s;
-  @override
-  String format(String v) => v;
+  /// The capture at [i] as an `int`.
+  int integer(int i) => values[i] as int;
+
+  /// The capture at [i] as an `int?`.
+  int? integerOrNull(int i) => values[i] as int?;
+
+  /// The capture at [i] as a `bool`.
+  bool boolean(int i) => values[i] as bool;
+
+  /// The capture at [i] as a `bool?`.
+  bool? booleanOrNull(int i) => values[i] as bool?;
+
+  /// The capture at [i] as an enum value of type [E].
+  E enumValue<E extends Enum>(int i) => values[i] as E;
+
+  /// The capture at [i] as a nullable enum value of type [E].
+  E? enumValueOrNull<E extends Enum>(int i) => values[i] as E?;
+
+  /// The raw capture at [i].
+  Object? operator [](int i) => values[i];
+
+  /// How many captures there are.
+  int get length => values.length;
 }
 
-class _IntParam extends UrlParam<int> {
-  const _IntParam();
-  @override
-  int? parse(String s) => int.tryParse(s);
-  @override
-  String format(int v) => '$v';
-}
-
-class _BoolParam extends UrlParam<bool> {
-  const _BoolParam();
-  @override
-  bool? parse(String s) => switch (s) {
-    'true' => true,
-    'false' => false,
-    _ => null,
-  };
-  @override
-  String format(bool v) => '$v';
-}
-
-class _EnumParam<E extends Enum> extends UrlParam<E> {
-  const _EnumParam(this.values);
-  final List<E> values;
-  @override
-  E? parse(String s) {
-    for (final value in values) {
-      if (value.name == s) return value;
-    }
-    return null;
-  }
-
-  @override
-  String format(E v) => v.name;
-}
-
-/// A query parameter that captures a value of type [A] in both directions.
-abstract class QueryParam<A> {
-  /// Const base so query params can be const.
-  const QueryParam();
-
-  /// Read from [query]: null means no match (fails the pattern); otherwise the
-  /// (possibly-null) captured value.
-  ({A value})? read(Map<String, String> query);
-
-  /// Write [value] into [query] — may omit it (e.g. when it equals a default).
-  void write(A value, Map<String, String> query);
-}
-
-/// A required query param captured as a `String` (no match if the key is
-/// absent).
-QueryParam<String> queryStr(String key) =>
-    _ReqQuery<String>(key, (s) => s, (v) => v);
-
-/// A required query param parsed as an `int` (no match if absent or not an int).
-QueryParam<int> queryIntReq(String key) =>
-    _ReqQuery<int>(key, int.tryParse, (v) => '$v');
-
-/// An optional query param as a `String?` — null when the key is absent.
-QueryParam<String?> queryStrOpt(String key) =>
-    _OptQuery<String>(key, (s) => s, (v) => v);
-
-/// An optional query param parsed as an `int?` — null when absent or invalid.
-QueryParam<int?> queryIntOpt(String key) =>
-    _OptQuery<int>(key, int.tryParse, (v) => '$v');
-
-/// An optional query param parsed as a `bool?`.
-QueryParam<bool?> queryBoolOpt(String key) =>
-    _OptQuery<bool>(key, boolg.parse, (v) => '$v');
-
-/// An optional query param matched against an enum's `.name`.
-QueryParam<E?> queryEnumOpt<E extends Enum>(String key, List<E> values) {
-  final param = enumParam(values);
-  return _OptQuery<E>(key, param.parse, (v) => v.name);
-}
-
-/// A query param with a default: absent reads as [orElse]; writing a value
-/// equal to [orElse] omits the key, so a default-valued state has a clean URL.
-QueryParam<int> queryInt(String key, {required int orElse}) =>
-    _DefQuery<int>(key, int.tryParse, (v) => '$v', orElse);
-
-class _ReqQuery<A> extends QueryParam<A> {
-  const _ReqQuery(this.key, this._parse, this._format);
-  final String key;
-  final A? Function(String) _parse;
-  final String Function(A) _format;
-  @override
-  ({A value})? read(Map<String, String> q) {
-    final s = q[key];
-    if (s == null) return null;
-    final v = _parse(s);
-    return v == null ? null : (value: v);
-  }
-
-  @override
-  void write(A value, Map<String, String> q) => q[key] = _format(value);
-}
-
-class _OptQuery<A> extends QueryParam<A?> {
-  const _OptQuery(this.key, this._parse, this._format);
-  final String key;
-  final A? Function(String) _parse;
-  final String Function(A) _format;
-  @override
-  ({A? value})? read(Map<String, String> q) {
-    final s = q[key];
-    return (value: s == null ? null : _parse(s));
-  }
-
-  @override
-  void write(A? value, Map<String, String> q) {
-    if (value != null) q[key] = _format(value);
-  }
-}
-
-class _DefQuery<A> extends QueryParam<A> {
-  const _DefQuery(this.key, this._parse, this._format, this.orElse);
-  final String key;
-  final A? Function(String) _parse;
-  final String Function(A) _format;
-  final A orElse;
-  @override
-  ({A value})? read(Map<String, String> q) {
-    final s = q[key];
-    if (s == null) return (value: orElse);
-    final v = _parse(s);
-    return v == null ? null : (value: v);
-  }
-
-  @override
-  void write(A value, Map<String, String> q) {
-    if (value != orElse) q[key] = _format(value);
-  }
-}
-
-/// A URL fragment that captures a value of type [T] in both directions.
-abstract class UrlPattern<T> {
-  /// Const base so patterns can be const.
+/// A URL fragment that captures values in both directions.
+abstract class UrlPattern {
+  /// Const base so leaf patterns can be const.
   const UrlPattern();
 
-  /// Consume from [reader] and return the captured value, or null on no match.
-  T? parse(UrlReader reader);
+  /// Parse from [reader], appending captures to [out]; return false on no
+  /// match, leaving [reader] where it started.
+  bool parse(UrlReader reader, List<Object?> out);
 
-  /// Append [value]'s representation to [writer].
-  void write(T value, UrlWriter writer);
+  /// Write, consuming this pattern's captures from [cursor] in order.
+  void write(CaptureCursor cursor, UrlWriter writer);
+
+  /// Sequence this pattern, then [next].
+  UrlPattern operator /(UrlPattern next) =>
+      _Seq(<UrlPattern>[..._flatten(this), ..._flatten(next)]);
 }
 
-/// Whole-URL parse/print helpers over a typed pattern.
-extension UrlPatternUri<T> on UrlPattern<T> {
+/// Whole-URL parse/print helpers over a pattern.
+extension UrlPatternUri on UrlPattern {
   /// Parse [uri] end-to-end, requiring the *entire* path to be consumed.
-  /// Returns the typed capture, or null if it doesn't match or leaves segments.
-  T? parseUri(Uri uri) {
+  /// Returns the captures, or null if it doesn't match or leaves segments.
+  List<Object?>? parseUri(Uri uri) {
     final reader = UrlReader.of(uri);
-    final result = parse(reader);
-    if (result == null || !reader.atEnd) return null;
-    return result;
+    final out = <Object?>[];
+    if (!parse(reader, out) || !reader.atEnd) return null;
+    return out;
   }
 
-  /// Print [value] to a `Uri`.
-  Uri printUri(T value) {
+  /// Print [captures] to a `Uri`.
+  Uri printUri(List<Object?> captures) {
     final writer = UrlWriter();
-    write(value, writer);
+    write(CaptureCursor(captures), writer);
     return writer.toUri();
   }
 }
 
-/// The empty pattern — matches the index path (`/`) and the start of every
-/// fluent build. Add literals with `.seg`, params with `.param`.
-const Path0 path = Path0(<_Step>[]);
+/// Matches the empty path (the index route) and captures nothing.
+const UrlPattern root = _Root();
 
-sealed class _Step {
-  const _Step();
+/// Matches exactly the literal segment [literal], capturing nothing.
+UrlPattern seg(String literal) => _Seg(literal);
+
+/// Captures one path segment verbatim as a `String`.
+const UrlPattern str = _Str();
+
+/// Captures one path segment parsed as an `int` (no match if not an int).
+const UrlPattern intg = _Intg();
+
+/// Captures one path segment parsed as a `bool` (`true`/`false`).
+const UrlPattern boolg = _Boolg();
+
+/// Captures one path segment matched against an enum's `.name`.
+UrlPattern enumOf<E extends Enum>(List<E> values) => _EnumOf<E>(values);
+
+class _Root extends UrlPattern {
+  const _Root();
+  @override
+  bool parse(UrlReader r, List<Object?> out) => r.atEnd;
+  @override
+  void write(CaptureCursor c, UrlWriter w) {}
 }
 
-class _Lit extends _Step {
-  const _Lit(this.literal);
+class _Seg extends UrlPattern {
+  const _Seg(this.literal);
   final String literal;
+  @override
+  bool parse(UrlReader r, List<Object?> out) {
+    if (r.peek() != literal) return false;
+    r.take();
+    return true;
+  }
+
+  @override
+  void write(CaptureCursor c, UrlWriter w) => w.segments.add(literal);
 }
 
-class _Par extends _Step {
-  const _Par(this.parse, this.format);
-  final Object? Function(String segment) parse;
-  final String Function(Object? value) format;
+class _Str extends UrlPattern {
+  const _Str();
+  @override
+  bool parse(UrlReader r, List<Object?> out) {
+    final s = r.take();
+    if (s == null) return false;
+    out.add(s);
+    return true;
+  }
+
+  @override
+  void write(CaptureCursor c, UrlWriter w) =>
+      w.segments.add(c.take() as String);
 }
 
-_Par _par<A>(UrlParam<A> param) =>
-    _Par((s) => param.parse(s), (v) => param.format(v as A));
+class _Intg extends UrlPattern {
+  const _Intg();
+  @override
+  bool parse(UrlReader r, List<Object?> out) {
+    final s = r.peek();
+    if (s == null) return false;
+    final n = int.tryParse(s);
+    if (n == null) return false;
+    r.take();
+    out.add(n);
+    return true;
+  }
 
-class _Query extends _Step {
-  const _Query(this.read, this.write);
-  final List<Object?>? Function(Map<String, String> query) read;
-  final void Function(Object? value, Map<String, String> query) write;
+  @override
+  void write(CaptureCursor c, UrlWriter w) =>
+      w.segments.add('${c.take() as int}');
 }
 
-_Query _query<A>(QueryParam<A> param) => _Query((query) {
-  final result = param.read(query);
-  return result == null ? null : <Object?>[result.value];
-}, (value, query) => param.write(value as A, query));
+class _Boolg extends UrlPattern {
+  const _Boolg();
+  @override
+  bool parse(UrlReader r, List<Object?> out) {
+    final b = _parseBool(r.peek());
+    if (b == null) return false;
+    r.take();
+    out.add(b);
+    return true;
+  }
 
-/// Shared parse/write over the ordered [steps]; subclasses construct the
-/// typed record from the raw captures.
-abstract class _Path<T> extends UrlPattern<T> {
-  const _Path(this.steps);
-  final List<_Step> steps;
+  @override
+  void write(CaptureCursor c, UrlWriter w) =>
+      w.segments.add('${c.take() as bool}');
+}
 
-  List<Object?>? parseRaw(UrlReader r) {
-    final captures = <Object?>[];
-    for (final step in steps) {
-      switch (step) {
-        case _Lit(:final literal):
-          if (r.peek() != literal) return null;
-          r.take();
-        case _Par(:final parse):
-          final segment = r.peek();
-          if (segment == null) return null;
-          final value = parse(segment);
-          if (value == null) return null;
-          r.take();
-          captures.add(value);
-        case _Query(:final read):
-          final result = read(r.query);
-          if (result == null) return null;
-          captures.add(result[0]);
+class _EnumOf<E extends Enum> extends UrlPattern {
+  const _EnumOf(this.values);
+  final List<E> values;
+  @override
+  bool parse(UrlReader r, List<Object?> out) {
+    final value = _enumByName(r.peek(), values);
+    if (value == null) return false;
+    r.take();
+    out.add(value);
+    return true;
+  }
+
+  @override
+  void write(CaptureCursor c, UrlWriter w) =>
+      w.segments.add((c.take() as E).name);
+}
+
+/// A required query param captured as a `String` (no match if absent).
+UrlPattern queryStr(String key) => _QueryReq(key, (s) => s, (v) => '$v');
+
+/// A required query param parsed as an `int` (no match if absent or not an int).
+UrlPattern queryIntReq(String key) => _QueryReq(key, int.tryParse, (v) => '$v');
+
+/// An optional query param as a `String?` — null when absent.
+UrlPattern queryStrOpt(String key) => _QueryOpt(key, (s) => s, (v) => '$v');
+
+/// An optional query param parsed as an `int?` — null when absent or invalid.
+UrlPattern queryIntOpt(String key) => _QueryOpt(key, int.tryParse, (v) => '$v');
+
+/// An optional query param parsed as a `bool?`.
+UrlPattern queryBoolOpt(String key) => _QueryOpt(key, _parseBool, (v) => '$v');
+
+/// An optional query param matched against an enum's `.name`.
+UrlPattern queryEnumOpt<E extends Enum>(String key, List<E> values) =>
+    _QueryOpt(key, (s) => _enumByName(s, values), (v) => (v as E).name);
+
+/// A query param with a default: absent reads as [orElse]; writing [orElse]
+/// omits the key, so a default-valued state has a clean URL.
+UrlPattern queryInt(String key, {required int orElse}) =>
+    _QueryDef(key, int.tryParse, (v) => '$v', orElse);
+
+class _QueryReq extends UrlPattern {
+  const _QueryReq(this.key, this._parse, this._format);
+  final String key;
+  final Object? Function(String) _parse;
+  final String Function(Object?) _format;
+  @override
+  bool parse(UrlReader r, List<Object?> out) {
+    final s = r.query[key];
+    if (s == null) return false;
+    final value = _parse(s);
+    if (value == null) return false;
+    out.add(value);
+    return true;
+  }
+
+  @override
+  void write(CaptureCursor c, UrlWriter w) => w.query[key] = _format(c.take());
+}
+
+class _QueryOpt extends UrlPattern {
+  const _QueryOpt(this.key, this._parse, this._format);
+  final String key;
+  final Object? Function(String) _parse;
+  final String Function(Object?) _format;
+  @override
+  bool parse(UrlReader r, List<Object?> out) {
+    final s = r.query[key];
+    out.add(s == null ? null : _parse(s));
+    return true;
+  }
+
+  @override
+  void write(CaptureCursor c, UrlWriter w) {
+    final value = c.take();
+    if (value != null) w.query[key] = _format(value);
+  }
+}
+
+class _QueryDef extends UrlPattern {
+  const _QueryDef(this.key, this._parse, this._format, this.orElse);
+  final String key;
+  final Object? Function(String) _parse;
+  final String Function(Object?) _format;
+  final Object? orElse;
+  @override
+  bool parse(UrlReader r, List<Object?> out) {
+    final s = r.query[key];
+    if (s == null) {
+      out.add(orElse);
+      return true;
+    }
+    final value = _parse(s);
+    if (value == null) return false;
+    out.add(value);
+    return true;
+  }
+
+  @override
+  void write(CaptureCursor c, UrlWriter w) {
+    final value = c.take();
+    if (value != orElse) w.query[key] = _format(value);
+  }
+}
+
+List<UrlPattern> _flatten(UrlPattern p) =>
+    p is _Seq ? p.parts : <UrlPattern>[p];
+
+class _Seq extends UrlPattern {
+  _Seq(this.parts);
+  final List<UrlPattern> parts;
+  @override
+  bool parse(UrlReader r, List<Object?> out) {
+    final savedPos = r.position;
+    final savedLen = out.length;
+    for (final part in parts) {
+      if (!part.parse(r, out)) {
+        r.position = savedPos;
+        out.removeRange(savedLen, out.length);
+        return false;
       }
     }
-    return captures;
+    return true;
   }
 
-  void writeRaw(List<Object?> captures, UrlWriter w) {
-    var i = 0;
-    for (final step in steps) {
-      switch (step) {
-        case _Lit(:final literal):
-          w.segments.add(literal);
-        case _Par(:final format):
-          w.segments.add(format(captures[i++]));
-        case _Query(:final write):
-          write(captures[i++], w.query);
-      }
+  @override
+  void write(CaptureCursor c, UrlWriter w) {
+    for (final part in parts) {
+      part.write(c, w);
     }
   }
 }
 
-/// A pattern with no params.
-class Path0 extends _Path<Unit> {
-  /// Wrap [steps].
-  const Path0(super.steps);
+bool? _parseBool(String? s) => switch (s) {
+  'true' => true,
+  'false' => false,
+  _ => null,
+};
 
-  /// Append a literal segment.
-  Path0 seg(String literal) => Path0(<_Step>[...steps, _Lit(literal)]);
-
-  /// Append a typed param, capturing [A].
-  Path1<A> param<A>(UrlParam<A> p) => Path1<A>(<_Step>[...steps, _par(p)]);
-
-  /// Append a query param, capturing [A].
-  Path1<A> query<A>(QueryParam<A> q) => Path1<A>(<_Step>[...steps, _query(q)]);
-
-  @override
-  Unit? parse(UrlReader r) => parseRaw(r) == null ? null : ();
-  @override
-  void write(Unit value, UrlWriter w) => writeRaw(const <Object?>[], w);
-}
-
-/// A pattern with one param.
-class Path1<A> extends _Path<(A,)> {
-  /// Wrap [steps].
-  const Path1(super.steps);
-
-  /// Append a literal segment.
-  Path1<A> seg(String literal) => Path1<A>(<_Step>[...steps, _Lit(literal)]);
-
-  /// Append a typed param, capturing [B].
-  Path2<A, B> param<B>(UrlParam<B> p) =>
-      Path2<A, B>(<_Step>[...steps, _par(p)]);
-
-  /// Append a query param, capturing [B].
-  Path2<A, B> query<B>(QueryParam<B> q) =>
-      Path2<A, B>(<_Step>[...steps, _query(q)]);
-
-  @override
-  (A,)? parse(UrlReader r) {
-    final c = parseRaw(r);
-    return c == null ? null : (c[0] as A,);
+E? _enumByName<E extends Enum>(String? s, List<E> values) {
+  if (s == null) return null;
+  for (final value in values) {
+    if (value.name == s) return value;
   }
-
-  @override
-  void write((A,) value, UrlWriter w) => writeRaw(<Object?>[value.$1], w);
-}
-
-/// A pattern with two params.
-class Path2<A, B> extends _Path<(A, B)> {
-  /// Wrap [steps].
-  const Path2(super.steps);
-
-  /// Append a literal segment.
-  Path2<A, B> seg(String literal) =>
-      Path2<A, B>(<_Step>[...steps, _Lit(literal)]);
-
-  /// Append a typed param, capturing [C].
-  Path3<A, B, C> param<C>(UrlParam<C> p) =>
-      Path3<A, B, C>(<_Step>[...steps, _par(p)]);
-
-  /// Append a query param, capturing [C].
-  Path3<A, B, C> query<C>(QueryParam<C> q) =>
-      Path3<A, B, C>(<_Step>[...steps, _query(q)]);
-
-  @override
-  (A, B)? parse(UrlReader r) {
-    final c = parseRaw(r);
-    return c == null ? null : (c[0] as A, c[1] as B);
-  }
-
-  @override
-  void write((A, B) value, UrlWriter w) =>
-      writeRaw(<Object?>[value.$1, value.$2], w);
-}
-
-/// A pattern with three params.
-class Path3<A, B, C> extends _Path<(A, B, C)> {
-  /// Wrap [steps].
-  const Path3(super.steps);
-
-  /// Append a literal segment.
-  Path3<A, B, C> seg(String literal) =>
-      Path3<A, B, C>(<_Step>[...steps, _Lit(literal)]);
-
-  /// Append a typed param, capturing [D].
-  Path4<A, B, C, D> param<D>(UrlParam<D> p) =>
-      Path4<A, B, C, D>(<_Step>[...steps, _par(p)]);
-
-  /// Append a query param, capturing [D].
-  Path4<A, B, C, D> query<D>(QueryParam<D> q) =>
-      Path4<A, B, C, D>(<_Step>[...steps, _query(q)]);
-
-  @override
-  (A, B, C)? parse(UrlReader r) {
-    final c = parseRaw(r);
-    return c == null ? null : (c[0] as A, c[1] as B, c[2] as C);
-  }
-
-  @override
-  void write((A, B, C) value, UrlWriter w) =>
-      writeRaw(<Object?>[value.$1, value.$2, value.$3], w);
-}
-
-/// A pattern with four params (the cap; beyond this, write a custom
-/// [UrlPattern]).
-class Path4<A, B, C, D> extends _Path<(A, B, C, D)> {
-  /// Wrap [steps].
-  const Path4(super.steps);
-
-  /// Append a literal segment.
-  Path4<A, B, C, D> seg(String literal) =>
-      Path4<A, B, C, D>(<_Step>[...steps, _Lit(literal)]);
-
-  @override
-  (A, B, C, D)? parse(UrlReader r) {
-    final c = parseRaw(r);
-    return c == null ? null : (c[0] as A, c[1] as B, c[2] as C, c[3] as D);
-  }
-
-  @override
-  void write((A, B, C, D) value, UrlWriter w) =>
-      writeRaw(<Object?>[value.$1, value.$2, value.$3, value.$4], w);
+  return null;
 }

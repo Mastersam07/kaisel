@@ -4,143 +4,149 @@ import 'package:test/test.dart';
 enum _Tab { home, matches, chat }
 
 void main() {
-  group('path (root / empty)', () {
-    test('matches the index path and round-trips to /', () {
-      expect(path.parseUri(Uri.parse('/')), ());
-      expect(path.printUri(()).toString(), '/');
+  group('root', () {
+    test('matches the empty path and prints to /', () {
+      expect(root.parseUri(Uri.parse('/')), <Object?>[]);
+      expect(root.printUri(const <Object?>[]).toString(), '/');
     });
 
     test('does not match a non-empty path', () {
-      expect(path.parseUri(Uri.parse('/home')), isNull);
+      expect(root.parseUri(Uri.parse('/home')), isNull);
     });
   });
 
-  group('literal segments', () {
-    test('match and round-trip, capturing nothing', () {
-      final p = path.seg('settings').seg('account');
-      expect(p.parseUri(Uri.parse('/settings/account')), ());
-      expect(p.printUri(()).toString(), '/settings/account');
+  group('path leaves', () {
+    test('seg matches its literal, capturing nothing', () {
+      expect(seg('home').parseUri(Uri.parse('/home')), <Object?>[]);
+      expect(seg('home').parseUri(Uri.parse('/away')), isNull);
+      expect(seg('home').parseUri(Uri.parse('/home/extra')), isNull);
     });
 
-    test('reject a different segment and trailing segments', () {
-      final p = path.seg('home');
-      expect(p.parseUri(Uri.parse('/away')), isNull);
-      expect(p.parseUri(Uri.parse('/home/extra')), isNull);
-      expect(p.parseUri(Uri.parse('/')), isNull);
-    });
-  });
-
-  group('params', () {
-    test('str captures a String', () {
-      final p = path.seg('products').param(str);
-      final caps = p.parseUri(Uri.parse('/products/sku-9'));
-      expect(caps, ('sku-9',));
-      expect(caps?.$1, 'sku-9'); // typed access
-      expect(p.printUri(('sku-9',)).toString(), '/products/sku-9');
+    test('str captures one segment', () {
+      expect(str.parseUri(Uri.parse('/abc')), <Object?>['abc']);
+      expect(str.parseUri(Uri.parse('/a/b')), isNull);
     });
 
-    test('intg captures an int and rejects non-ints', () {
-      final p = path.seg('page').param(intg);
-      expect(p.parseUri(Uri.parse('/page/42'))?.$1, 42);
-      expect(p.parseUri(Uri.parse('/page/x')), isNull);
+    test('intg parses/prints an int and rejects non-ints', () {
+      expect(intg.parseUri(Uri.parse('/42')), <Object?>[42]);
+      expect(intg.printUri(const <Object?>[42]).toString(), '/42');
+      expect(intg.parseUri(Uri.parse('/x')), isNull);
     });
 
-    test('boolg captures a bool', () {
-      final p = path.param(boolg);
-      expect(p.parseUri(Uri.parse('/true')), (true,));
-      expect(p.parseUri(Uri.parse('/yes')), isNull);
+    test('boolg parses true/false', () {
+      expect(boolg.parseUri(Uri.parse('/true')), <Object?>[true]);
+      expect(boolg.parseUri(Uri.parse('/yes')), isNull);
     });
 
-    test('enumParam captures by name', () {
-      final p = path.seg('tab').param(enumParam(_Tab.values));
-      expect(p.parseUri(Uri.parse('/tab/matches'))?.$1, _Tab.matches);
-      expect(p.printUri((_Tab.chat,)).toString(), '/tab/chat');
-      expect(p.parseUri(Uri.parse('/tab/nope')), isNull);
+    test('enumOf matches by name', () {
+      final tab = enumOf(_Tab.values);
+      expect(tab.parseUri(Uri.parse('/matches')), <Object?>[_Tab.matches]);
+      expect(tab.printUri(const <Object?>[_Tab.chat]).toString(), '/chat');
+      expect(tab.parseUri(Uri.parse('/nope')), isNull);
     });
   });
 
-  group('multi-param, typed flat captures', () {
-    test('two params capture a typed (A, B) in order', () {
-      final p = path.seg('chat').param(str).param(intg);
-      final caps = p.parseUri(Uri.parse('/chat/room/5'));
-      expect(caps, ('room', 5));
-      expect(caps?.$1, 'room');
-      expect(caps?.$2, 5);
-      expect(p.printUri(('room', 5)).toString(), '/chat/room/5');
+  group('composition with / (any arity, no per-arity classes)', () {
+    test('literal then param', () {
+      final p = seg('products') / str;
+      expect(p.parseUri(Uri.parse('/products/sku-9')), <Object?>['sku-9']);
+      expect(
+        p.printUri(const <Object?>['sku-9']).toString(),
+        '/products/sku-9',
+      );
     });
 
-    test('three params interleaved with literals', () {
-      final p = path.seg('a').param(str).seg('b').param(intg).param(boolg);
-      final caps = p.parseUri(Uri.parse('/a/x/b/9/true'));
-      expect(caps, ('x', 9, true));
-      expect(caps?.$3, true);
-      expect(p.printUri(('x', 9, true)).toString(), '/a/x/b/9/true');
+    test('many params capture in order — well past any builder cap', () {
+      final p = seg('a') / str / intg / boolg / str / intg / str;
+      final caps = p.parseUri(Uri.parse('/a/x/1/true/y/2/z'));
+      expect(caps, <Object?>['x', 1, true, 'y', 2, 'z']);
+      expect(
+        p.printUri(caps ?? const <Object?>[]).toString(),
+        '/a/x/1/true/y/2/z',
+      );
     });
 
-    test('four params (the cap)', () {
-      final p = path.param(str).param(intg).param(boolg).param(str);
-      expect(p.parseUri(Uri.parse('/a/1/false/b')), ('a', 1, false, 'b'));
-    });
-  });
-
-  group('no-match rolls back', () {
-    test('a later mismatch yields null, leaving no partial capture', () {
-      final p = path.seg('chat').param(str).param(intg);
+    test('a later mismatch rolls back to null, no partial captures', () {
+      final p = seg('chat') / str / intg;
       expect(p.parseUri(Uri.parse('/chat/room/notint')), isNull);
-      expect(p.parseUri(Uri.parse('/chat/room')), isNull); // too short
+      expect(p.parseUri(Uri.parse('/chat/room')), isNull);
+    });
+
+    test('flattens — nested chaining stays a single sequence', () {
+      final p = (seg('a') / str) / (seg('b') / intg);
+      expect(p.parseUri(Uri.parse('/a/x/b/7')), <Object?>['x', 7]);
     });
   });
 
-  group('query params', () {
+  group('query params (composable patterns)', () {
     test('required: captures when present, no match when absent', () {
-      final p = path.seg('search').query(queryStr('q'));
-      expect(p.parseUri(Uri.parse('/search?q=shoes')), ('shoes',));
-      expect(p.parseUri(Uri.parse('/search')), isNull); // required, absent
-      expect(p.printUri(('shoes',)).toString(), '/search?q=shoes');
+      final p = seg('search') / queryStr('q');
+      expect(p.parseUri(Uri.parse('/search?q=shoes')), <Object?>['shoes']);
+      expect(p.parseUri(Uri.parse('/search')), isNull);
+      expect(
+        p.printUri(const <Object?>['shoes']).toString(),
+        '/search?q=shoes',
+      );
     });
 
-    test('optional: null when absent, value when present, always matches', () {
-      final p = path.seg('search').query(queryStrOpt('city'));
-      expect(p.parseUri(Uri.parse('/search')), (null,));
-      expect(p.parseUri(Uri.parse('/search?city=NYC')), ('NYC',));
-      expect(p.printUri((null,)).toString(), '/search'); // omitted when null
-      expect(p.printUri(('NYC',)).toString(), '/search?city=NYC');
-    });
+    test(
+      'optional: null when absent, value when present, omitted on write',
+      () {
+        final p = seg('search') / queryStrOpt('city');
+        expect(p.parseUri(Uri.parse('/search')), <Object?>[null]);
+        expect(p.parseUri(Uri.parse('/search?city=NYC')), <Object?>['NYC']);
+        expect(p.printUri(const <Object?>[null]).toString(), '/search');
+        expect(
+          p.printUri(const <Object?>['NYC']).toString(),
+          '/search?city=NYC',
+        );
+      },
+    );
 
     test('orElse: absent reads as default; default value omits the key', () {
-      final p = path.seg('list').query(queryInt('page', orElse: 1));
-      expect(p.parseUri(Uri.parse('/list')), (1,)); // absent → default
-      expect(p.parseUri(Uri.parse('/list?page=3')), (3,));
-      expect(p.printUri((1,)).toString(), '/list'); // default omitted
-      expect(p.printUri((3,)).toString(), '/list?page=3');
+      final p = seg('list') / queryInt('page', orElse: 1);
+      expect(p.parseUri(Uri.parse('/list')), <Object?>[1]);
+      expect(p.parseUri(Uri.parse('/list?page=3')), <Object?>[3]);
+      expect(p.printUri(const <Object?>[1]).toString(), '/list');
+      expect(p.printUri(const <Object?>[3]).toString(), '/list?page=3');
     });
 
     test('path + multiple query params capture in order', () {
-      final p = path
-          .seg('search')
-          .query(queryStr('q'))
-          .query(queryInt('page', orElse: 1));
-      final caps = p.parseUri(Uri.parse('/search?q=shoes&page=2'));
-      expect(caps, ('shoes', 2));
-      expect(caps?.$1, 'shoes');
-      expect(caps?.$2, 2);
+      final p = seg('search') / queryStr('q') / queryInt('page', orElse: 1);
+      expect(p.parseUri(Uri.parse('/search?q=shoes&page=2')), <Object?>[
+        'shoes',
+        2,
+      ]);
     });
 
     test('query does not consume path segments', () {
-      final p = path.seg('search').query(queryStrOpt('q'));
-      expect(p.parseUri(Uri.parse('/search/extra')), isNull); // trailing path
+      final p = seg('search') / queryStrOpt('q');
+      expect(p.parseUri(Uri.parse('/search/extra')), isNull);
+    });
+  });
+
+  group('Captures accessors', () {
+    test('typed positional access, including nullable', () {
+      const c = Captures(<Object?>['room', 5, true, _Tab.chat, null]);
+      expect(c.string(0), 'room');
+      expect(c.integer(1), 5);
+      expect(c.boolean(2), isTrue);
+      expect(c.enumValue<_Tab>(3), _Tab.chat);
+      expect(c.stringOrNull(4), isNull);
+      expect(c[0], 'room');
+      expect(c.length, 5);
     });
   });
 
   group('round-trip property', () {
     test('parse(print(x)) == x for path + query', () {
-      final p = path
-          .seg('chat')
-          .param(str)
-          .param(intg)
-          .query(queryStr('q'))
-          .query(queryInt('page', orElse: 1));
-      const x = ('room', 5, 'hi', 3);
+      final p =
+          seg('chat') /
+          str /
+          intg /
+          queryStr('q') /
+          queryInt('page', orElse: 1);
+      final x = <Object?>['room', 5, 'hi', 3];
       expect(p.parseUri(p.printUri(x)), x);
     });
   });
