@@ -4,87 +4,98 @@ import 'package:test/test.dart';
 enum _Tab { home, matches, chat }
 
 void main() {
-  group('root', () {
-    test('matches the empty path and prints to /', () {
-      expect(root.parseUri(Uri.parse('/')), ());
-      expect(root.printUri(()).toString(), '/');
+  group('path (root / empty)', () {
+    test('matches the index path and round-trips to /', () {
+      expect(path.parseUri(Uri.parse('/')), ());
+      expect(path.printUri(()).toString(), '/');
     });
 
     test('does not match a non-empty path', () {
-      expect(root.parseUri(Uri.parse('/home')), isNull);
+      expect(path.parseUri(Uri.parse('/home')), isNull);
     });
   });
 
-  group('seg', () {
-    test('matches its literal and round-trips', () {
-      expect(seg('home').parseUri(Uri.parse('/home')), ());
-      expect(seg('home').printUri(()).toString(), '/home');
+  group('literal segments', () {
+    test('match and round-trip, capturing nothing', () {
+      final p = path.seg('settings').seg('account');
+      expect(p.parseUri(Uri.parse('/settings/account')), ());
+      expect(p.printUri(()).toString(), '/settings/account');
     });
 
-    test('rejects a different segment, the empty path, and trailing segments', () {
-      expect(seg('home').parseUri(Uri.parse('/away')), isNull);
-      expect(seg('home').parseUri(Uri.parse('/')), isNull);
-      expect(seg('home').parseUri(Uri.parse('/home/extra')), isNull);
-    });
-  });
-
-  group('str', () {
-    test('captures one segment and round-trips', () {
-      expect(str.parseUri(Uri.parse('/abc')), ('abc',));
-      expect(str.printUri(('abc',)).toString(), '/abc');
-    });
-
-    test('rejects the empty path and trailing segments', () {
-      expect(str.parseUri(Uri.parse('/')), isNull);
-      expect(str.parseUri(Uri.parse('/a/b')), isNull);
+    test('reject a different segment and trailing segments', () {
+      final p = path.seg('home');
+      expect(p.parseUri(Uri.parse('/away')), isNull);
+      expect(p.parseUri(Uri.parse('/home/extra')), isNull);
+      expect(p.parseUri(Uri.parse('/')), isNull);
     });
   });
 
-  group('intg', () {
-    test('parses and prints an int', () {
-      expect(intg.parseUri(Uri.parse('/42')), (42,));
-      expect(intg.printUri((42,)).toString(), '/42');
+  group('params', () {
+    test('str captures a String', () {
+      final p = path.seg('products').param(str);
+      final caps = p.parseUri(Uri.parse('/products/sku-9'));
+      expect(caps, ('sku-9',));
+      expect(caps?.$1, 'sku-9'); // typed access
+      expect(p.printUri(('sku-9',)).toString(), '/products/sku-9');
     });
 
-    test('does not match a non-int', () {
-      expect(intg.parseUri(Uri.parse('/x')), isNull);
-    });
-  });
-
-  group('boolg', () {
-    test('parses and prints true/false', () {
-      expect(boolg.parseUri(Uri.parse('/true')), (true,));
-      expect(boolg.parseUri(Uri.parse('/false')), (false,));
-      expect(boolg.printUri((true,)).toString(), '/true');
+    test('intg captures an int and rejects non-ints', () {
+      final p = path.seg('page').param(intg);
+      expect(p.parseUri(Uri.parse('/page/42'))?.$1, 42);
+      expect(p.parseUri(Uri.parse('/page/x')), isNull);
     });
 
-    test('does not match a non-bool', () {
-      expect(boolg.parseUri(Uri.parse('/yes')), isNull);
-    });
-  });
-
-  group('enumOf', () {
-    final tab = enumOf(_Tab.values);
-
-    test('matches a value by name and round-trips', () {
-      expect(tab.parseUri(Uri.parse('/matches')), (_Tab.matches,));
-      expect(tab.printUri((_Tab.chat,)).toString(), '/chat');
+    test('boolg captures a bool', () {
+      final p = path.param(boolg);
+      expect(p.parseUri(Uri.parse('/true')), (true,));
+      expect(p.parseUri(Uri.parse('/yes')), isNull);
     });
 
-    test('does not match an unknown name', () {
-      expect(tab.parseUri(Uri.parse('/profile')), isNull);
+    test('enumParam captures by name', () {
+      final p = path.seg('tab').param(enumParam(_Tab.values));
+      expect(p.parseUri(Uri.parse('/tab/matches'))?.$1, _Tab.matches);
+      expect(p.printUri((_Tab.chat,)).toString(), '/tab/chat');
+      expect(p.parseUri(Uri.parse('/tab/nope')), isNull);
     });
   });
 
-  group('round-trip property (leaves)', () {
-    test('parse(print(x)) == x for every leaf', () {
-      expect(root.parseUri(root.printUri(())), ());
-      expect(seg('x').parseUri(seg('x').printUri(())), ());
-      expect(str.parseUri(str.printUri(('hello',))), ('hello',));
-      expect(intg.parseUri(intg.printUri((7,))), (7,));
-      expect(boolg.parseUri(boolg.printUri((false,))), (false,));
-      final tab = enumOf(_Tab.values);
-      expect(tab.parseUri(tab.printUri((_Tab.home,))), (_Tab.home,));
+  group('multi-param, typed flat captures', () {
+    test('two params capture a typed (A, B) in order', () {
+      final p = path.seg('chat').param(str).param(intg);
+      final caps = p.parseUri(Uri.parse('/chat/room/5'));
+      expect(caps, ('room', 5));
+      expect(caps?.$1, 'room');
+      expect(caps?.$2, 5);
+      expect(p.printUri(('room', 5)).toString(), '/chat/room/5');
+    });
+
+    test('three params interleaved with literals', () {
+      final p = path.seg('a').param(str).seg('b').param(intg).param(boolg);
+      final caps = p.parseUri(Uri.parse('/a/x/b/9/true'));
+      expect(caps, ('x', 9, true));
+      expect(caps?.$3, true);
+      expect(p.printUri(('x', 9, true)).toString(), '/a/x/b/9/true');
+    });
+
+    test('four params (the cap)', () {
+      final p = path.param(str).param(intg).param(boolg).param(str);
+      expect(p.parseUri(Uri.parse('/a/1/false/b')), ('a', 1, false, 'b'));
+    });
+  });
+
+  group('no-match rolls back', () {
+    test('a later mismatch yields null, leaving no partial capture', () {
+      final p = path.seg('chat').param(str).param(intg);
+      expect(p.parseUri(Uri.parse('/chat/room/notint')), isNull);
+      expect(p.parseUri(Uri.parse('/chat/room')), isNull); // too short
+    });
+  });
+
+  group('round-trip property', () {
+    test('parse(print(x)) == x', () {
+      final p = path.seg('chat').param(str).param(intg).param(boolg);
+      const x = ('room', 5, false);
+      expect(p.parseUri(p.printUri(x)), x);
     });
   });
 }
