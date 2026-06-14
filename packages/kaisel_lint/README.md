@@ -265,5 +265,4 @@ a guard means editing the `guards:` list).
 ## Roadmap
 
 The rules originally scoped for the plugin have all shipped. Further rules
-track kaisel's own conventions as they firm up toward v1.0; see
-[`ROADMAP.md`](../kaisel/ROADMAP.md) in the kaisel repo.
+track kaisel's own conventions as they firm up toward v1.0.

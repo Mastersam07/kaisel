@@ -59,7 +59,7 @@ In `pubspec.yaml`, swap auto_route for kaisel:
    flutter:
      sdk: flutter
 -  auto_route: ^9.0.0
-+  kaisel: ^0.13.0
++  kaisel: ^0.18.0
 
  dev_dependencies:
 -  auto_route_generator: ^9.0.0
@@ -443,9 +443,10 @@ roadmap. If your app relies on this for production correctness, wait
 for that release.
 
 **DevTools extension.** auto_route has community route observers
-that integrate with DevTools. kaisel's devtools extension is on the
-roadmap. Until then, debugging is `print` statements or your own
-observer.
+that integrate with DevTools. kaisel ships its own zero-integration
+DevTools extension — a live inspector of the stack, shells, modules,
+flows, guard trace, and a transitions log showing the call site
+behind each navigation. Open DevTools in any debug run.
 
 **Route observers via mixin.** auto_route's `AutoRouteAware` mixin
 makes route observation declarative. kaisel doesn't have a built-in

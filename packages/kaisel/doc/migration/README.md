@@ -86,9 +86,6 @@ guide.
 - **State restoration.** Not shipped yet — on the roadmap. If your
   app relies on stack restoration after Android process death in
   production, wait.
-- **DevTools extension.** Not shipped yet — on the roadmap. Until
-  then, debugging is `print` statements or a listener you attach to
-  the router yourself.
 - **Browser back integration on the web.** Works via the codec, but
   less polished than go_router's native integration. Test carefully
   on a migration branch if web is your primary platform.
@@ -98,7 +95,7 @@ guide.
   [`main_transitions.dart`](../../example/lib/main_transitions.dart)
   example).
 
-See [`ROADMAP.md`](../../ROADMAP.md) for current status of each item.
+See each package's [`CHANGELOG.md`](../../CHANGELOG.md) for current status.
 
 ## Reference examples
 

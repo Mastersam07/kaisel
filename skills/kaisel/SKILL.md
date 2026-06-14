@@ -270,9 +270,6 @@ codebase as a one-for-one replacement.
 
 - **State restoration.** Not shipped yet — on the roadmap. If the
   app relies on stack restoration after Android process death, wait.
-- **DevTools extension.** Not shipped yet — on the roadmap. Until
-  then, debugging is `print` statements or a listener you attach to
-  the router yourself.
 - **Browser back integration on the web.** Works via the codec, but less
   polished than go_router's native integration. Test on a migration
   branch if web is the primary target.
@@ -280,7 +277,7 @@ codebase as a one-for-one replacement.
   them via the `pageWrapper` mechanism — see
   [TRANSITIONS.md](./TRANSITIONS.md).
 
-See `packages/kaisel/ROADMAP.md` for current status of each.
+See each package's `CHANGELOG.md` for current status.
 
 ## 5. Adding a new screen — checklist
 

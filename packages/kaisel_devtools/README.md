@@ -9,19 +9,29 @@ There is **no integration step**: any app that depends on `kaisel` and runs in
 debug mode exposes the data automatically; just open DevTools and select the
 **kaisel** tab.
 
-## What it shows (v1)
+## What it shows
 
 - **Stack** — the main router's live stack (entry id, route type, props,
   label), top-of-stack first, with newly-pushed entries highlighted (a diff
   against the previous state).
+- **Shells / Modules / Flows** — branched shells (active branch + each branch's
+  stack), mounted modules, and active modal flows, each as its own panel.
 - **Guards** — the last guard-pipeline run: the proposed stack in, each guard's
   effect (changed / no-op), and the final stack out. Answers "why was my
   navigation rewritten?"
+- **Problems** — flags no-op mutations (the missing-`props` bug) and broken
+  codec round-trips.
+- **Log** — a transitions log that infers each navigation (push / pop /
+  switchBranch / …) from consecutive snapshots, and shows the **app call site
+  behind it** — click a frame to open it in your editor when DevTools is
+  embedded in an IDE.
 - **URL** — the URL the current configuration encodes to (when a codec is
-  wired).
+  wired), with a deep-link **decode** preview.
+- **History** — the main router's past stacks, with time-travel (under the
+  Write toggle).
 
-A header line summarises shells / modules / active flows; dedicated panels for
-those land in a later checkpoint.
+A **Write** toggle (off by default) turns the inspector into a driver: pop,
+switch a branch, dismiss a flow, apply a deep link, or time-travel.
 
 ## How it connects
 

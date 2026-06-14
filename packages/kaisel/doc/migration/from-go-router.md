@@ -110,7 +110,7 @@ Swap go_router for kaisel in `pubspec.yaml`:
    flutter:
      sdk: flutter
 -  go_router: ^14.0.0
-+  kaisel: ^0.13.0
++  kaisel: ^0.18.0
 ```
 
 If you used `go_router_builder` for typed routes, drop both that and
@@ -539,9 +539,10 @@ is web-first, test this carefully on a migration branch before
 committing.
 
 **DevTools extension.** go_router has community extensions and
-observable router output. kaisel's devtools extension is on the
-roadmap. Until then, debugging is `print` statements or your own
-listener attached to the router.
+observable router output. kaisel ships its own zero-integration
+DevTools extension — a live inspector of the stack, shells, modules,
+flows, guard trace, and a transitions log showing the call site
+behind each navigation. Open DevTools in any debug run.
 
 **`errorBuilder:`.** go_router has a built-in error page when no
 route matches. kaisel doesn't have a separate slot; you add an
