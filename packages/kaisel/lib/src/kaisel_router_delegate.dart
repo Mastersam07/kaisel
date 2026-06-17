@@ -378,9 +378,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
 
   @override
   Future<bool> popRoute() async {
-    // A root-navigator dialog/sheet hosted above the flow layers takes back
-    // first — matching what a root dialog does in a plain Flutter app. Only
-    // pops when the host actually has something above its base content.
+    // A dialog/sheet hosted above the flow layers takes back first.
     final rootOverlay = _rootOverlayKey.currentState;
     if (rootOverlay != null && rootOverlay.canPop()) {
       return rootOverlay.maybePop();
@@ -403,24 +401,17 @@ class KaiselRouterDelegate<R extends KaiselRoute>
 
   @override
   Widget build(BuildContext context) {
-    // Scopes sit ABOVE the root overlay host so a root-navigator dialog —
-    // which the host renders above any active flow — still resolves
-    // RouterScope (for context.pop) and the observer / nested-host scopes.
+    // Scopes sit above the root overlay host so a root-navigator dialog still
+    // resolves RouterScope (for context.pop) and the observer/nested-host
+    // scopes.
     return KaiselObserverScope(
       observers: observers,
-      // Carry the observers builder down so nested navigators can attach
-      // their own fresh observer instances.
       child: KaiselNestedHostScope(
-        // Install the host scope so descendant nested routers (branched
-        // shells and module mounts) can register for URL capture/restore.
         host: this,
         child: RouterScope<R>(
           router: router,
           child: _RootOverlayHost(
             navigatorKey: _rootOverlayKey,
-            // The delegate is a Listenable that fires on every router change,
-            // so the host's base content (main stack + flow layers) stays
-            // live while imperative routes — dialogs, sheets — sit above it.
             listenable: this,
             contentBuilder: _buildMainAndFlows,
           ),
@@ -1011,8 +1002,8 @@ class _RootOverlayHost extends StatelessWidget {
   Widget build(BuildContext context) {
     return Navigator(
       key: navigatorKey,
-      // The base page is never removed; dialogs/sheets are imperative routes.
-      onDidRemovePage: (_) {},
+      // The base page is never removed (dialogs are imperative routes).
+      onDidRemovePage: (_) {}, // coverage:ignore-line
       pages: <Page<Object?>>[
         _RootHostPage(
           child: ListenableBuilder(

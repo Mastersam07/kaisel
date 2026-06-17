@@ -122,4 +122,69 @@ void main() {
     delegate.dispose();
     router.dispose();
   });
+
+  testWidgets('closing a dialog with a result does not leak into the '
+      'underlying screen result', (tester) async {
+    final router = KaiselRouter<_R>(initial: const _Home());
+    String? received = 'sentinel';
+
+    final delegate = KaiselRouterDelegate<_R>(
+      router: router,
+      builder: (context, route) => switch (route) {
+        _Home() => Scaffold(
+          body: Center(
+            child: ElevatedButton(
+              onPressed: () async {
+                received = await context.pushForResult<String>(const _Picker());
+              },
+              child: const Text('pick'),
+            ),
+          ),
+        ),
+        _Picker() => Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElevatedButton(
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (dialogContext) => ElevatedButton(
+                      onPressed: () => dialogContext.pop('dialog-value'),
+                      child: const Text('close-dialog'),
+                    ),
+                  ),
+                  child: const Text('open-dialog'),
+                ),
+                ElevatedButton(
+                  onPressed: () => context.pop(),
+                  child: const Text('cancel'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      },
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
+    await tester.tap(find.text('pick'));
+    await tester.pumpAndSettle();
+
+    // Close a dialog with a result — it belongs to the dialog, not the screen.
+    await tester.tap(find.text('open-dialog'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('close-dialog'));
+    await tester.pumpAndSettle();
+
+    // Cancelling the screen with no value resolves the awaiter with null,
+    // not the dialog's leftover result.
+    await tester.tap(find.text('cancel'));
+    await tester.pumpAndSettle();
+    expect(received, isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    delegate.dispose();
+    router.dispose();
+  });
 }

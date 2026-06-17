@@ -192,12 +192,9 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   // [run] and popped by [completeFlow]/[dismissFlow] in LIFO order.
   final List<_ActiveFlow<R>> _flows = <_ActiveFlow<R>>[];
 
-  // Result channels for [pushForResult], keyed by stack-entry id. A
-  // completer is created when a route is pushed for a result and resolved
-  // when that entry leaves the stack (by any means). [_resultValues] holds
-  // a value stashed by a result-bearing [pop] until the removal resolves
-  // the completer; absent means the entry was removed without a value, so
-  // the awaiter gets null.
+  // Result channels for [pushForResult], keyed by stack-entry id. The
+  // completer is resolved when its entry leaves the stack, with any value
+  // stashed for it by a result-bearing [pop] (absent → resolves null).
   final Map<int, Completer<Object?>> _resultCompleters =
       <int, Completer<Object?>>{};
   final Map<int, Object?> _resultValues = <int, Object?>{};
@@ -347,24 +344,11 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       if (top != null && !beforeIds.contains(top.id) && top.route == route) {
         _resultCompleters[top.id] = completer;
       } else if (!completer.isCompleted) {
-        // The push never landed on top (a guard collapsed or redirected
-        // it), so there is no screen to return a result.
+        // Never landed on top (a guard collapsed or redirected it).
         completer.complete(null);
       }
     });
     return completer.future.then((value) => value as T?);
-  }
-
-  /// Stash a [result] against the current top entry so that when it is
-  /// removed — including by a [Navigator]-driven pop the host forwards
-  /// rather than calling [pop] directly — its [pushForResult] awaiter
-  /// resolves with [result]. No-op if the stack is empty.
-  ///
-  /// Framework-facing: used by the `context.pop(result)` helper on the
-  /// path where the host pops the [Navigator] itself. Exposed via
-  /// `package:kaisel_core/framework.dart`.
-  void stashResult(Object? result) {
-    if (_entries.isNotEmpty) _resultValues[_entries.last.id] = result;
   }
 
   /// Resolve the result completer for entry [id], if any, with the value
@@ -704,8 +688,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       ..clear()
       ..addAll(newEntries);
 
-    // Any entry that left the stack resolves its pushForResult awaiter (with
-    // a stashed value if a result-bearing pop set one, else null).
+    // Resolve the pushForResult awaiter of any entry that left the stack.
     final newIds = <int>{for (final e in newEntries) e.id};
     for (final id in oldIds.difference(newIds)) {
       _resolveResult(id);

@@ -14,9 +14,7 @@
   normal route in the same navigator, so a shared observer sees it and a
   root-navigator dialog renders above it.
 - **`pop` now accepts an optional `Object? result`**, delivered to a matching
-  `pushForResult` awaiter. `stashResult` (framework-facing, exposed via
-  `kaisel_core/framework.dart`) delivers a value through a host-driven removal,
-  for the `context.pop(result)` path where the host pops the Navigator itself.
+  `pushForResult` awaiter.
 
 ## 0.17.0
 

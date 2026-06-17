@@ -67,19 +67,6 @@ void main() {
       expect(await future, isNull);
     });
 
-    test(
-      'a stashed result is delivered through a Navigator-driven removal',
-      () async {
-        final r = KaiselRouter<_R>(initial: const _Home());
-        final future = r.pushForResult<int>(const _Picker());
-        await Future<void>.delayed(Duration.zero);
-        final pickerId = r.entries.last.id;
-        r.stashResult(42);
-        r.onPageRemoved(pickerId);
-        expect(await future, 42);
-      },
-    );
-
     test('resolves with null on dispose so awaiters do not hang', () async {
       final r = KaiselRouter<_R>(initial: const _Home());
       final future = r.pushForResult<String>(const _Picker());

@@ -185,13 +185,10 @@ extension KaiselContextNavigation on BuildContext {
       return true;
     });
     return switch (Navigator.maybeOf(this)) {
+      // Closing an imperative overlay (dialog/sheet): the result belongs to
+      // that overlay's route, not the kaisel screen beneath it.
       final navigator? when boundary is RouterScope && navigator.canPop() =>
-        () {
-          // The host pops the Navigator itself; stash the result so the entry's
-          // removal (via onPageRemoved) still resolves the awaiter.
-          if (result != null) _nearestRouterScope().router.stashResult(result);
-          return navigator.maybePop(result);
-        }(),
+        navigator.maybePop(result),
       _ => _nearestRouterScope().router.pop(result),
     };
   }
