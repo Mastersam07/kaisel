@@ -192,6 +192,16 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   // [run] and popped by [completeFlow]/[dismissFlow] in LIFO order.
   final List<_ActiveFlow<R>> _flows = <_ActiveFlow<R>>[];
 
+  // Result channels for [pushForResult], keyed by stack-entry id. A
+  // completer is created when a route is pushed for a result and resolved
+  // when that entry leaves the stack (by any means). [_resultValues] holds
+  // a value stashed by a result-bearing [pop] until the removal resolves
+  // the completer; absent means the entry was removed without a value, so
+  // the awaiter gets null.
+  final Map<int, Completer<Object?>> _resultCompleters =
+      <int, Completer<Object?>>{};
+  final Map<int, Object?> _resultValues = <int, Object?>{};
+
   KaiselGuardRun<R>? _debugLastGuardRun;
   KaiselNoOp? _debugLastNoOp;
   static int _noOpSeq = 0;
@@ -313,6 +323,58 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   Future<void> push(R route) =>
       _enqueueOrigin(() => _navigate([...stack, route]));
 
+  /// Push [route] onto the main stack and await a typed result from it.
+  ///
+  /// Unlike [run], the route lives on this router's own stack — it is a
+  /// normal screen in the same [Navigator], so root-navigator dialogs,
+  /// shared [NavigatorObserver]s, and ordinary navigation all behave as
+  /// they do for any other route. The returned future completes when that
+  /// pushed entry leaves the stack:
+  ///
+  /// - with the value passed to [pop] (e.g. `context.pop(selectedId)`),
+  /// - with `null` if it is popped without a value, replaced by [set] /
+  ///   [replaceTop], removed by system back, or the router is disposed,
+  /// - with `null` immediately if a guard prevents it from landing on top.
+  ///
+  /// Note the contrast with [push], whose future settles when the guard
+  /// pipeline settles (i.e. once navigation is applied), not on pop.
+  Future<T?> pushForResult<T>(R route) {
+    final completer = Completer<Object?>();
+    _enqueueOrigin(() async {
+      final beforeIds = <int>{for (final e in _entries) e.id};
+      await _navigate([...stack, route]);
+      final top = _entries.isNotEmpty ? _entries.last : null;
+      if (top != null && !beforeIds.contains(top.id) && top.route == route) {
+        _resultCompleters[top.id] = completer;
+      } else if (!completer.isCompleted) {
+        // The push never landed on top (a guard collapsed or redirected
+        // it), so there is no screen to return a result.
+        completer.complete(null);
+      }
+    });
+    return completer.future.then((value) => value as T?);
+  }
+
+  /// Stash a [result] against the current top entry so that when it is
+  /// removed — including by a [Navigator]-driven pop the host forwards
+  /// rather than calling [pop] directly — its [pushForResult] awaiter
+  /// resolves with [result]. No-op if the stack is empty.
+  ///
+  /// Framework-facing: used by the `context.pop(result)` helper on the
+  /// path where the host pops the [Navigator] itself. Exposed via
+  /// `package:kaisel_core/framework.dart`.
+  void stashResult(Object? result) {
+    if (_entries.isNotEmpty) _resultValues[_entries.last.id] = result;
+  }
+
+  /// Resolve the result completer for entry [id], if any, with the value
+  /// stashed for it (or null). Cleans up both maps for that id.
+  void _resolveResult(int id) {
+    final completer = _resultCompleters.remove(id);
+    final value = _resultValues.remove(id);
+    if (completer != null && !completer.isCompleted) completer.complete(value);
+  }
+
   /// Pop the top route. Returns `false` if the stack has only one route
   /// (we never pop to empty). Runs through guards.
   ///
@@ -320,8 +382,9 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   /// stack, so two pops in a row from a 3-deep stack pop both routes
   /// rather than silently coalescing.
   @override
-  Future<bool> pop() => _enqueueOrigin(() async {
+  Future<bool> pop([Object? result]) => _enqueueOrigin(() async {
     if (!canPop) return false;
+    if (result != null) _resultValues[_entries.last.id] = result;
     final next = stack.sublist(0, stack.length - 1);
     await _navigate(next);
     return true;
@@ -411,6 +474,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     if (i == -1) return; // already removed
     if (_entries.length == 1) return; // refuse to pop to empty
     _entries.removeAt(i);
+    _resolveResult(id);
     assert(() {
       _debugLastOrigin = null; // system back — no app call site
       _debugLastOriginSeq = kaiselNextOriginSeq();
@@ -531,6 +595,12 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       flow.router.dispose();
     }
     _flows.clear();
+    // Resolve any outstanding pushForResult awaiters so they don't hang.
+    for (final completer in _resultCompleters.values) {
+      if (!completer.isCompleted) completer.complete(null);
+    }
+    _resultCompleters.clear();
+    _resultValues.clear();
     super.dispose();
   }
 
@@ -619,6 +689,8 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       return;
     }
 
+    final oldIds = <int>{for (final e in _entries) e.id};
+
     final newEntries = <KaiselStackEntry<R>>[];
     for (var i = 0; i < next.length; i++) {
       if (i < _entries.length && _entries[i].route == next[i]) {
@@ -631,6 +703,13 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     _entries
       ..clear()
       ..addAll(newEntries);
+
+    // Any entry that left the stack resolves its pushForResult awaiter (with
+    // a stashed value if a result-bearing pop set one, else null).
+    final newIds = <int>{for (final e in newEntries) e.id};
+    for (final id in oldIds.difference(newIds)) {
+      _resolveResult(id);
+    }
     assert(() {
       _debugLastNoOp = null;
       _debugLastOrigin = _activeOrigin;
