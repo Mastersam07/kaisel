@@ -8,6 +8,30 @@ return a result, OAuth-style consent screens — anywhere "open this,
 do some stuff, return a value (or `null` if dismissed)" describes the
 interaction.
 
+## Flow or `pushForResult`?
+
+If you only need **one screen on the main stack to hand a value back**,
+you probably don't want a flow — use
+[`pushForResult<T>`](./NAVIGATION.md):
+
+```dart
+final picked = await context.pushForResult<String>(const ColorPicker());
+// inside ColorPicker: context.pop('teal');
+```
+
+Both return `Future<T?>`. The difference is *where the screen lives*:
+
+- **`pushForResult<T>`** — the screen is a **normal route on the main
+  stack**. A shared `RouteObserver` sees it, a root-navigator dialog
+  renders above it, and back works normally. Lighter; no `modalBuilder`.
+- **`run<T>`** — the flow runs in its **own sub-router**, rendered as an
+  overlay by `modalBuilder`. Reach for it when you genuinely need a
+  multi-step sub-stack, nesting, or a distinct modal presentation — not
+  merely to return a value.
+
+A good rule: single screen returning a value → `pushForResult`;
+multi-step sub-experience → `run<T>`.
+
 ## The model
 
 A modal flow is a sub-router that the main router runs on top of
@@ -226,6 +250,29 @@ There are three ways a flow can end:
 
 All of these resolve the `Future<T?>`. The caller should always handle
 `null` as a first-class outcome.
+
+## Dialogs and observers over a flow
+
+A flow renders in its **own inner `Navigator`**, separate from the main
+one. Two consequences are worth knowing:
+
+- **Showing a dialog/loader over a flow.** Use the default
+  `showDialog(...)` / `showModalBottomSheet(...)` — `useRootNavigator`
+  defaults to `true`, which now resolves a root overlay host *above* the
+  flow, so the dialog renders on top (including a dialog shown from the
+  `navigatorKey` context you attach to your config). _[The root overlay
+  host is experimental; its exact navigator structure may change.]_ If you
+  pass `useRootNavigator: false` with a main-screen context while a flow
+  is active, the dialog lands on the main navigator — *beneath* the flow —
+  so prefer the default unless you specifically want a dialog scoped to
+  the screen under the flow.
+- **Observers don't span flows.** A `NavigatorObserver` belongs to one
+  `Navigator`, so each flow's inner navigator gets its **own** observer
+  instances (the `observers:` builder is called per navigator). A
+  stateless analytics logger still works; a shared singleton
+  `RouteObserver` with `RouteAware` subscriptions will **not** see flow
+  routes. If a screen needs to be observed by your app-wide observer,
+  keep it on the main stack with `pushForResult<T>` rather than a flow.
 
 ## Common mistakes
 

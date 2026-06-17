@@ -45,13 +45,13 @@ Dart 3 has had the type machinery to do better since 2023: sealed classes, exhau
 ## Features
 
 - **Typed route stack** — `List<R>` over your sealed class. Pattern-matched page resolution with compile-time exhaustiveness.
-- **One-line setup, typed navigation** — `KaiselRouterConfig` collapses the router, delegate, and parser into a single `routerConfig:`; navigate with the typed `context.router<R>().push` / `pop` / `replaceTop` / `pushOrReplaceTop` / `set` / `run<T>` (a wrong-family route is a compile error), or the terser `context.push(...)` when you'll take a runtime family check for the brevity.
+- **One-line setup, typed navigation** — `KaiselRouterConfig` collapses the router, delegate, and parser into a single `routerConfig:`; navigate with the typed `context.router<R>().push` / `pop` / `replaceTop` / `pushOrReplaceTop` / `set` / `pushForResult<T>` / `run<T>` (a wrong-family route is a compile error), or the terser `context.push(...)` when you'll take a runtime family check for the brevity.
 - **Value equality for free** — default `props`-based `==`/`hashCode` on `KaiselRoute`. No manual equality, no codegen.
 - **Guard pipeline** — composable `FutureOr<List<R>> Function(current, proposed)` functions. Async-aware and pure-Dart testable.
 - **Shells** — `KaiselShell<R>` (homogeneous branches) and `KaiselBranchedShell` (per-branch typed routes; `.specs` declares branches without wiring routers), with per-tab back stacks, scoped state, and correct back-button handling. One `context.shell()` accessor drives either.
 - **Composable modules** — package a feature's routes, page builder, guards, and URL codec as a `const`-friendly `RouteModule`. Mount with `KaiselModuleMount<R>`; compose URLs with `ConfigCodecWithModules` without the host knowing the module's internal structure.
 - **URL-addressable** — deep-link into a branch stack (`/home/products/sku-42`) or a module stack (`/checkout/confirm`). Inactive branches keep in-memory state across tab switches.
-- **Modal flows with typed results** — `await router.run<T>(SomeFlow())` returns `Future<T?>`. Flows have their own sub-router and can nest, unwinding LIFO.
+- **Typed results, two ways** — `await context.pushForResult<T>(SomeScreen())` keeps the screen on the **main stack** (a normal route — observed, with root dialogs above it) and resolves when it pops with `context.pop(result)`. `await router.run<T>(SomeFlow())` lifts a multi-screen **modal flow** into its own sub-router; flows can nest, unwinding LIFO.
 - **Adaptive layouts** — at the main delegate, inside shell branches, and inside modules. A detail route can absorb its master into one rendered page (master-detail without changing the stack model).
 - **Direction-aware transitions** — pattern-match on the `(previous, current)` route pair to pick a `Page` subclass per transition. Shared elements via Flutter's `Hero`.
 - **Navigator observers** — attach `NavigatorObserver`s (analytics, Sentry, `RouteObserver`) with an `observers: () => [...]` builder. It's called once per navigator — the main stack and each shell branch, module, and flow — so every navigator gets its own fresh instance.
@@ -222,9 +222,22 @@ context.push(const ProductDetail('42'));
 
 > **Inside the `chromeBuilder`, `context.router<BranchRoute>()` does not resolve** — each branch's `RouterScope` is installed *below* the chrome, and lookups only walk up. Use the `activeBranch`/`switchBranch` arguments or `context.shell()` to drive the shell, and `context.router<AppRoute>()` for the root router. The typed branch router is only reachable from that branch's own screens.
 
-### 5. Modal flows with typed results
+### 5. Typed results from a screen
 
-A modal flow is a route variant that *also* implements `KaiselModalRoute<T>` to declare its result type:
+Two ways to get a value back, depending on whether the screen should live on the main stack or in its own modal flow.
+
+**`pushForResult<T>` — a normal screen on the main stack.** The screen is an ordinary route in the same `Navigator`, so a shared observer sees it, a root-navigator dialog renders above it, and back behaves normally. It resolves when the screen pops with a value:
+
+```dart
+final String? picked = await context.pushForResult<String>(const ColorPicker());
+// inside ColorPicker:
+context.pop('teal');               // resolves the awaiter with 'teal'
+context.pop();                     // or null when dismissed without a value
+```
+
+The future resolves with `null` if the screen is popped without a value, replaced by `set` / `replaceTop`, or removed by system back. Reach for this when a screen just needs to hand back a value — no modal-flow machinery required.
+
+**Modal flows — a multi-step sub-flow with its own router.** A modal flow is a route variant that *also* implements `KaiselModalRoute<T>` to declare its result type:
 
 ```dart
 final class ConfirmAddToCart extends AppRoute
@@ -671,7 +684,7 @@ npx skills add Mastersam07/kaisel
 
 ## Status
 
-**v0.18, pre-1.0.** The core surface is in place: routes, guards, shells (homogeneous and per-branch typed), modal flows with typed results and nesting, URL-addressable shell and module state, composable modules with URL composition, adaptive layouts at every level, route-pair-aware transitions, and `KaiselPageScope`. The public API is shaped for stability but not yet frozen — expect occasional breaking changes before 1.0, each with a migration note in the [changelog](CHANGELOG.md).
+**v0.19, pre-1.0.** The core surface is in place: routes, guards, shells (homogeneous and per-branch typed), typed main-stack results (`pushForResult<T>`), modal flows with typed results and nesting, URL-addressable shell and module state, composable modules with URL composition, adaptive layouts at every level, route-pair-aware transitions, and `KaiselPageScope`. The public API is shaped for stability but not yet frozen — expect occasional breaking changes before 1.0, each with a migration note in the [changelog](CHANGELOG.md).
 
 ## Roadmap
 

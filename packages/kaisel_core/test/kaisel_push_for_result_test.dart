@@ -92,10 +92,7 @@ void main() {
       // A guard that refuses to let _Picker onto the stack.
       List<_R> noPicker(List<_R> current, List<_R> proposed) =>
           proposed.where((route) => route is! _Picker).toList();
-      final r = KaiselRouter<_R>(
-        initial: const _Home(),
-        guards: [noPicker],
-      );
+      final r = KaiselRouter<_R>(initial: const _Home(), guards: [noPicker]);
 
       final result = await r.pushForResult<String>(const _Picker());
       expect(result, isNull);

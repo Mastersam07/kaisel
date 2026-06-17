@@ -29,6 +29,14 @@ Three things to internalise:
    doesn't recognise a route pair should return `MaterialPage(key:
    ctx.key, child: ctx.child)` — that's the default slide behaviour,
    not a no-op.
+4. **Always pass the route name and arguments to the `Page`.** The
+   default wrapper sets `name: ctx.route.routeName` and `arguments:
+   ctx.route` on every page. The moment you supply your own
+   `pageWrapper`, that is on you — forward both on every `Page` you
+   return (custom subclass *and* the `MaterialPage` fallback).
+   Omitting them strips the route's identity, so `RouteObserver`s,
+   analytics screen tracking, and `RouteAware` widgets stop seeing the
+   page.
 
 ## Quick reference
 
@@ -45,7 +53,12 @@ Three things to internalise:
 
 ```dart
 class _FadePage<T> extends Page<T> {
-  const _FadePage({required LocalKey super.key, required this.child});
+  const _FadePage({
+    required LocalKey super.key,
+    required this.child,
+    super.name,
+    super.arguments,
+  });
   final Widget child;
 
   @override
@@ -62,7 +75,12 @@ class _FadePage<T> extends Page<T> {
 }
 
 class _SlideUpPage<T> extends Page<T> {
-  const _SlideUpPage({required LocalKey super.key, required this.child});
+  const _SlideUpPage({
+    required LocalKey super.key,
+    required this.child,
+    super.name,
+    super.arguments,
+  });
   final Widget child;
 
   @override
@@ -90,20 +108,40 @@ class _SlideUpPage<T> extends Page<T> {
 
 ```dart
 Page<Object?> _appPageWrapper(KaiselPageWrapperContext<AppRoute> ctx) {
+  // Forward the route's name and arguments on every page so observers,
+  // analytics, and RouteAware widgets keep seeing the route identity.
+  final name = ctx.route.routeName;
+  final arguments = ctx.route;
+
   return switch ((ctx.previous, ctx.route)) {
     // Login ↔ Shell are full-surface auth states swapped with
     // router.set(...), which collapses the stack to a single entry — so
     // ctx.previous is null here. Match on the destination route type
     // (not the pair) so the swap still cross-fades.
     (_, LoginRoute()) || (_, ShellHost()) =>
-      _FadePage<Object?>(key: ctx.key, child: ctx.child),
+      _FadePage<Object?>(
+        key: ctx.key,
+        name: name,
+        arguments: arguments,
+        child: ctx.child,
+      ),
 
     // Settings slides up from the bottom whenever it's opened.
     (_, Settings()) =>
-      _SlideUpPage<Object?>(key: ctx.key, child: ctx.child),
+      _SlideUpPage<Object?>(
+        key: ctx.key,
+        name: name,
+        arguments: arguments,
+        child: ctx.child,
+      ),
 
     // Default: MaterialPage slide.
-    _ => MaterialPage<Object?>(key: ctx.key, child: ctx.child),
+    _ => MaterialPage<Object?>(
+      key: ctx.key,
+      name: name,
+      arguments: arguments,
+      child: ctx.child,
+    ),
   };
 }
 ```
@@ -189,8 +227,18 @@ KaiselBranch<ProductRoute>(
   router: _productRouter,
   pageBuilder: /* ... */,
   pageWrapper: (ctx) => switch (ctx.route) {
-    ProductDetail() => _CrossFadePage(key: ctx.key, child: ctx.child),
-    _ => MaterialPage(key: ctx.key, child: ctx.child),
+    ProductDetail() => _CrossFadePage(
+      key: ctx.key,
+      name: ctx.route.routeName,
+      arguments: ctx.route,
+      child: ctx.child,
+    ),
+    _ => MaterialPage(
+      key: ctx.key,
+      name: ctx.route.routeName,
+      arguments: ctx.route,
+      child: ctx.child,
+    ),
   },
 )
 ```
@@ -203,6 +251,7 @@ imposing it on the rest of the app.
 | Mistake | Fix |
 |:--------|:----|
 | Forgetting to fall through to `MaterialPage` | Without a `_` catchall in the switch, the wrapper crashes on unmatched route pairs. Always include `_ => MaterialPage(key: ctx.key, child: ctx.child)`. |
+| Dropping `name`/`arguments` on a custom `pageWrapper` | The default wrapper sets `name: ctx.route.routeName` and `arguments: ctx.route`; a custom one that omits them strips route identity, so `RouteObserver`s, analytics screen tracking, and `RouteAware` go blind. Pass both on **every** page you return — custom subclass and `MaterialPage` fallback alike. |
 | Pair-matching a transition performed with `set` | `set([X])` collapses the stack to one entry, so `ctx.previous` is `null` and `(A(), B())` never matches. For full-surface swaps (auth, deep-link landing) match on the destination route type, not the pair. |
 | Using a custom `Page` subclass for every route, hand-rolling slides that already exist | If the design wants Material's default slide, use `MaterialPage`. Don't reinvent the cupertino/material transitions that the SDK already provides. |
 | Reusing the same `LocalKey` across pages | The key passed in `ctx.key` is stable for the route. Don't construct a new `ValueKey` per page build — that breaks state preservation across rebuilds. |
