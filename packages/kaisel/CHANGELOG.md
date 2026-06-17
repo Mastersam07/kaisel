@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.19.0
+
+### Added
+
+- **`context.pushForResult<T>(route)` and `context.pop([result])`** — typed
+  results from a screen on the main stack, the Flutter-layer surface over
+  `KaiselRouter.pushForResult`. The screen stays a normal route in the same
+  navigator, so root-navigator dialogs, a shared observer, and ordinary
+  navigation all behave as usual. Reach for it instead of `run<T>` when a screen
+  needs to return a value without being lifted into a modal flow's separate
+  navigator.
+
+- **Root overlay host for dialogs over modal flows.** _[Experimental.]_ The
+  delegate wraps the app in a root `Navigator` above the main stack and all flow
+  layers, so `showDialog` / `showModalBottomSheet` (whose `useRootNavigator`
+  defaults to `true`) render above an active `run<T>` flow instead of behind it —
+  including a dialog shown from the `navigatorKey` context the app attaches to its
+  config. System back dismisses a hosted dialog before unwinding the flow. The
+  presentation model is still evolving; don't depend on the exact navigator
+  structure yet.
+
+### Changed
+
+- Requires `kaisel_core: ^0.18.0` (for `pushForResult` / `pop(result)`).
+
 ## 0.18.0
 
 ### Added

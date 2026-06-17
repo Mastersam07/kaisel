@@ -33,11 +33,18 @@ below show the typed form first.
 | Method | Stack effect | Returns | Use when |
 |:-------|:-------------|:--------|:---------|
 | `push(route)` | Adds to top | `Future<void>` | Going forward to a new screen |
-| `pop()` | Removes top | `Future<bool>` (success) | Going back; respects guards |
+| `pushForResult<T>(route)` | Adds to top | `Future<T?>` (screen result) | A main-stack screen that returns a value |
+| `pop([result])` | Removes top | `Future<bool>` (success) | Going back; respects guards, optionally returns `result` |
 | `replaceTop(route)` | Removes top, pushes new | `Future<void>` | Swap current screen in place (no back history) |
 | `pushOrReplaceTop(route)` | Push if top differs in runtime type; replace if same | `Future<void>` | Adaptive master-detail; tab-style in-place updates |
 | `set(routes)` | Replaces entire stack | `Future<void>` | Auth state transitions, deep-link landing |
 | `run<T>(flow)` | Opens a typed modal flow | `Future<T?>` (flow result) | Modal sub-flows (payment, wizard, picker) |
+
+`pushForResult<T>` and `run<T>` both return `Future<T?>`. The difference is
+*where the screen lives*: `pushForResult` keeps it on the main stack (a normal
+route — observed, with root dialogs above it, normal back); `run<T>` lifts a
+multi-screen flow into its own sub-router. See [MODAL_FLOWS.md](./MODAL_FLOWS.md)
+for choosing between them.
 
 All methods run through the guard pipeline (if configured) before
 applying. A guard can reject or transform any proposed stack.
@@ -63,27 +70,79 @@ sub-screen.
   `pushOrReplaceTop` there — see [ADAPTIVE.md](./ADAPTIVE.md).
 - `push` is *not* the right call for a typed modal flow. Use `run<T>`
   — see [MODAL_FLOWS.md](./MODAL_FLOWS.md).
+- To get a value *back* from the pushed screen, use `pushForResult<T>`
+  (below) — `push` returns `Future<void>`, which settles when the
+  navigation is applied, not when the screen pops.
+
+## pushForResult
+
+```dart
+final picked = await context.router<AppRoute>().pushForResult<String>(
+  const ColorPicker(),
+);
+// Terse convenience (runtime-resolved):
+final picked = await context.pushForResult<String>(const ColorPicker());
+if (picked != null) {
+  // The screen popped with a value.
+} else {
+  // Dismissed without one.
+}
+```
+
+Pushes the route onto the main stack like `push`, but returns a
+`Future<T?>` that resolves when that pushed screen leaves the stack. The
+screen returns its value by popping with one — `context.pop(picked)`.
+
+**Use for:** A picker, a form, a confirm screen — anywhere a screen on
+the **main stack** should hand a value back to its caller, and should
+otherwise behave like a normal screen (a shared `RouteObserver` sees it,
+a root-navigator dialog renders above it, system back works normally).
+
+**Notes:**
+
+- The future resolves with `null` if the screen is popped without a value
+  (`context.pop()`), replaced off the stack by `set` / `replaceTop`,
+  removed by system back, or the router is disposed — treat `null` as
+  "dismissed", a first-class outcome.
+- `pushForResult<T>` vs `run<T>`: both return `Future<T?>`. Use
+  `pushForResult` for a single screen on the main stack; use `run<T>`
+  when you want a multi-step flow in its own sub-router (its own stack,
+  nesting, an overlay layer). See [MODAL_FLOWS.md](./MODAL_FLOWS.md).
+- The pushed screen completes with `context.pop(value)` — the same `pop`
+  you use for back, with the value as its argument.
 
 ## pop
 
 ```dart
 final didPop = await context.router<AppRoute>().pop();
+// Return a value to a pushForResult awaiter:
+await context.pop(selectedId);
 // Terse convenience (runtime-resolved):
 final didPop = await context.pop();
 ```
 
 Removes the top entry. Returns `true` if the pop happened, `false` if
 the stack was already at one entry (you can't pop the root) or if a
-guard blocked the mutation.
+guard blocked the mutation. Pass an optional `result` to hand a value
+back to a matching `pushForResult<T>` awaiter.
 
-**Use for:** Back buttons, "cancel" actions, completing a sub-screen
-without a typed result.
+**Use for:** Back buttons, "cancel" actions, and returning a value from
+a screen opened with `pushForResult<T>`.
 
 **Notes:**
 
-- The `Future<bool>` is the success indicator, not a result value. To
-  return data from a screen, use `run<T>(...)` and complete the flow
-  with the value.
+- The `Future<bool>` is the *success* indicator, not the result value —
+  the result is the argument you pass to `pop`. To return data from a
+  main-stack screen, open it with `pushForResult<T>(...)` and pop it with
+  `pop(value)`; to return from a modal flow, use `run<T>` +
+  `completeFlow`.
+- `result` is typed `Object?`, recovered as `T?` at the
+  `pushForResult<T>` await boundary (the same erase-then-recover model as
+  `run<T>` / `completeFlow`).
+- **`pop` runs through the guard pipeline like every other mutation.** A
+  guard can prevent a pop (e.g. a form-dirty guard that asks "discard
+  changes?"); `pop` then returns `false`. Always check the boolean if you
+  care whether it happened.
 - A guard can prevent a pop (e.g., a form-dirty guard that asks
   "discard changes?"). Always check the boolean if you care.
 
@@ -207,19 +266,21 @@ A short decision tree for picking the right method. Reach for the typed
 when the brevity clearly earns the runtime family check:
 
 - **Going forward to a new screen?** `push`
-- **Going back?** `pop`
+- **Going forward to a screen that hands a value back?** `pushForResult<T>`
+- **Going back (optionally returning a value)?** `pop` / `pop(result)`
 - **Swapping the current screen in place (no back to current)?** `replaceTop`
 - **Same screen type would land on top either way?** `pushOrReplaceTop`
 - **Entire stack changes (auth, deep-link land)?** `set`
-- **Opening a typed sub-flow that returns a result?** `run<T>`
+- **Opening a multi-step modal sub-flow that returns a result?** `run<T>`
 
 ## Common mistakes
 
 | Mistake | Fix |
 |:--------|:----|
 | Using `push` everywhere | Many "navigate forward" calls are actually `replaceTop` (onboarding steps), `pushOrReplaceTop` (adaptive master-detail), or `run<T>` (modal flows). |
-| Awaiting `push` expecting a result | `push` returns `Future<void>`. Screens that return values should be opened with `run<T>(...)`. |
-| Forgetting to handle the `null` result from `run<T>` | `null` means the user dismissed the flow. Treat it as a first-class outcome, not an edge case. |
+| Awaiting `push` expecting a result | `push` returns `Future<void>`. A main-stack screen that returns a value should be opened with `pushForResult<T>(...)` and popped with `pop(value)`; a modal flow uses `run<T>` + `completeFlow`. |
+| Forgetting to handle the `null` result from `pushForResult<T>` / `run<T>` | `null` means dismissed without a value. Treat it as a first-class outcome, not an edge case. |
+| Reaching for `run<T>` just to return a value from one screen | If it's a single screen on the main stack, `pushForResult<T>` is lighter and keeps the screen observable with root dialogs above it. Use `run<T>` when you genuinely need a multi-step flow in its own sub-router. |
 | Pop loops to clear deep-link state | Use `set` to atomically replace the stack instead of popping repeatedly. |
 | Pop'ing past the root | `pop` returns `false` when the stack is at one entry. It doesn't throw. Use the return value if you need to know. |
 | Passing a wrong-family route to a terse `context.*` verb | The terse verbs resolve by *accepted argument type* at runtime, so a route from the wrong family throws at runtime. Use `context.router<R>().<verb>` to turn that into a compile error. |

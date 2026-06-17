@@ -36,6 +36,10 @@ class RouterScope<R extends KaiselRoute> extends InheritedWidget {
   /// target scope via [accepts] first, so each cast to `R` is sound.
   Future<void> pushRoute(KaiselRoute route) => router.push(route as R);
 
+  /// Type-erased [KaiselRouter.pushForResult]; see [pushRoute].
+  Future<T?> pushRouteForResult<T>(KaiselRoute route) =>
+      router.pushForResult<T>(route as R);
+
   /// Type-erased [KaiselRouter.replaceTop]; see [pushRoute].
   Future<void> replaceTopRoute(KaiselRoute route) =>
       router.replaceTop(route as R);
@@ -150,14 +154,27 @@ extension KaiselContextNavigation on BuildContext {
   Future<void> push(KaiselRoute route) =>
       _scopeForRoute(route).pushRoute(route);
 
-  /// Pop the nearest kaisel router. Returns `false` if it was already at root.
+  /// Push [route] onto the nearest router that accepts it and await a typed
+  /// result, delivered when that screen pops (see [pop]).
+  ///
+  /// The screen lives on the main stack — a normal route in the same
+  /// [Navigator] — so root-navigator dialogs, shared observers, and ordinary
+  /// navigation behave as usual. Use this instead of [run] when a screen
+  /// needs to return a value without being lifted into a modal flow's
+  /// separate navigator. See [KaiselRouter.pushForResult].
+  Future<T?> pushForResult<T>(KaiselRoute route) =>
+      _scopeForRoute(route).pushRouteForResult<T>(route);
+
+  /// Pop the nearest kaisel router, optionally returning [result] to a
+  /// matching [pushForResult] awaiter. Returns `false` if it was already at
+  /// root.
   ///
   /// When called from inside an overlay you pushed imperatively
   /// ([showModalBottomSheet], [showDialog], …), that overlay is closed instead
   /// — it isn't on the kaisel stack, and closing it is almost always what `pop`
   /// means there. To pop the typed route from inside an overlay, call `pop()` on
   /// a [KaiselRouter] directly (e.g. `context.router<R>().pop()`).
-  Future<bool> pop() {
+  Future<bool> pop([Object? result]) {
     Widget? boundary;
     visitAncestorElements((element) {
       final widget = element.widget;
@@ -168,9 +185,11 @@ extension KaiselContextNavigation on BuildContext {
       return true;
     });
     return switch (Navigator.maybeOf(this)) {
+      // Closing an imperative overlay (dialog/sheet): the result belongs to
+      // that overlay's route, not the kaisel screen beneath it.
       final navigator? when boundary is RouterScope && navigator.canPop() =>
-        navigator.maybePop(),
-      _ => _nearestRouterScope().router.pop(),
+        navigator.maybePop(result),
+      _ => _nearestRouterScope().router.pop(result),
     };
   }
 

@@ -227,6 +227,18 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   final List<GlobalKey<NavigatorState>> _flowNavigatorKeys =
       <GlobalKey<NavigatorState>>[];
 
+  /// Key for the root overlay host — a [Navigator] wrapped around the main
+  /// stack and all flow layers. Because it is an ancestor of every other
+  /// navigator, `Navigator.of(context, rootNavigator: true)` (and so
+  /// `showDialog` / `showModalBottomSheet`, whose `useRootNavigator` defaults
+  /// to true) resolves to it from anywhere — including the `navigatorKey`
+  /// context the app attaches to `KaiselConfig`. Its overlay sits above the
+  /// flow layers, so a root dialog renders over an active modal flow instead
+  /// of behind it. [EXPERIMENTAL — prototype.]
+  final GlobalKey<NavigatorState> _rootOverlayKey = GlobalKey<NavigatorState>(
+    debugLabel: 'kaisel-root-overlay',
+  );
+
   //
   // A mounted nested router (branched shell or module mount) registers
   // itself here. The host treats the most recently registered handle
@@ -366,6 +378,12 @@ class KaiselRouterDelegate<R extends KaiselRoute>
 
   @override
   Future<bool> popRoute() async {
+    // A dialog/sheet hosted above the flow layers takes back first.
+    final rootOverlay = _rootOverlayKey.currentState;
+    if (rootOverlay != null && rootOverlay.canPop()) {
+      return rootOverlay.maybePop();
+    }
+
     final navState = navigatorKey.currentState;
     if (navState == null) return false;
 
@@ -383,6 +401,30 @@ class KaiselRouterDelegate<R extends KaiselRoute>
 
   @override
   Widget build(BuildContext context) {
+    // Scopes sit above the root overlay host so a root-navigator dialog still
+    // resolves RouterScope (for context.pop) and the observer/nested-host
+    // scopes.
+    return KaiselObserverScope(
+      observers: observers,
+      child: KaiselNestedHostScope(
+        host: this,
+        child: RouterScope<R>(
+          router: router,
+          child: _RootOverlayHost(
+            navigatorKey: _rootOverlayKey,
+            listenable: this,
+            contentBuilder: _buildMainAndFlows,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Builds the main [Navigator] plus one overlaid layer per active modal
+  /// flow. This is the base content of the [_RootOverlayHost]; a
+  /// root-navigator dialog pushed onto the host renders above every layer
+  /// built here.
+  Widget _buildMainAndFlows(BuildContext context) {
     final entries = router.entries;
     final mainPages = switch (_adaptiveBuilder) {
       final builder? => _adaptiveMainPages(context, entries, builder),
@@ -391,14 +433,12 @@ class KaiselRouterDelegate<R extends KaiselRoute>
 
     _lastBuiltMainPageCount = mainPages.length;
 
-    final mainNavigator = Navigator(
+    Widget content = Navigator(
       key: navigatorKey,
       pages: mainPages,
       observers: _mainObservers,
       onDidRemovePage: _onDidRemovePage,
     );
-
-    Widget content = mainNavigator;
 
     final activeFlows = router.activeFlows;
     if (activeFlows.isNotEmpty && modalBuilder == null) {
@@ -429,13 +469,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
       );
     }
 
-    content = RouterScope<R>(router: router, child: content);
-    // Install the host scope so descendant nested routers (branched
-    // shells and module mounts) can register for URL capture/restore.
-    content = KaiselNestedHostScope(host: this, child: content);
-    // Carry the observers builder down so nested navigators can attach their
-    // own fresh observer instances.
-    return KaiselObserverScope(observers: observers, child: content);
+    return content;
   }
 
   Widget _buildFlowLayer({
@@ -939,4 +973,64 @@ class KaiselNestedHostScope extends InheritedWidget {
   @override
   bool updateShouldNotify(KaiselNestedHostScope old) =>
       !identical(old.host, host);
+}
+
+/// Root overlay host: a [Navigator] whose single base page renders the app's
+/// main stack and flow layers, leaving its overlay free for imperative routes
+/// (dialogs, bottom sheets) pushed above everything.
+///
+/// Because this navigator is an ancestor of the main and flow navigators,
+/// `Navigator.of(context, rootNavigator: true)` resolves to it from anywhere,
+/// so `showDialog` / `showModalBottomSheet` (whose `useRootNavigator` defaults
+/// to true) render above an active modal flow rather than behind it.
+///
+/// The base content is wrapped in a [ListenableBuilder] on the delegate so it
+/// stays live across navigations even though a [Page]'s route is built once.
+/// [EXPERIMENTAL — prototype.]
+class _RootOverlayHost extends StatelessWidget {
+  const _RootOverlayHost({
+    required this.navigatorKey,
+    required this.listenable,
+    required this.contentBuilder,
+  });
+
+  final GlobalKey<NavigatorState> navigatorKey;
+  final Listenable listenable;
+  final WidgetBuilder contentBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    return Navigator(
+      key: navigatorKey,
+      // The base page is never removed (dialogs are imperative routes).
+      onDidRemovePage: (_) {}, // coverage:ignore-line
+      pages: <Page<Object?>>[
+        _RootHostPage(
+          child: ListenableBuilder(
+            listenable: listenable,
+            builder: (context, _) => contentBuilder(context),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The non-poppable base [Page] of the [_RootOverlayHost]. Transitionless and
+/// opaque; it simply hosts [child] (the main stack + flow layers).
+class _RootHostPage extends Page<Object?> {
+  const _RootHostPage({required this.child})
+    : super(key: const ValueKey<String>('kaisel-root-overlay-host'));
+
+  final Widget child;
+
+  @override
+  Route<Object?> createRoute(BuildContext context) {
+    return PageRouteBuilder<Object?>(
+      settings: this,
+      pageBuilder: (_, _, _) => child,
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+    );
+  }
 }

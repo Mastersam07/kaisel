@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.18.0
+
+### Added
+
+- **`pushForResult<T>` — typed results from a main-stack screen.** Push a route
+  onto the router's own stack and await a typed value:
+  `final r = await router.pushForResult<T>(route)`. The screen returns the value
+  by popping with one (`pop(result)`); the future resolves when the pushed entry
+  leaves the stack — with the popped value, or `null` if it is popped without
+  one, replaced by `set` / `replaceTop`, removed by system back, the router is
+  disposed, or a guard prevents it from landing. Unlike `run<T>`, the screen is a
+  normal route in the same navigator, so a shared observer sees it and a
+  root-navigator dialog renders above it.
+- **`pop` now accepts an optional `Object? result`**, delivered to a matching
+  `pushForResult` awaiter.
+
 ## 0.17.0
 
 ### Added
