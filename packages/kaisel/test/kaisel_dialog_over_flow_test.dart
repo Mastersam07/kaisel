@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaisel/kaisel.dart';
 
-// Prototype coverage for the root overlay host: a root-navigator dialog must
-// render ABOVE an active modal flow (not behind it, in the main navigator's
-// overlay), and system back must dismiss that hosted dialog before unwinding
-// the flow.
+// A flow is a route on the main navigator (Option C), so a dialog is a later
+// route in the same overlay and renders ABOVE an active modal flow — for both
+// useRootNavigator values — and system back dismisses the dialog before
+// unwinding the flow.
 
 sealed class _App extends KaiselRoute {
   const _App();
@@ -22,20 +22,21 @@ final class _Sheet extends _App implements KaiselModalRoute<void> {
 }
 
 class _FlowContent extends StatelessWidget {
-  const _FlowContent();
+  const _FlowContent({this.useRootNavigator = true});
+
+  final bool useRootNavigator;
 
   @override
   Widget build(BuildContext context) {
-    // An opaque, full-surface flow that would hide a dialog rendered beneath
-    // it in the main navigator's overlay.
+    // An opaque, full-surface flow that would hide a dialog rendered beneath it
+    // if the flow were a separate navigator layer.
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
       body: Center(
         child: ElevatedButton(
-          // Default useRootNavigator: true → resolves the root overlay host,
-          // which sits above this flow layer.
           onPressed: () => showDialog<void>(
             context: context,
+            useRootNavigator: useRootNavigator,
             builder: (dialogContext) => AlertDialog(
               content: const Text('loader'),
               actions: [
@@ -54,15 +55,17 @@ class _FlowContent extends StatelessWidget {
 }
 
 void main() {
-  KaiselRouterDelegate<_App> buildDelegate(KaiselRouter<_App> router) =>
-      KaiselRouterDelegate<_App>(
-        router: router,
-        builder: (context, route) => switch (route) {
-          _Home() => const Scaffold(body: Center(child: Text('home'))),
-          _Sheet() => const _FlowContent(),
-        },
-        modalBuilder: (context, route, flowContent) => flowContent,
-      );
+  KaiselRouterDelegate<_App> buildDelegate(
+    KaiselRouter<_App> router, {
+    bool useRootNavigator = true,
+  }) => KaiselRouterDelegate<_App>(
+    router: router,
+    builder: (context, route) => switch (route) {
+      _Home() => const Scaffold(body: Center(child: Text('home'))),
+      _Sheet() => _FlowContent(useRootNavigator: useRootNavigator),
+    },
+    modalBuilder: (context, route, flowContent) => flowContent,
+  );
 
   testWidgets('a root dialog renders above an active modal flow', (
     tester,
@@ -85,6 +88,33 @@ void main() {
     expect(find.text('loader'), findsOneWidget);
     expect(router.hasActiveFlow, isTrue);
 
+    await tester.tap(find.text('dismiss'));
+    await tester.pumpAndSettle();
+    expect(find.text('loader'), findsNothing);
+    expect(router.hasActiveFlow, isTrue);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    delegate.dispose();
+    router.dispose();
+  });
+
+  testWidgets('useRootNavigator: false also renders above the flow under C', (
+    tester,
+  ) async {
+    // Under A this landed behind the flow; under C the flow is a route on the
+    // main navigator, so a dialog pushed from inside it stacks on top.
+    final router = KaiselRouter<_App>(initial: const _Home());
+    final delegate = buildDelegate(router, useRootNavigator: false);
+
+    await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
+    unawaited(router.run<void>(const _Sheet()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('show-loader'));
+    await tester.pumpAndSettle();
+    expect(find.text('loader'), findsOneWidget);
+
+    // Hit-testable on top: its action dismisses it, the flow survives.
     await tester.tap(find.text('dismiss'));
     await tester.pumpAndSettle();
     expect(find.text('loader'), findsNothing);
