@@ -2,9 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaisel/kaisel.dart';
 
-// FlowScope.updateShouldNotify in isolation: under the flows-as-routes model a
-// flow's scope is built once, so this exercises the InheritedWidget contract
-// directly rather than through a live flow.
+// FlowScope.updateShouldNotify in isolation — a flow's scope is built once
+// under flows-as-routes, so this exercises it directly.
 
 int _dependentBuilds = 0;
 
@@ -33,14 +32,12 @@ void main() {
     await tester.pumpWidget(tree((_) {}));
     expect(_dependentBuilds, 1);
 
-    // A different callback instance → updateShouldNotify returns true → the
-    // dependent rebuilds. (The child is a const instance, so it only rebuilds
-    // via the inherited-widget dependency, not the parent.)
+    // The const child only rebuilds via the inherited-widget dependency, so
+    // these assertions isolate updateShouldNotify: true on a changed callback,
+    // false on the same one.
     await tester.pumpWidget(tree(_noop));
     expect(_dependentBuilds, 2);
 
-    // The same callback instance → updateShouldNotify returns false → no
-    // rebuild.
     await tester.pumpWidget(tree(_noop));
     expect(_dependentBuilds, 2);
   });
