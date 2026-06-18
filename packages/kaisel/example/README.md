@@ -1,6 +1,6 @@
 # kaisel example
 
-Eight entry points, each demonstrating a slice of the library.
+Nine entry points, each demonstrating a slice of the library.
 Pick one with `-t`:
 
 | Entry point | What it shows |
@@ -11,6 +11,7 @@ Pick one with `-t`:
 | `lib/main_adaptive.dart` | Adaptive layouts at the main delegate (v0.8) with `pushOrReplaceTop` (v0.11) for in-place master-detail swaps |
 | `lib/main_shell_adaptive.dart` | Adaptive layout *inside a shell branch* (v0.9): one tab is master-detail, the other isn't, shell stays at the bottom |
 | `lib/main_nested_flows.dart` | Nested modal flows (v0.10): a payment flow opens an "add card" flow on top of itself, both layers visible at once |
+| `lib/main_results_and_flows.dart` | Typed results + flows-as-routes (v0.20): `context.pushForResult<T>` returns a value from a main-stack screen; a `run<bool>` flow renders as a route so a `showDialog` lands above it and a shared `RouteObserver` logs the flow's open/close; `pageWrapper` gives the flow a slide-up entrance via `ctx.isFlow` |
 | `lib/main_transitions.dart` | Route-pair transitions (v0.11): pageWrapper pattern-matches on `(ctx.previous, ctx.route)` to pick custom Page subclasses per route pair |
 | `lib/main_media_cataloguer.dart` | A desktop-style app: top-level auth state machine (`router.set` swaps `LoginRoute` ↔ `ShellHost`), a cross-fade `pageWrapper` between them, a branched shell with per-branch typed routes + nested stacks, and a breadcrumb driven by `KaiselListenableBuilder`. Wired with `KaiselRouterConfig` + `KaiselBranchedShell.specs` + `context.shell()` |
 
@@ -121,3 +122,26 @@ flutter run -t lib/main_transitions.dart
 The Navigator still drives push/pop direction (forward on add,
 reverse on remove). The wrapper picks the transition *style*; the
 framework picks the direction.
+
+## `lib/main_results_and_flows.dart`
+
+Typed results and flows-as-routes (v0.20).
+
+```sh
+flutter run -t lib/main_results_and_flows.dart
+```
+
+"Pick accent colour" calls `context.pushForResult<String>(const ColorPicker())`
+— a normal screen on the main stack that returns its value with
+`context.pop(value)`. "Edit profile" opens a `run<bool>` modal flow; because a
+flow is now a route on the main navigator:
+
+- "Show help" inside the flow opens a `showDialog` that renders **above** the
+  flow (the default `useRootNavigator: true` resolves the navigator the flow
+  lives on);
+- the app's shared `RouteObserver` records the flow's open/close — the
+  "Navigation log" panel on Home shows both the picker and the flow boundary.
+
+The `pageWrapper` branches on `ctx.isFlow` to slide the flow up from the bottom
+instead of appearing instantly, forwarding `name`/`arguments` so the flow stays
+observable.
