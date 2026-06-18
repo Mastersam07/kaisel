@@ -434,6 +434,8 @@ class KaiselRouterDelegate<R extends KaiselRoute>
         for (var i = 0; i < activeFlows.length; i++)
           _FlowPage(
             key: _FlowPageKey(i),
+            name: activeFlows[i].route.routeName,
+            arguments: activeFlows[i].route,
             child: _flowPageChild(
               context,
               activeFlows[i],
@@ -978,7 +980,12 @@ class _FlowPageKey extends LocalKey {
 /// route is non-opaque so the main stack shows through; the app's
 /// `modalBuilder` draws the scrim and the route barrier stays out of the way.
 class _FlowPage extends Page<Object?> {
-  const _FlowPage({required _FlowPageKey super.key, required this.child});
+  const _FlowPage({
+    required _FlowPageKey super.key,
+    required this.child,
+    super.name,
+    super.arguments,
+  });
 
   final Widget child;
 
