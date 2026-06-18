@@ -253,26 +253,28 @@ All of these resolve the `Future<T?>`. The caller should always handle
 
 ## Dialogs and observers over a flow
 
-A flow renders in its **own inner `Navigator`**, separate from the main
-one. Two consequences are worth knowing:
+A flow is a **route on the main navigator**, so dialogs and observers
+compose with it by Flutter's normal single-overlay rules:
 
-- **Showing a dialog/loader over a flow.** Use the default
-  `showDialog(...)` / `showModalBottomSheet(...)` — `useRootNavigator`
-  defaults to `true`, which now resolves a root overlay host *above* the
-  flow, so the dialog renders on top (including a dialog shown from the
-  `navigatorKey` context you attach to your config). _[The root overlay
-  host is experimental; its exact navigator structure may change.]_ If you
-  pass `useRootNavigator: false` with a main-screen context while a flow
-  is active, the dialog lands on the main navigator — *beneath* the flow —
-  so prefer the default unless you specifically want a dialog scoped to
-  the screen under the flow.
-- **Observers don't span flows.** A `NavigatorObserver` belongs to one
-  `Navigator`, so each flow's inner navigator gets its **own** observer
-  instances (the `observers:` builder is called per navigator). A
-  stateless analytics logger still works; a shared singleton
-  `RouteObserver` with `RouteAware` subscriptions will **not** see flow
-  routes. If a screen needs to be observed by your app-wide observer,
-  keep it on the main stack with `pushForResult<T>` rather than a flow.
+- **Showing a dialog/loader over a flow.** `showDialog(...)` /
+  `showModalBottomSheet(...)` render **above an active flow for both
+  `useRootNavigator` values** — the flow is a route in the same navigator,
+  so a later-pushed dialog stacks on top. The default
+  (`useRootNavigator: true`) resolves the root navigator and covers the
+  chrome; `false` targets the nearest navigator. A dialog shown from the
+  `navigatorKey` context you attach to your config also lands on top.
+- **The main navigator's observers see the flow boundary.** Because the
+  flow is a route there, that navigator's observers receive its `didPush`
+  / `didPop`, so a `RouteObserver` on the main stack reports when a flow
+  opens and closes, and a `RouteAware` screen beneath the flow reacts to
+  it. A flow's *internal* screens run on its own inner navigator, which
+  gets its own observer instances (a `NavigatorObserver` belongs to one
+  `Navigator`), so they are observed separately.
+- **Customising a flow's entrance.** A `pageWrapper` can give a flow its
+  own transition by branching on `KaiselPageWrapperContext.isFlow` and
+  returning a (typically non-opaque) page; otherwise the flow appears
+  instantly. Forward `name` / `arguments` from `ctx.route` on a custom
+  flow page so it stays identifiable to observers.
 
 ## Common mistakes
 

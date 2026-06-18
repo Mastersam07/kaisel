@@ -684,7 +684,7 @@ npx skills add Mastersam07/kaisel
 
 ## Status
 
-**v0.19, pre-1.0.** The core surface is in place: routes, guards, shells (homogeneous and per-branch typed), typed main-stack results (`pushForResult<T>`), modal flows with typed results and nesting, URL-addressable shell and module state, composable modules with URL composition, adaptive layouts at every level, route-pair-aware transitions, and `KaiselPageScope`. The public API is shaped for stability but not yet frozen — expect occasional breaking changes before 1.0, each with a migration note in the [changelog](CHANGELOG.md).
+**v0.20, pre-1.0.** The core surface is in place: routes, guards, shells (homogeneous and per-branch typed), typed main-stack results (`pushForResult<T>`), modal flows (rendered as routes on the main navigator, so dialogs and observers compose with them), URL-addressable shell and module state, composable modules with URL composition, adaptive layouts at every level, route-pair-aware transitions, and `KaiselPageScope`. The public API is shaped for stability but not yet frozen — expect occasional breaking changes before 1.0, each with a migration note in the [changelog](CHANGELOG.md).
 
 ## Roadmap
 
