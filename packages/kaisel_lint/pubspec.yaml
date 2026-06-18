@@ -1,6 +1,6 @@
 name: kaisel_lint
 description: Custom lint rules, quick fixes, and assists for the kaisel router (require route props, avoid modal route on the main stack, prefer pushOrReplaceTop), built on the first-party analysis_server_plugin API.
-version: 0.3.0
+version: 0.4.0
 repository: https://github.com/Mastersam07/kaisel/tree/dev/packages/kaisel_lint
 homepage: https://github.com/Mastersam07/kaisel/tree/dev/packages/kaisel_lint
 issue_tracker: https://github.com/Mastersam07/kaisel/issues
@@ -8,14 +8,15 @@ resolution: workspace
 
 environment:
   sdk: ^3.10.0
+  flutter: ">=3.38.0"
 
 dependencies:
-  analyzer: ^10.0.1
-  analyzer_plugin: ^0.14.1
-  analysis_server_plugin: ^0.3.7
+  analyzer: ">=12.1.0 <13.0.0"
+  analyzer_plugin: ">=0.14.8 <0.15.0"
+  analysis_server_plugin: ">=0.3.14 <0.4.0"
 
 dev_dependencies:
-  analyzer_testing: ^0.1.9
-  lints: ^6.1.0
-  test: ^1.30.0
-  test_reflective_loader: ^0.4.0
+  analyzer_testing: ">=0.2.5 <0.3.0"
+  lints: ">=6.1.0 <7.0.0"
+  test: ">=1.31.0 <2.0.0"
+  test_reflective_loader: ">=0.4.0 <0.5.0"

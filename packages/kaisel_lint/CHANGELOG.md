@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+
+### Dependencies
+
+- Bump the analyzer toolchain to `analyzer >=12.1.0 <13.0.0`,
+  `analyzer_plugin >=0.14.8 <0.15.0`, `analysis_server_plugin >=0.3.14 <0.4.0`,
+  and `analyzer_testing >=0.2.5 <0.3.0` (needs Flutter ≥ 3.38.0). Migrated the
+  rules to the analyzer's new element model: `Element.isSynthetic` →
+  `isOriginDeclaration`, and `ClassDeclaration.name` → `namePart.typeName`.
+
 ## 0.3.0
 
 ### Tooling
