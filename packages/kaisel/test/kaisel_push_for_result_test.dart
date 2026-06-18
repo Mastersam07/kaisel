@@ -187,4 +187,34 @@ void main() {
     delegate.dispose();
     router.dispose();
   });
+
+  testWidgets('a pending result resolves null when the delegate restores a '
+      'new path', (tester) async {
+    final router = KaiselRouter<_R>(initial: const _Home());
+    final delegate = KaiselRouterDelegate<_R>(
+      router: router,
+      builder: (context, route) => switch (route) {
+        _Home() => const Scaffold(body: Center(child: Text('home'))),
+        _Picker() => const Scaffold(body: Center(child: Text('picker'))),
+      },
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
+    final future = router.pushForResult<String>(const _Picker());
+    await tester.pumpAndSettle();
+    expect(find.text('picker'), findsOneWidget);
+
+    // The exact callback Flutter invokes on restoration or a new deep link.
+    await delegate.setNewRoutePath(
+      KaiselConfig<_R>(mainStack: const [_Home()]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(await future.timeout(const Duration(seconds: 1)), isNull);
+    expect(find.text('home'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    delegate.dispose();
+    router.dispose();
+  });
 }
