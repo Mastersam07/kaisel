@@ -432,17 +432,46 @@ class KaiselRouterDelegate<R extends KaiselRoute>
       pages: <Page<Object?>>[
         ...mainPages,
         for (var i = 0; i < activeFlows.length; i++)
-          _FlowPage(
-            key: _FlowPageKey(i),
-            name: activeFlows[i].route.routeName,
-            arguments: activeFlows[i].route,
-            child: _flowPageChild(
-              context,
-              activeFlows[i],
-              _flowNavigatorKeys[i],
-            ),
+          _flowPage(
+            i,
+            mainPages.length,
+            activeFlows.length,
+            activeFlows[i],
+            _flowPageChild(context, activeFlows[i], _flowNavigatorKeys[i]),
           ),
       ],
+    );
+  }
+
+  /// Builds the outer page for an active flow. A `pageWrapper` can customise
+  /// its entrance transition via an `isFlow` context; otherwise it is the
+  /// instant, transparent [_FlowPage].
+  Page<Object?> _flowPage(
+    int flowIndex,
+    int mainCount,
+    int flowCount,
+    KaiselActiveFlow<R> flow,
+    Widget child,
+  ) {
+    final key = _FlowPageKey(flowIndex);
+    final wrapper = pageWrapper;
+    if (wrapper != null) {
+      return wrapper(
+        KaiselPageWrapperContext<R>(
+          route: flow.route as R,
+          child: child,
+          key: key,
+          position: mainCount + flowIndex,
+          stackLength: mainCount + flowCount,
+          isFlow: true,
+        ),
+      );
+    }
+    return _FlowPage(
+      key: key,
+      name: flow.route.routeName,
+      arguments: flow.route,
+      child: child,
     );
   }
 
