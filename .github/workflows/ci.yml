@@ -36,6 +36,10 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Install kaisel_lint dependencies
+        working-directory: packages/kaisel_lint
+        run: dart pub get
+
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .
 

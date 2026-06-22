@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.0
+
+### Dependencies
+
+- Bump `analyzer` to `>=13.0.0 <14.0.0` (with `analyzer_plugin >=0.14.9`,
+  `analysis_server_plugin >=0.3.15`, `analyzer_testing >=0.2.6`). Migrated for
+  analyzer 13: `ArgumentList.arguments` now yields `Argument` nodes, so an
+  argument's static type is read via `argument.argumentExpression.staticType`.
+- `kaisel_lint` left the Flutter workspace and dropped its `flutter` SDK
+  constraint. It is pure Dart and tracks the latest analyzer, which needs a
+  newer `test_api` than the Flutter SDK's `flutter_test` pins; it now resolves
+  independently — run `dart pub get` in this package.
+
 ## 0.4.0
 
 ### Dependencies

@@ -43,7 +43,7 @@ class ConvertPushToRunAssist extends ResolvedCorrectionProducer {
     // Argument must be a KaiselModalRoute.
     final args = invocation.argumentList.arguments;
     if (args.isEmpty) return;
-    final argType = args.first.staticType;
+    final argType = args.first.argumentExpression.staticType;
     if (argType == null) return;
     final typeArg = getKaiselModalRouteTypeArgument(argType);
     if (typeArg == null) return;

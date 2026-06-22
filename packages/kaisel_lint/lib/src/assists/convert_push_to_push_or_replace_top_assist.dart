@@ -43,7 +43,7 @@ class ConvertPushToPushOrReplaceTopAssist extends ResolvedCorrectionProducer {
     // convert-to-run assist is the right transformation there.
     final args = invocation.argumentList.arguments;
     if (args.isNotEmpty) {
-      final argType = args.first.staticType;
+      final argType = args.first.argumentExpression.staticType;
       if (argType != null && getKaiselModalRouteTypeArgument(argType) != null) {
         return;
       }

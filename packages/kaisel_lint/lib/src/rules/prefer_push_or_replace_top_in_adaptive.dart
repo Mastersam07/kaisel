@@ -62,7 +62,7 @@ class _Visitor extends SimpleAstVisitor<void> {
     final args = node.argumentList.arguments;
     if (args.isEmpty) return;
 
-    final argType = args.first.staticType;
+    final argType = args.first.argumentExpression.staticType;
     if (argType == null) return;
 
     // Don't double-fire on modal route pushes — the dedicated rule
