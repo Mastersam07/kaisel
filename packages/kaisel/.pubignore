@@ -13,3 +13,4 @@ ROADMAP.md
 # before `pub publish` so the build is present and current.
 !extension/devtools/build/
 !extension/devtools/build/**
+doc/design/
