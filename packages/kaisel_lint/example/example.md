@@ -10,7 +10,7 @@ available).
 ```yaml
 # pubspec.yaml
 dev_dependencies:
-  kaisel_lint: ^0.4.0
+  kaisel_lint: ^0.5.0
 ```
 
 ```yaml
@@ -26,7 +26,7 @@ the plugin yourself with a `diagnostics:` map (see `recommended.yaml`):
 ```yaml
 plugins:
   kaisel_lint:
-    version: ^0.4.0
+    version: ^0.5.0
     diagnostics:
       prefer_const_route_constructors: true
       prefer_pattern_match_over_is_check: true

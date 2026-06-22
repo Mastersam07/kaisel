@@ -3,7 +3,7 @@
 # 1. Add kaisel_lint to your app's dev_dependencies:
 #
 #      dev_dependencies:
-#        kaisel_lint: ^0.4.0
+#        kaisel_lint: ^0.5.0
 #
 # 2. Include this file from your analysis_options.yaml:
 #
@@ -17,7 +17,7 @@
 #
 #      plugins:
 #        kaisel_lint:
-#          version: ^0.4.0
+#          version: ^0.5.0
 #          diagnostics:
 #            prefer_const_route_constructors: true
 #            prefer_pattern_match_over_is_check: true
@@ -25,4 +25,4 @@
 #            prefer_push_or_replace_top_in_adaptive: true  # fires on every push
 plugins:
   kaisel_lint:
-    version: ^0.4.0
+    version: ^0.5.0

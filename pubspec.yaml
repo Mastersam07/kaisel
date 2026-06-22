@@ -5,9 +5,10 @@ environment:
   sdk: ^3.10.0
 
 # Dart pub workspace. All members share a single resolution and lockfile.
+# kaisel_lint is excluded: it tracks the latest analyzer (newer test_api than
+# the Flutter SDK pins) and resolves on its own — `dart pub get` there.
 workspace:
   - packages/kaisel_core
   - packages/kaisel
   - packages/kaisel/example
   - packages/kaisel_devtools
-  - packages/kaisel_lint
