@@ -104,6 +104,12 @@ a root-navigator dialog renders above it, system back works normally).
   (`context.pop()`), replaced off the stack by `set` / `replaceTop`,
   removed by system back, or the router is disposed — treat `null` as
   "dismissed", a first-class outcome.
+- **A pending result does not survive process-death restoration.** A
+  `Future` can't be serialized, so if the OS kills and relaunches the app
+  while you're awaiting one, that await is gone with the old isolate (the
+  result is lost, not delivered). An in-process stack replacement resolves
+  the awaiter with `null` rather than hanging. Don't gate critical state on
+  a result that must outlive a kill — persist it.
 - `pushForResult<T>` vs `run<T>`: both return `Future<T?>`. Use
   `pushForResult` for a single screen on the main stack; use `run<T>`
   when you want a multi-step flow in its own sub-router (its own stack,

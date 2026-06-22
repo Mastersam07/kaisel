@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.20.0
+
+### Changed
+
+- **Modal flows now render as routes on the main navigator**, replacing the
+  experimental root overlay host from 0.19.0. A `run<T>` flow is a transparent
+  page on the same navigator as the main stack, so dialogs and bottom sheets
+  follow Flutter's normal single-overlay rules:
+  - `showDialog` / `showModalBottomSheet` render **above an active flow for both
+    `useRootNavigator` values** (0.19.0's overlay only handled the default
+    `true`), including a dialog shown from the `navigatorKey` context.
+  - The main navigator's `observers` now see a flow's open/close (`didPush` /
+    `didPop` on the flow's route), so a `RouteObserver` / `RouteAware` on the
+    main stack observes the flow boundary. Internal flow screens remain on the
+    flow's own inner navigator.
+  - System back unwinds dialog → flow inner screens → flow → main, in order.
+
+  `run<T>` / `KaiselModalRoute<T>` / `completeFlow` / `dismissFlow` /
+  `modalBuilder` are unchanged at the call site. Observable behavior does shift:
+  a flow now animates in/out, traps focus, emits modal semantics, allows
+  cross-boundary `Hero`s, and responds to a raw `Navigator.pop` (which dismisses
+  it with `null`). A flow page carries the flow route's `name` / `arguments` so
+  it is identifiable to observers.
+
+### Added
+
+- **`KaiselPageWrapperContext.isFlow`** — a `pageWrapper` can give a flow its own
+  entrance transition by branching on `isFlow` and returning a page (typically
+  non-opaque, so the main stack shows behind the scrim); the framework otherwise
+  uses an instant, transparent flow page. A custom flow page should forward
+  `name` / `arguments` from `ctx.route` to stay observable.
+
 ## 0.19.0
 
 ### Added

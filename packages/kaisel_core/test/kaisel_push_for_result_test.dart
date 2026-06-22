@@ -108,5 +108,22 @@ void main() {
       await r.push(const _Picker()).timeout(const Duration(seconds: 1));
       expect(r.stack, [const _Home(), const _Picker()]);
     });
+
+    test(
+      'a pending result resolves null when a restore replaces the stack',
+      () async {
+        // A restore / deep link arrives through applyFromInformation, which
+        // replaces the stack. The pushed entry leaves, so its awaiter resolves
+        // null rather than hanging — the completer is router state keyed by
+        // entry id, never part of the serialized config.
+        final r = KaiselRouter<_R>(initial: const _Home());
+        final future = r.pushForResult<String>(const _Picker());
+        await Future<void>.delayed(Duration.zero);
+        expect(r.stack, [const _Home(), const _Picker()]);
+
+        await r.applyFromInformation([const _Home()]);
+        expect(await future.timeout(const Duration(seconds: 1)), isNull);
+      },
+    );
   });
 }
