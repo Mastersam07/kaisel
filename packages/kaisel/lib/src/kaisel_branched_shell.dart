@@ -36,7 +36,8 @@ import 'kaisel_scope.dart';
 class BranchedShellRouter extends ChangeNotifier
     implements KaiselNestedHandle, KaiselShellController {
   /// Create a shell aggregating [branches]. Each entry is typically a
-  /// `KaiselRouter<BranchR>` for some sealed `BranchR`.
+  /// `KaiselRouter<BranchR>` for some sealed `BranchR`. Every branch is
+  /// materialised up front — the caller already holds them — and stays mounted.
   BranchedShellRouter({
     required List<KaiselNavigator> branches,
     int initialBranch = 0,
@@ -45,15 +46,65 @@ class BranchedShellRouter extends ChangeNotifier
          initialBranch >= 0 && initialBranch < branches.length,
          'initialBranch out of range',
        ),
-       _branches = List<KaiselNavigator>.unmodifiable(branches),
+       _factories = [for (final branch in branches) (() => branch)],
+       _branchCount = branches.length,
+       _ownsCreated = false,
        _activeBranch = initialBranch {
-    for (final branch in _branches) {
-      branch.addListener(notifyListeners);
+    // Eager: build and subscribe to every branch now, so a programmatic push on
+    // an inactive branch still rebuilds the shell and each branch's state is
+    // live from the first frame.
+    for (var i = 0; i < _branchCount; i++) {
+      _ensure(i);
     }
   }
 
-  final List<KaiselNavigator> _branches;
+  /// Create a shell whose branches are built **lazily** — each
+  /// [branchFactories] entry runs the first time its branch becomes active (or
+  /// is restored into), not up front. Only [initialBranch] is built on
+  /// construction; the rest stay unbuilt until visited, and a built branch is
+  /// kept alive afterwards so its state survives tab switches. Because the shell
+  /// creates these routers, it also disposes the ones it built.
+  ///
+  /// This is the controller behind `KaiselBranchedShell.specs(lazy: true)`. The
+  /// eager default ([BranchedShellRouter.new]) is unchanged.
+  BranchedShellRouter.lazy({
+    required List<KaiselNavigator Function()> branchFactories,
+    int initialBranch = 0,
+  }) : assert(
+         branchFactories.isNotEmpty,
+         'A shell must have at least one branch.',
+       ),
+       assert(
+         initialBranch >= 0 && initialBranch < branchFactories.length,
+         'initialBranch out of range',
+       ),
+       _factories = branchFactories,
+       _branchCount = branchFactories.length,
+       _ownsCreated = true,
+       _activeBranch = initialBranch {
+    // Build only the branch shown first; the others materialise on activation.
+    _ensure(initialBranch);
+  }
+
+  // One factory per branch. The eager constructor wraps each already-built
+  // branch in a trivial `() => branch`; the lazy constructor builds the branch
+  // on first use. [_created] caches the result so a factory runs at most once.
+  final List<KaiselNavigator Function()> _factories;
+  final int _branchCount;
+  final Map<int, KaiselNavigator> _created = {};
+
+  // Whether this shell built its branches (lazy) and must therefore dispose
+  // them. The eager constructor receives externally-owned branches and leaves
+  // their disposal to the caller.
+  final bool _ownsCreated;
+
   int _activeBranch;
+
+  // Build-or-return branch [i], subscribing to it the first time. Every path
+  // that needs a branch (current / switchTo / restoreFromConfig) goes through
+  // here, so a lazily-built branch is always live and observed once it exists.
+  KaiselNavigator _ensure(int i) =>
+      _created[i] ??= (_factories[i]()..addListener(notifyListeners));
 
   StackTrace? _debugLastSwitchOrigin;
   int _debugLastSwitchSeq = 0;
@@ -65,21 +116,26 @@ class BranchedShellRouter extends ChangeNotifier
   /// A monotonic stamp paired with [debugLastSwitchOrigin]. Debug only.
   int get debugLastSwitchSeq => _debugLastSwitchSeq;
 
-  /// The branches, as a non-generic view. Use your own typed
-  /// references to access type-safe navigation methods.
-  List<KaiselNavigator> get branches => _branches;
+  /// The branches that have been built so far, in ascending branch order. Under
+  /// the eager constructor this is every branch; under [BranchedShellRouter.lazy]
+  /// it is only those activated or restored into so far. Use your own typed
+  /// references for type-safe navigation.
+  List<KaiselNavigator> get branches => [
+    for (var i = 0; i < _branchCount; i++) ?_created[i],
+  ];
 
   /// Index of the currently selected branch.
   @override
   int get activeBranch => _activeBranch;
 
-  /// The currently selected branch (as the non-generic view).
+  /// The currently selected branch (as the non-generic view). Building it if a
+  /// lazy shell has not yet.
   @override
-  KaiselNavigator get current => _branches[_activeBranch];
+  KaiselNavigator get current => _ensure(_activeBranch);
 
   /// Number of branches.
   @override
-  int get branchCount => _branches.length;
+  int get branchCount => _branchCount;
 
   /// Whether `pop` on the active branch would remove a route.
   bool get currentCanPop => current.canPop;
@@ -88,13 +144,15 @@ class BranchedShellRouter extends ChangeNotifier
   /// expressed as an instance method for clarity at call sites.
   Future<bool> popCurrent() => current.pop();
 
-  /// Select a different branch. No-op if [branch] is already active.
+  /// Select a different branch. No-op if [branch] is already active. Builds the
+  /// target branch on first activation (lazy shells).
   @override
   void switchTo(int branch) {
-    if (branch < 0 || branch >= _branches.length) {
-      throw RangeError.range(branch, 0, _branches.length - 1, 'branch');
+    if (branch < 0 || branch >= _branchCount) {
+      throw RangeError.range(branch, 0, _branchCount - 1, 'branch');
     }
     if (branch == _activeBranch) return;
+    _ensure(branch);
     _activeBranch = branch;
     assert(() {
       _debugLastSwitchOrigin = StackTrace.current;
@@ -126,24 +184,24 @@ class BranchedShellRouter extends ChangeNotifier
     if (config is! KaiselShellConfig) return;
     // A restored config is external input: a deep link can name a branch this
     // build doesn't mount. Skip it rather than throw (switchTo still throws).
-    if (config.activeBranch < 0 || config.activeBranch >= _branches.length) {
+    if (config.activeBranch < 0 || config.activeBranch >= _branchCount) {
       assert(() {
         debugPrint(
           'kaisel: ignoring restored shell branch ${config.activeBranch} — '
-          'this shell mounts ${_branches.length} '
-          'branch${_branches.length == 1 ? '' : 'es'} '
-          '(0..${_branches.length - 1}). The deep link or codec targets a '
+          'this shell mounts $_branchCount '
+          'branch${_branchCount == 1 ? '' : 'es'} '
+          '(0..${_branchCount - 1}). The deep link or codec targets a '
           'branch that does not exist on this build.',
         );
         return true;
       }());
       return;
     }
-    // Restore the target branch's stack first so when we switch to it
-    // the UI is already in the right state. Inactive branches are
-    // deliberately left alone — their in-memory state is the user's
-    // history within those tabs.
-    await _branches[config.activeBranch].restoreStack(config.activeBranchStack);
+    // Build the target branch (a deep link can restore into one never visited)
+    // and replay its stack first, so switching to it shows the right state.
+    // Inactive branches are deliberately left alone — their in-memory state is
+    // the user's history within those tabs.
+    await _ensure(config.activeBranch).restoreStack(config.activeBranchStack);
     if (config.activeBranch != _activeBranch) {
       _activeBranch = config.activeBranch;
       notifyListeners();
@@ -152,12 +210,21 @@ class BranchedShellRouter extends ChangeNotifier
 
   @override
   void dispose() {
-    for (final branch in _branches) {
+    for (final branch in _created.values) {
       branch.removeListener(notifyListeners);
     }
-    // Note: we do NOT dispose the branches themselves. They were
-    // supplied externally; their lifecycle is the caller's
-    // responsibility (typically tied to the widget that creates them).
+    // A lazy shell owns the branches it built and disposes them here. An eager
+    // shell received externally-owned branches and leaves their disposal to the
+    // caller (typically the widget that created them).
+    if (_ownsCreated) {
+      for (final branch in _created.values) {
+        // Lazy branches are routers the shell built (KaiselChangeNotifier);
+        // dispose what is disposable.
+        if (branch case final KaiselChangeNotifier disposable) {
+          disposable.dispose();
+        }
+      }
+    }
     super.dispose();
   }
 }
