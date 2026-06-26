@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaisel/kaisel.dart';
 
-// One route type is enough: the controller aggregates branches type-erased, so
-// every spy branch can share it.
 sealed class _R extends KaiselRoute {
   const _R();
 }
@@ -18,8 +16,6 @@ final class _Detail extends _R {
   List<Object?> get props => [id];
 }
 
-// A branch router that records its index and disposal, so a test can assert
-// exactly which branches a lazy shell built and disposed.
 class _SpyRouter extends KaiselRouter<_R> {
   _SpyRouter(this.index) : super(initial: const _Root());
 
@@ -34,7 +30,7 @@ class _SpyRouter extends KaiselRouter<_R> {
 }
 
 // Factories over [count] branches plus the list they record themselves into, in
-// construction order — the spine of the laziness assertions below.
+// construction order — the spine of every laziness assertion below.
 ({List<KaiselNavigator Function()> factories, List<_SpyRouter> built}) _spies(
   int count,
 ) {
@@ -84,17 +80,16 @@ void main() {
       final shell = BranchedShellRouter.lazy(branchFactories: spies.factories);
       addTearDown(shell.dispose);
 
-      expect(spies.built.map((r) => r.index), [0]); // initial only
+      expect(spies.built.map((r) => r.index), [0]);
 
       shell.switchTo(2);
       expect(shell.activeBranch, 2);
-      expect(spies.built.map((r) => r.index), [0, 2]); // 2 built now
+      expect(spies.built.map((r) => r.index), [0, 2]);
 
-      // Going away and back does not rebuild it.
       shell.switchTo(0);
       shell.switchTo(2);
       expect(spies.built.map((r) => r.index), [0, 2]);
-      expect(shell.branches, hasLength(2)); // branch 1 was never visited
+      expect(shell.branches, hasLength(2));
     });
 
     test('switchTo notifies, and is a no-op when already active', () {
@@ -104,7 +99,7 @@ void main() {
         ..addListener(() => notifications++);
       addTearDown(shell.dispose);
 
-      shell.switchTo(0); // already active — no-op
+      shell.switchTo(0);
       expect(notifications, 0);
 
       shell.switchTo(1);
@@ -119,78 +114,96 @@ void main() {
       expect(() => shell.switchTo(-1), throwsRangeError);
     });
 
-    test('currentCanPop / popCurrent operate on the lazily-built branch',
-        () async {
-      final spies = _spies(2);
-      final shell = BranchedShellRouter.lazy(branchFactories: spies.factories);
-      addTearDown(shell.dispose);
+    test(
+      'currentCanPop / popCurrent operate on the lazily-built branch',
+      () async {
+        final spies = _spies(2);
+        final shell = BranchedShellRouter.lazy(
+          branchFactories: spies.factories,
+        );
+        addTearDown(shell.dispose);
 
-      shell.switchTo(1); // builds branch 1
-      final branch1 = spies.built.firstWhere((r) => r.index == 1);
-      expect(shell.currentCanPop, isFalse);
+        shell.switchTo(1);
+        final branch1 = spies.built.firstWhere((r) => r.index == 1);
+        expect(shell.currentCanPop, isFalse);
 
-      await branch1.push(const _Detail('a'));
-      expect(shell.currentCanPop, isTrue);
+        await branch1.push(const _Detail('a'));
+        expect(shell.currentCanPop, isTrue);
 
-      await shell.popCurrent();
-      expect(branch1.stack, hasLength(1));
-    });
+        await shell.popCurrent();
+        expect(branch1.stack, hasLength(1));
+      },
+    );
   });
 
   group('BranchedShellRouter.lazy capture/restore', () {
-    test('captures the active branch only, without building inactive ones',
-        () async {
-      final spies = _spies(2);
-      final shell = BranchedShellRouter.lazy(branchFactories: spies.factories);
-      addTearDown(shell.dispose);
+    test(
+      'captures the active branch only, without building inactive ones',
+      () async {
+        final spies = _spies(2);
+        final shell = BranchedShellRouter.lazy(
+          branchFactories: spies.factories,
+        );
+        addTearDown(shell.dispose);
 
-      await spies.built.single.push(const _Detail('x'));
-      final config = shell.captureConfig();
-      expect(config.activeBranch, 0);
-      expect(config.activeBranchStack, [const _Root(), const _Detail('x')]);
-      expect(shell.branches, hasLength(1)); // inactive branch not forced
-    });
+        await spies.built.single.push(const _Detail('x'));
+        final config = shell.captureConfig();
+        expect(config.activeBranch, 0);
+        expect(config.activeBranchStack, [const _Root(), const _Detail('x')]);
+        expect(shell.branches, hasLength(1));
+      },
+    );
 
-    test('restoreFromConfig builds the target branch and replays its stack',
-        () async {
-      final spies = _spies(3);
-      final shell = BranchedShellRouter.lazy(branchFactories: spies.factories);
-      addTearDown(shell.dispose);
+    test(
+      'restoreFromConfig builds the target branch and replays its stack',
+      () async {
+        final spies = _spies(3);
+        final shell = BranchedShellRouter.lazy(
+          branchFactories: spies.factories,
+        );
+        addTearDown(shell.dispose);
 
-      await shell.restoreFromConfig(
-        KaiselShellConfig(
-          activeBranch: 2,
-          activeBranchStack: const [_Root(), _Detail('deep')],
-        ),
-      );
+        await shell.restoreFromConfig(
+          KaiselShellConfig(
+            activeBranch: 2,
+            activeBranchStack: const [_Root(), _Detail('deep')],
+          ),
+        );
 
-      expect(shell.activeBranch, 2);
-      // Branch 2 was built (0 was the initial); branch 1 stayed lazy.
-      expect(spies.built.map((r) => r.index), [0, 2]);
-      final restored = spies.built.firstWhere((r) => r.index == 2);
-      expect(restored.stack, [const _Root(), const _Detail('deep')]);
-    });
+        expect(shell.activeBranch, 2);
+        expect(spies.built.map((r) => r.index), [0, 2]);
+        final restored = spies.built.firstWhere((r) => r.index == 2);
+        expect(restored.stack, [const _Root(), const _Detail('deep')]);
+      },
+    );
 
-    test('restoreFromConfig ignores an out-of-range branch and builds nothing',
-        () async {
-      final spies = _spies(2);
-      final shell = BranchedShellRouter.lazy(branchFactories: spies.factories);
-      addTearDown(shell.dispose);
+    test(
+      'restoreFromConfig ignores an out-of-range branch and builds nothing',
+      () async {
+        final spies = _spies(2);
+        final shell = BranchedShellRouter.lazy(
+          branchFactories: spies.factories,
+        );
+        addTearDown(shell.dispose);
 
-      await shell.restoreFromConfig(
-        KaiselShellConfig(activeBranch: 5, activeBranchStack: const [_Root()]),
-      );
+        await shell.restoreFromConfig(
+          KaiselShellConfig(
+            activeBranch: 5,
+            activeBranchStack: const [_Root()],
+          ),
+        );
 
-      expect(shell.activeBranch, 0);
-      expect(spies.built.map((r) => r.index), [0]); // nothing new built
-    });
+        expect(shell.activeBranch, 0);
+        expect(spies.built.map((r) => r.index), [0]);
+      },
+    );
   });
 
   group('BranchedShellRouter disposal ownership', () {
     test('lazy shell disposes the branches it built, not the unbuilt ones', () {
       final spies = _spies(3);
       final shell = BranchedShellRouter.lazy(branchFactories: spies.factories);
-      shell.switchTo(2); // build 0 (initial) and 2; leave 1 unbuilt
+      shell.switchTo(2);
 
       shell.dispose();
 

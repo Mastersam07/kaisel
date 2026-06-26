@@ -50,9 +50,6 @@ class BranchedShellRouter extends ChangeNotifier
        _branchCount = branches.length,
        _ownsCreated = false,
        _activeBranch = initialBranch {
-    // Eager: build and subscribe to every branch now, so a programmatic push on
-    // an inactive branch still rebuilds the shell and each branch's state is
-    // live from the first frame.
     for (var i = 0; i < _branchCount; i++) {
       _ensure(i);
     }
@@ -82,27 +79,16 @@ class BranchedShellRouter extends ChangeNotifier
        _branchCount = branchFactories.length,
        _ownsCreated = true,
        _activeBranch = initialBranch {
-    // Build only the branch shown first; the others materialise on activation.
     _ensure(initialBranch);
   }
 
-  // One factory per branch. The eager constructor wraps each already-built
-  // branch in a trivial `() => branch`; the lazy constructor builds the branch
-  // on first use. [_created] caches the result so a factory runs at most once.
   final List<KaiselNavigator Function()> _factories;
   final int _branchCount;
   final Map<int, KaiselNavigator> _created = {};
-
-  // Whether this shell built its branches (lazy) and must therefore dispose
-  // them. The eager constructor receives externally-owned branches and leaves
-  // their disposal to the caller.
   final bool _ownsCreated;
 
   int _activeBranch;
 
-  // Build-or-return branch [i], subscribing to it the first time. Every path
-  // that needs a branch (current / switchTo / restoreFromConfig) goes through
-  // here, so a lazily-built branch is always live and observed once it exists.
   KaiselNavigator _ensure(int i) =>
       _created[i] ??= (_factories[i]()..addListener(notifyListeners));
 
@@ -128,7 +114,7 @@ class BranchedShellRouter extends ChangeNotifier
   @override
   int get activeBranch => _activeBranch;
 
-  /// The currently selected branch (as the non-generic view). Building it if a
+  /// The currently selected branch (as the non-generic view), built first if a
   /// lazy shell has not yet.
   @override
   KaiselNavigator get current => _ensure(_activeBranch);
@@ -136,6 +122,16 @@ class BranchedShellRouter extends ChangeNotifier
   /// Number of branches.
   @override
   int get branchCount => _branchCount;
+
+  /// The branch router at [index], building it on first access if this is a
+  /// lazy shell. The shell widget calls this to materialise a branch's view
+  /// when it first becomes active.
+  KaiselNavigator branchAt(int index) {
+    if (index < 0 || index >= _branchCount) {
+      throw RangeError.range(index, 0, _branchCount - 1, 'index');
+    }
+    return _ensure(index);
+  }
 
   /// Whether `pop` on the active branch would remove a route.
   bool get currentCanPop => current.canPop;
@@ -197,10 +193,8 @@ class BranchedShellRouter extends ChangeNotifier
       }());
       return;
     }
-    // Build the target branch (a deep link can restore into one never visited)
-    // and replay its stack first, so switching to it shows the right state.
-    // Inactive branches are deliberately left alone — their in-memory state is
-    // the user's history within those tabs.
+    // Build the target branch (restore can target one never visited) and replay
+    // its stack; inactive branches keep their own in-memory history.
     await _ensure(config.activeBranch).restoreStack(config.activeBranchStack);
     if (config.activeBranch != _activeBranch) {
       _activeBranch = config.activeBranch;
@@ -213,13 +207,10 @@ class BranchedShellRouter extends ChangeNotifier
     for (final branch in _created.values) {
       branch.removeListener(notifyListeners);
     }
-    // A lazy shell owns the branches it built and disposes them here. An eager
-    // shell received externally-owned branches and leaves their disposal to the
-    // caller (typically the widget that created them).
+    // A lazy shell disposes the branches it built; an eager shell leaves its
+    // externally-owned branches to the caller.
     if (_ownsCreated) {
       for (final branch in _created.values) {
-        // Lazy branches are routers the shell built (KaiselChangeNotifier);
-        // dispose what is disposable.
         if (branch case final KaiselChangeNotifier disposable) {
           disposable.dispose();
         }
@@ -468,7 +459,8 @@ class KaiselBranchedShell extends StatefulWidget {
     required this.chromeBuilder,
     this.branchContentBuilder,
   }) : specs = null,
-       initialBranch = 0;
+       initialBranch = 0,
+       lazy = false;
 
   /// Create a branched shell from declarative [branches] — one
   /// [KaiselBranchSpec] per branch. The shell creates, owns, and disposes the
@@ -481,7 +473,13 @@ class KaiselBranchedShell extends StatefulWidget {
     required this.chromeBuilder,
     this.initialBranch = 0,
     this.branchContentBuilder,
-  }) : specs = branches,
+    this.lazy = false,
+  }) : assert(
+         !lazy || branchContentBuilder == null,
+         'lazy: true builds branches on demand and owns its own container, so '
+         'it cannot be combined with a custom branchContentBuilder yet.',
+       ),
+       specs = branches,
        shell = null,
        branches = null;
 
@@ -496,6 +494,10 @@ class KaiselBranchedShell extends StatefulWidget {
 
   /// The branch shown first (specs mode).
   final int initialBranch;
+
+  /// Build branches on first activation instead of all up front, keeping built
+  /// ones alive (specs mode). Defaults to `false` — the eager [IndexedStack].
+  final bool lazy;
 
   /// Builds the chrome (scaffold, bottom nav, etc.) around the active
   /// branch's content.
@@ -512,14 +514,16 @@ class KaiselBranchedShell extends StatefulWidget {
 }
 
 class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
-  // The effective aggregator and branch widgets. In specs mode these are
-  // created and owned here; in explicit mode they mirror the widget's fields.
   late BranchedShellRouter _shell;
   late List<Widget> _branches;
 
-  // Routers this state created (specs mode) and must dispose. Null when the
-  // caller owns the shell (explicit mode).
+  late final List<KaiselBranchSpec> _lazySpecs;
+
+  // Eager specs mode only: routers this state created and must dispose itself.
   List<KaiselRouter<KaiselRoute>>? _ownedRouters;
+
+  bool _ownsShell = false;
+  bool _lazy = false;
 
   KaiselNestedHost? _host;
 
@@ -528,20 +532,30 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
     super.initState();
     switch ((widget.specs, widget.shell)) {
       case (final specs?, _):
-        final routers = [for (final spec in specs) spec.createRouter()];
-        _shell = BranchedShellRouter(
-          branches: routers,
-          initialBranch: widget.initialBranch,
-        );
-        _branches = [
-          for (var i = 0; i < specs.length; i++)
-            specs[i].buildBranch(routers[i]),
-        ];
-        _ownedRouters = routers;
+        _ownsShell = true;
+        if (widget.lazy) {
+          _lazy = true;
+          _lazySpecs = specs;
+          _shell = BranchedShellRouter.lazy(
+            branchFactories: [for (final spec in specs) spec.createRouter],
+            initialBranch: widget.initialBranch,
+          );
+          _branches = const [];
+        } else {
+          final routers = [for (final spec in specs) spec.createRouter()];
+          _shell = BranchedShellRouter(
+            branches: routers,
+            initialBranch: widget.initialBranch,
+          );
+          _branches = [
+            for (var i = 0; i < specs.length; i++)
+              specs[i].buildBranch(routers[i]),
+          ];
+          _ownedRouters = routers;
+        }
       case (_, final shell?):
         _shell = shell;
         _branches = widget.branches ?? const [];
-        _ownedRouters = null;
       // Unreachable: both constructors set exactly one of specs / shell.
       // coverage:ignore-start
       case _:
@@ -551,7 +565,7 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
       // coverage:ignore-end
     }
     assert(
-      _shell.branchCount == _branches.length,
+      _lazy || _shell.branchCount == _branches.length,
       'KaiselBranchedShell: shell has ${_shell.branchCount} branches '
       'but ${_branches.length} branch widgets were provided.',
     );
@@ -578,7 +592,7 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
     super.didUpdateWidget(oldWidget);
     // Specs mode owns its shell for the State's lifetime; only explicit mode
     // can swap an external shell instance.
-    if (_ownedRouters != null) return;
+    if (_ownsShell) return;
     final newShell = widget.shell;
     if (newShell != null && !identical(oldWidget.shell, newShell)) {
       _shell.removeListener(_onChange);
@@ -594,14 +608,18 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
   void dispose() {
     _host?.unregisterNested(_shell);
     _shell.removeListener(_onChange);
-    if (_ownedRouters case final routers?) {
+    if (_ownsShell) {
       _shell.dispose();
-      for (final router in routers) {
+      for (final router
+          in _ownedRouters ?? const <KaiselRouter<KaiselRoute>>[]) {
         router.dispose();
       }
     }
     super.dispose();
   }
+
+  Widget _buildLazyBranch(BuildContext context, int index) =>
+      _lazySpecs[index].buildBranch(_shell.branchAt(index));
 
   @override
   Widget build(BuildContext context) {
@@ -621,14 +639,26 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
         child: ShellChromeScope(
           child: Builder(
             builder: (context) {
-              final branchContent =
-                  widget.branchContentBuilder?.call(
-                    context,
-                    _shell.activeBranch,
-                    _branches,
-                    _shell.switchTo,
-                  ) ??
-                  IndexedStack(index: _shell.activeBranch, children: _branches);
+              final branchContent = switch ((
+                widget.branchContentBuilder,
+                _lazy,
+              )) {
+                (final build?, _) => build(
+                  context,
+                  _shell.activeBranch,
+                  _branches,
+                  _shell.switchTo,
+                ),
+                (_, true) => _LazyKeepAliveStack(
+                  index: _shell.activeBranch,
+                  itemCount: _shell.branchCount,
+                  itemBuilder: _buildLazyBranch,
+                ),
+                (_, false) => IndexedStack(
+                  index: _shell.activeBranch,
+                  children: _branches,
+                ),
+              };
               return widget.chromeBuilder(
                 context,
                 _shell.activeBranch,
@@ -639,6 +669,57 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Lays out lazily-built branches: each branch is built the first time it
+/// becomes active and then kept mounted (off-stage) so its state survives later
+/// tab switches. Branches never visited are inert placeholders — the lazy
+/// counterpart to the eager [IndexedStack].
+class _LazyKeepAliveStack extends StatefulWidget {
+  const _LazyKeepAliveStack({
+    required this.index,
+    required this.itemCount,
+    required this.itemBuilder,
+  });
+
+  final int index;
+  final int itemCount;
+  final Widget Function(BuildContext context, int index) itemBuilder;
+
+  @override
+  State<_LazyKeepAliveStack> createState() => _LazyKeepAliveStackState();
+}
+
+class _LazyKeepAliveStackState extends State<_LazyKeepAliveStack> {
+  final Map<int, Widget> _built = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _materialiseActive();
+  }
+
+  @override
+  void didUpdateWidget(_LazyKeepAliveStack oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _materialiseActive();
+  }
+
+  void _materialiseActive() => _built.putIfAbsent(
+    widget.index,
+    () => widget.itemBuilder(context, widget.index),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return IndexedStack(
+      index: widget.index,
+      children: [
+        for (var i = 0; i < widget.itemCount; i++)
+          _built[i] ?? const SizedBox.shrink(),
+      ],
     );
   }
 }
