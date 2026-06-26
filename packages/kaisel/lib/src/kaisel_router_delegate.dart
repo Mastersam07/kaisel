@@ -708,8 +708,11 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     var shellIndex = 0;
     for (final handle in _nested) {
       if (handle is BranchedShellRouter) {
-        for (var b = 0; b < handle.branches.length; b++) {
-          add('shell$shellIndex.branch$b', handle.branches[b].debugLastNoOp);
+        for (var b = 0; b < handle.branchCount; b++) {
+          final branch = handle.builtBranchAt(b);
+          if (branch case final branch?) {
+            add('shell$shellIndex.branch$b', branch.debugLastNoOp);
+          }
         }
         shellIndex++;
       }
@@ -864,22 +867,37 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   }
 
   KaiselShellSnapshot _shellSnapshot(BranchedShellRouter shell) {
-    final branches = shell.branches;
     return KaiselShellSnapshot(
       type: shell.runtimeType.toString(),
       activeBranch: shell.activeBranch,
       branchCount: shell.branchCount,
+      // Walk every branch by real index. builtBranchAt never builds, so
+      // inspecting a lazy shell doesn't materialise its dormant branches.
       branches: <KaiselBranchSnapshot>[
-        for (var i = 0; i < branches.length; i++)
-          KaiselBranchSnapshot(
-            index: i,
-            routeType: _routeTypeOf(branches[i].stack),
-            stack: _routesStack(
-              branches[i].stack,
-              branches[i].debugAbsorbedPositions,
-            ),
-          ),
+        for (var i = 0; i < shell.branchCount; i++)
+          _branchSnapshot(i, shell.builtBranchAt(i)),
       ],
+    );
+  }
+
+  KaiselBranchSnapshot _branchSnapshot(int index, KaiselNavigator? branch) {
+    if (branch == null) {
+      return KaiselBranchSnapshot(
+        index: index,
+        built: false,
+        routeType: '—',
+        stack: const KaiselStackSnapshot(
+          depth: 0,
+          canPop: false,
+          entries: <KaiselEntrySnapshot>[],
+        ),
+      );
+    }
+    return KaiselBranchSnapshot(
+      index: index,
+      built: true,
+      routeType: _routeTypeOf(branch.stack),
+      stack: _routesStack(branch.stack, branch.debugAbsorbedPositions),
     );
   }
 

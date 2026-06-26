@@ -339,6 +339,7 @@ class BranchSnapshot with _Eq {
   /// Create a branch snapshot.
   BranchSnapshot({
     required this.index,
+    required this.built,
     required this.routeType,
     required this.stack,
   });
@@ -346,6 +347,7 @@ class BranchSnapshot with _Eq {
   /// Decode from the wire format.
   factory BranchSnapshot.fromJson(Map<String, Object?> json) => BranchSnapshot(
     index: (json['index'] as num?)?.toInt() ?? 0,
+    built: json['built'] as bool? ?? true,
     routeType: '${json['routeType'] ?? '?'}',
     stack: StackSnapshot.fromJson(_obj(json['stack'])),
   );
@@ -353,14 +355,17 @@ class BranchSnapshot with _Eq {
   /// Branch index.
   final int index;
 
+  /// Whether the branch is materialised (a lazy shell builds on first visit).
+  final bool built;
+
   /// Route-type hint.
   final String routeType;
 
-  /// The branch's stack.
+  /// The branch's stack (empty when not [built]).
   final StackSnapshot stack;
 
   @override
-  List<Object?> get _eqFields => <Object?>[index, routeType, stack];
+  List<Object?> get _eqFields => <Object?>[index, built, routeType, stack];
 }
 
 /// A mounted module.
