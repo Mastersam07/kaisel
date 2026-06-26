@@ -47,6 +47,16 @@ dart run devtools_extensions build_and_copy \
   --dest=packages/kaisel/extension/devtools
 ```
 
+**Releasing.** Three things must move together — this package's `version`, the
+`version` in `config.yaml` (the badge DevTools shows), and the rebuilt `build/`
+output — or they drift. `tool/release.sh` does all three:
+
+```sh
+packages/kaisel_devtools/tool/release.sh 0.3.0
+```
+
+Then add a CHANGELOG entry and commit the two version files.
+
 ## Verifying locally
 
 1. Build the extension (command above).
