@@ -39,14 +39,24 @@ final class ReportsRoot extends ReportsRoute {
   const ReportsRoot();
 }
 
-void main() => runApp(const _App());
-
-class _App extends StatelessWidget {
-  const _App();
-
-  @override
-  Widget build(BuildContext context) => const MaterialApp(home: _LazyShell());
+// The main stack hosts the shell as a single route, wired through
+// KaiselRouterConfig like the other examples.
+sealed class AppRoute extends KaiselRoute {
+  const AppRoute();
 }
+
+final class ShellHost extends AppRoute {
+  const ShellHost();
+}
+
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const ShellHost(),
+  builder: (context, route) => switch (route) {
+    ShellHost() => const _LazyShell(),
+  },
+);
+
+void main() => runApp(MaterialApp.router(routerConfig: _config));
 
 // Simulate a flaky deferred load: ~1s delay, fails the first time so the error +
 // retry path is visible, then succeeds. A real app passes `reports.loadLibrary`
@@ -134,6 +144,7 @@ class _HomeScreenState extends State<_HomeScreen> {
           const Text(
             'Switch tabs and come back — the count survives, because '
             'a built branch is kept alive.',
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
           Text('$_count', style: Theme.of(context).textTheme.headlineMedium),

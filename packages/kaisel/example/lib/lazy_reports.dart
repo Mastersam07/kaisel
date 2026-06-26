@@ -16,9 +16,10 @@ class ReportsScreen extends StatelessWidget {
           const SizedBox(height: 12),
           Text('Reports', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             "Loaded on demand — this screen's code was not in the "
             'initial bundle.',
+            textAlign: TextAlign.center,
           ),
         ],
       ),
