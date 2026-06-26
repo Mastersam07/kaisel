@@ -350,17 +350,20 @@ class KaiselBranchSpec<R extends KaiselRoute> {
   /// import's `loadLibrary` (e.g. `feature.loadLibrary`) — runs the first time
   /// the branch is shown; until it resolves the branch renders [placeholder],
   /// and if it throws the branch renders [errorBuilder] (or [placeholder] when
-  /// none is given). Keep the branch's route values and [initial] in a
-  /// non-deferred library and put only the screens the [builder] returns behind
-  /// the deferred import, so the router, back handling, and deep links keep
-  /// working while the code loads. Use with
+  /// none is given). [errorBuilder] is passed a `retry` callback that re-runs
+  /// the load — useful for a transient (e.g. network) failure, since the branch
+  /// is kept alive and so does not reload on its own. Keep the branch's route
+  /// values and [initial] in a non-deferred library and put only the screens the
+  /// [builder] returns behind the deferred import, so the router, back handling,
+  /// and deep links keep working while the code loads. Use with
   /// `KaiselBranchedShell.specs(lazy: true)`.
   KaiselBranchSpec.deferred({
     required this.initial,
     required KaiselPageBuilder<R> builder,
     required Future<void> Function() loadLibrary,
     Widget placeholder = const SizedBox.shrink(),
-    Widget Function(BuildContext context, Object error)? errorBuilder,
+    Widget Function(BuildContext context, Object error, VoidCallback retry)?
+    errorBuilder,
     this.guards = const [],
     this.pageWrapper,
     this.scope,
@@ -386,7 +389,8 @@ class KaiselBranchSpec<R extends KaiselRoute> {
   final KaiselAdaptivePageBuilder<R>? _adaptiveBuilder;
   final Future<void> Function()? _loadLibrary;
   final Widget? _placeholder;
-  final Widget Function(BuildContext context, Object error)? _errorBuilder;
+  final Widget Function(BuildContext context, Object error, VoidCallback retry)?
+  _errorBuilder;
 
   /// Whether this branch loads its code on first activation
   /// (see [KaiselBranchSpec.deferred]).
@@ -818,7 +822,8 @@ class _DeferredBranch extends StatefulWidget {
 
   final Future<void> Function() loadLibrary;
   final Widget placeholder;
-  final Widget Function(BuildContext context, Object error)? errorBuilder;
+  final Widget Function(BuildContext context, Object error, VoidCallback retry)?
+  errorBuilder;
   final Widget child;
 
   @override
@@ -844,10 +849,16 @@ class _DeferredBranchState extends State<_DeferredBranch> {
     }
   }
 
+  void _retry() {
+    setState(() => _error = null);
+    _run();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_error case final error?) {
-      return widget.errorBuilder?.call(context, error) ?? widget.placeholder;
+      return widget.errorBuilder?.call(context, error, _retry) ??
+          widget.placeholder;
     }
     return _loaded ? widget.child : widget.placeholder;
   }

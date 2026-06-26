@@ -23,7 +23,8 @@ final class _FeatureRoot extends _FeatureRoute {
 Widget _app({
   required Future<void> Function() load,
   bool lazy = true,
-  Widget Function(BuildContext context, Object error)? errorBuilder,
+  Widget Function(BuildContext context, Object error, VoidCallback retry)?
+  errorBuilder,
 }) {
   return MaterialApp(
     home: KaiselBranchedShell.specs(
@@ -129,7 +130,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         load: () async => throw Exception('boom'),
-        errorBuilder: (context, error) => Text('error: $error'),
+        errorBuilder: (context, error, retry) => Text('error: $error'),
       ),
     );
 
@@ -151,5 +152,32 @@ void main() {
     expect(find.text('loading'), findsOneWidget);
     expect(find.text('feature-screen'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('errorBuilder can retry a failed load', (tester) async {
+    var attempts = 0;
+    await tester.pumpWidget(
+      _app(
+        load: () async {
+          attempts++;
+          if (attempts == 1) throw Exception('boom');
+        },
+        errorBuilder: (context, error, retry) => TextButton(
+          key: const ValueKey('retry'),
+          onPressed: retry,
+          child: const Text('retry'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('tab1')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('retry')), findsOneWidget);
+    expect(find.text('feature-screen'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('retry')));
+    await tester.pumpAndSettle();
+    expect(attempts, 2);
+    expect(find.text('feature-screen'), findsOneWidget);
   });
 }
