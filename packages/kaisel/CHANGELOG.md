@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.21.0-dev.1
+
+### Added
+
+- **Lazy shell branches** — `KaiselBranchedShell.specs(lazy: true)` builds each
+  branch on first activation instead of all up front, and keeps built branches
+  alive so per-tab state still survives switches. Backed by a new
+  `BranchedShellRouter.lazy` controller that materialises a branch (its router)
+  on demand through `current` / `switchTo` / `restoreFromConfig`. The eager
+  `IndexedStack` stays the default.
+- **Deferred (code-split) branches** — `KaiselBranchSpec.deferred` loads a
+  branch's code on first activation, behind a `deferred as` import. It shows a
+  `placeholder` while `loadLibrary` runs, swaps in the screens once it resolves,
+  and renders `errorBuilder` on failure — the `errorBuilder` is passed a `retry`
+  callback, since a kept-alive branch can't recover on its own. Route values and
+  `initial` stay non-deferred, so back handling, URL capture, and deep links
+  keep working while the code loads. Requires `lazy: true`.
+- **Custom lazy container** — `lazyBranchContentBuilder`
+  (`KaiselLazyBranchContentBuilder`) is the lazy counterpart to
+  `branchContentBuilder`: instead of a pre-built widget list it hands you a
+  `buildBranch(context, index)` callback that materialises a branch on demand,
+  so a custom container (e.g. a lazy `PageView`) can build and keep alive what
+  it chooses.
+
 ## 0.20.0
 
 ### Changed

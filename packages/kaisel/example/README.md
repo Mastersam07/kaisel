@@ -1,6 +1,6 @@
 # kaisel example
 
-Nine entry points, each demonstrating a slice of the library.
+Eleven entry points, each demonstrating a slice of the library.
 Pick one with `-t`:
 
 | Entry point | What it shows |
@@ -14,6 +14,8 @@ Pick one with `-t`:
 | `lib/main_results_and_flows.dart` | Typed results + flows-as-routes (v0.20): `context.pushForResult<T>` returns a value from a main-stack screen; a `run<bool>` flow renders as a route so a `showDialog` lands above it and a shared `RouteObserver` logs the flow's open/close; `pageWrapper` gives the flow a slide-up entrance via `ctx.isFlow` |
 | `lib/main_transitions.dart` | Route-pair transitions (v0.11): pageWrapper pattern-matches on `(ctx.previous, ctx.route)` to pick custom Page subclasses per route pair |
 | `lib/main_media_cataloguer.dart` | A desktop-style app: top-level auth state machine (`router.set` swaps `LoginRoute` ↔ `ShellHost`), a cross-fade `pageWrapper` between them, a branched shell with per-branch typed routes + nested stacks, and a breadcrumb driven by `KaiselListenableBuilder`. Wired with `KaiselRouterConfig` + `KaiselBranchedShell.specs` + `context.shell()` |
+| `lib/main_lazy_shell.dart` | Lazy + deferred shell branches (v0.21): `.specs(lazy: true)` builds each tab on first visit and keeps it alive (the Home counter survives switches); the **Reports** tab is a `KaiselBranchSpec.deferred` whose screen lives behind a `deferred as` import — it shows a placeholder while loading, an error + **retry** on a (simulated) flaky first load, then the screen |
+| `lib/main_auth_redirect.dart` | Redirect to login, then continue: an auth guard rewrites a navigation to a protected route (Payment) into Login while logged out, stashing the intended stack; logging in replays it with `router.set` so you land on Payment with Cart still beneath. The intended destination is plain `List<AppRoute>` data |
 
 ## `lib/main_terse.dart`
 
@@ -145,3 +147,46 @@ flow is now a route on the main navigator:
 The `pageWrapper` branches on `ctx.isFlow` to slide the flow up from the bottom
 instead of appearing instantly, forwarding `name`/`arguments` so the flow stays
 observable.
+
+## `lib/main_lazy_shell.dart`
+
+Lazy + deferred shell branches (v0.21).
+
+```sh
+flutter run -t lib/main_lazy_shell.dart
+```
+
+`KaiselBranchedShell.specs(lazy: true)` builds each tab's screen only on first
+visit and keeps it alive after:
+
+- **Lazy build.** Watch the console — `built Discover` / `built Reports` only
+  print when you first open those tabs, not at launch.
+- **Keep-alive.** Bump the Home counter, switch to another tab and back — the
+  count survives, because the built branch stays mounted.
+- **Deferred code-split.** The **Reports** tab is a `KaiselBranchSpec.deferred`
+  whose screen is imported `deferred as`. On first open it shows a placeholder
+  while `loadLibrary` runs; the first attempt fails (a flaky network is
+  simulated) so the `errorBuilder` renders with a **Retry** button, and tapping
+  it re-runs the load and shows the screen. The route values stay non-deferred,
+  so navigation keeps working while the code loads.
+
+## `lib/main_auth_redirect.dart`
+
+Redirect to login, then continue to the intended destination.
+
+```sh
+flutter run -t lib/main_auth_redirect.dart
+```
+
+From the **Cart**, tapping **Pay** navigates to the protected **Payment** route.
+An `authGuard` in the pipeline sees the proposed stack reaching a `RequiresAuth`
+route while logged out, stashes that stack, and redirects to **Login**. Logging
+in replays the stashed stack with `context.router<AppRoute>().set(...)` — now the
+guard passes, so you land on Payment with Cart still beneath it (back goes
+Payment → Cart → Home). From Payment, **Confirm** continues to a second protected
+route (Receipt) since you're now signed in; the app-bar **logout** resets to Home.
+
+The point: the intended destination is plain `List<AppRoute>` data, so "remember
+where I was going and continue after login" is just stash-and-replay. A deep link
+to a protected route would hit the same guard, so deep-link-after-auth needs no
+extra code.

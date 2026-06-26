@@ -48,7 +48,7 @@ Dart 3 has had the type machinery to do better since 2023: sealed classes, exhau
 - **One-line setup, typed navigation** — `KaiselRouterConfig` collapses the router, delegate, and parser into a single `routerConfig:`; navigate with the typed `context.router<R>().push` / `pop` / `replaceTop` / `pushOrReplaceTop` / `set` / `pushForResult<T>` / `run<T>` (a wrong-family route is a compile error), or the terser `context.push(...)` when you'll take a runtime family check for the brevity.
 - **Value equality for free** — default `props`-based `==`/`hashCode` on `KaiselRoute`. No manual equality, no codegen.
 - **Guard pipeline** — composable `FutureOr<List<R>> Function(current, proposed)` functions. Async-aware and pure-Dart testable.
-- **Shells** — `KaiselShell<R>` (homogeneous branches) and `KaiselBranchedShell` (per-branch typed routes; `.specs` declares branches without wiring routers), with per-tab back stacks, scoped state, and correct back-button handling. One `context.shell()` accessor drives either.
+- **Shells** — `KaiselShell<R>` (homogeneous branches) and `KaiselBranchedShell` (per-branch typed routes; `.specs` declares branches without wiring routers), with per-tab back stacks, scoped state, and correct back-button handling. One `context.shell()` accessor drives either. Opt into `lazy: true` to build tabs on first visit (kept alive after), and `KaiselBranchSpec.deferred` to code-split a tab's screens behind a `deferred as` import — with a placeholder, error builder, and retry.
 - **Composable modules** — package a feature's routes, page builder, guards, and URL codec as a `const`-friendly `RouteModule`. Mount with `KaiselModuleMount<R>`; compose URLs with `ConfigCodecWithModules` without the host knowing the module's internal structure.
 - **URL-addressable** — deep-link into a branch stack (`/home/products/sku-42`) or a module stack (`/checkout/confirm`). Inactive branches keep in-memory state across tab switches.
 - **Typed results, two ways** — `await context.pushForResult<T>(SomeScreen())` keeps the screen on the **main stack** (a normal route — observed, with root dialogs above it) and resolves when it pops with `context.pop(result)`. `await router.run<T>(SomeFlow())` lifts a multi-screen **modal flow** into its own sub-router; flows can nest, unwinding LIFO.
@@ -123,6 +123,8 @@ final router = KaiselRouter<AppRoute>(
 ```
 
 Each guard either allows (return `proposed`), redirects (return something different), or refuses (return `current`). Sync guards complete synchronously; async guards make the navigation async.
+
+To **redirect to login and then continue** to where the user was headed, stash the `proposed` stack before redirecting and replay it with `router.set` after login — the intended destination is plain `List<R>` data, so the *whole* intended stack (Cart under Payment, back and all) is reconstructed, not just the final screen. The same guard handles deep links into protected routes. See [`example/lib/main_auth_redirect.dart`](example/lib/main_auth_redirect.dart).
 
 Guards do **not** run on system back — the pop has already animated by the time we hear about it. State-driven redirects (e.g. force back to login on logout) should be app-state listeners that call `router.set` directly.
 
@@ -205,6 +207,27 @@ KaiselBranchedShell.specs(
 ```
 
 Use `KaiselBranchSpec.adaptive(...)` for an adaptive branch. When you need to hold the branch routers yourself, the explicit `KaiselBranchedShell(shell: BranchedShellRouter(...), branches: [KaiselBranch<R>(...)])` form stays. Pass `branchContentBuilder` to swap the default `IndexedStack` for a `PageView` or any other layout (you then own per-branch state preservation).
+
+**Lazy and deferred branches.** Pass `lazy: true` to build each tab's screen only on first visit (kept alive afterwards) instead of all up front — handy for heavy tabs. A branch can go further and load its *code* on demand with `KaiselBranchSpec.deferred`, behind a `deferred as` import:
+
+```dart
+KaiselBranchedShell.specs(
+  lazy: true,
+  branches: [
+    KaiselBranchSpec<HomeRoute>(initial: const HomeRoot(), builder: ...),
+    KaiselBranchSpec<ReportsRoute>.deferred(
+      initial: const ReportsRoot(),
+      loadLibrary: reports.loadLibrary,        // the deferred import's tear-off
+      placeholder: const Center(child: CircularProgressIndicator()),
+      errorBuilder: (context, error, retry) => RetryTile(error, retry),
+      builder: (context, route) => reports.ReportsScreen(),
+    ),
+  ],
+  chromeBuilder: (context, active, branchContent, switchBranch) => /* ... */,
+)
+```
+
+The route values stay in the main bundle, so back, URL capture, and deep links keep working while the screen code loads — the placeholder shows until it arrives, and a failed load renders `errorBuilder` (scoped to that tab) with a `retry` that re-runs the load. For a custom lazy layout, pass `lazyBranchContentBuilder` (the lazy counterpart to `branchContentBuilder`, with a `buildBranch(context, index)` callback). See [`example/lib/main_lazy_shell.dart`](example/lib/main_lazy_shell.dart).
 
 Inside a Home branch screen:
 
