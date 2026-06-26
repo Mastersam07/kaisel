@@ -1,6 +1,6 @@
 # kaisel example
 
-Nine entry points, each demonstrating a slice of the library.
+Ten entry points, each demonstrating a slice of the library.
 Pick one with `-t`:
 
 | Entry point | What it shows |
@@ -14,6 +14,7 @@ Pick one with `-t`:
 | `lib/main_results_and_flows.dart` | Typed results + flows-as-routes (v0.20): `context.pushForResult<T>` returns a value from a main-stack screen; a `run<bool>` flow renders as a route so a `showDialog` lands above it and a shared `RouteObserver` logs the flow's open/close; `pageWrapper` gives the flow a slide-up entrance via `ctx.isFlow` |
 | `lib/main_transitions.dart` | Route-pair transitions (v0.11): pageWrapper pattern-matches on `(ctx.previous, ctx.route)` to pick custom Page subclasses per route pair |
 | `lib/main_media_cataloguer.dart` | A desktop-style app: top-level auth state machine (`router.set` swaps `LoginRoute` ↔ `ShellHost`), a cross-fade `pageWrapper` between them, a branched shell with per-branch typed routes + nested stacks, and a breadcrumb driven by `KaiselListenableBuilder`. Wired with `KaiselRouterConfig` + `KaiselBranchedShell.specs` + `context.shell()` |
+| `lib/main_lazy_shell.dart` | Lazy + deferred shell branches (v0.21): `.specs(lazy: true)` builds each tab on first visit and keeps it alive (the Home counter survives switches); the **Reports** tab is a `KaiselBranchSpec.deferred` whose screen lives behind a `deferred as` import — it shows a placeholder while loading, an error + **retry** on a (simulated) flaky first load, then the screen |
 
 ## `lib/main_terse.dart`
 
@@ -145,3 +146,25 @@ flow is now a route on the main navigator:
 The `pageWrapper` branches on `ctx.isFlow` to slide the flow up from the bottom
 instead of appearing instantly, forwarding `name`/`arguments` so the flow stays
 observable.
+
+## `lib/main_lazy_shell.dart`
+
+Lazy + deferred shell branches (v0.21).
+
+```sh
+flutter run -t lib/main_lazy_shell.dart
+```
+
+`KaiselBranchedShell.specs(lazy: true)` builds each tab's screen only on first
+visit and keeps it alive after:
+
+- **Lazy build.** Watch the console — `built Discover` / `built Reports` only
+  print when you first open those tabs, not at launch.
+- **Keep-alive.** Bump the Home counter, switch to another tab and back — the
+  count survives, because the built branch stays mounted.
+- **Deferred code-split.** The **Reports** tab is a `KaiselBranchSpec.deferred`
+  whose screen is imported `deferred as`. On first open it shows a placeholder
+  while `loadLibrary` runs; the first attempt fails (a flaky network is
+  simulated) so the `errorBuilder` renders with a **Retry** button, and tapping
+  it re-runs the load and shows the screen. The route values stay non-deferred,
+  so navigation keeps working while the code loads.
