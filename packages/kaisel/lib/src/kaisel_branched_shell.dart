@@ -450,6 +450,20 @@ typedef KaiselBranchContentBuilder =
       void Function(int branch) switchBranch,
     );
 
+/// Signature for a custom container in lazy mode (`KaiselBranchedShell.specs`
+/// with `lazy: true`). Unlike [KaiselBranchContentBuilder] no branch widgets are
+/// pre-built; instead [buildBranch] materialises branch `index` on demand (its
+/// router is created the first time you build it). Build only the branches you
+/// want mounted and keep built ones alive yourself — e.g. a lazy [PageView].
+typedef KaiselLazyBranchContentBuilder =
+    Widget Function(
+      BuildContext context,
+      int activeBranch,
+      int branchCount,
+      Widget Function(BuildContext context, int index) buildBranch,
+      void Function(int branch) switchBranch,
+    );
+
 /// A bottom-nav shell whose branches have **different** route types.
 ///
 /// Pass a [BranchedShellRouter] and a parallel list of [KaiselBranch]
@@ -494,7 +508,8 @@ class KaiselBranchedShell extends StatefulWidget {
     this.branchContentBuilder,
   }) : specs = null,
        initialBranch = 0,
-       lazy = false;
+       lazy = false,
+       lazyBranchContentBuilder = null;
 
   /// Create a branched shell from declarative [branches] — one
   /// [KaiselBranchSpec] per branch. The shell creates, owns, and disposes the
@@ -507,11 +522,17 @@ class KaiselBranchedShell extends StatefulWidget {
     required this.chromeBuilder,
     this.initialBranch = 0,
     this.branchContentBuilder,
+    this.lazyBranchContentBuilder,
     this.lazy = false,
   }) : assert(
          !lazy || branchContentBuilder == null,
-         'lazy: true builds branches on demand and owns its own container, so '
-         'it cannot be combined with a custom branchContentBuilder yet.',
+         'lazy: true has no pre-built branch list; pass a '
+         'lazyBranchContentBuilder instead of a branchContentBuilder.',
+       ),
+       assert(
+         lazy || lazyBranchContentBuilder == null,
+         'lazyBranchContentBuilder applies only to lazy: true; use '
+         'branchContentBuilder for the eager shell.',
        ),
        specs = branches,
        shell = null,
@@ -542,6 +563,11 @@ class KaiselBranchedShell extends StatefulWidget {
   /// one to use a [PageView] or any other container — see
   /// [KaiselBranchContentBuilder].
   final KaiselBranchContentBuilder? branchContentBuilder;
+
+  /// Optional custom container for `lazy: true`, where branches are built on
+  /// demand — see [KaiselLazyBranchContentBuilder]. When `null`, lazy mode uses
+  /// a keep-alive [IndexedStack]. Only valid with `lazy: true`.
+  final KaiselLazyBranchContentBuilder? lazyBranchContentBuilder;
 
   @override
   State<KaiselBranchedShell> createState() => _KaiselBranchedShellState();
@@ -680,20 +706,28 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
             builder: (context) {
               final branchContent = switch ((
                 widget.branchContentBuilder,
+                widget.lazyBranchContentBuilder,
                 _lazy,
               )) {
-                (final build?, _) => build(
+                (final build?, _, _) => build(
                   context,
                   _shell.activeBranch,
                   _branches,
                   _shell.switchTo,
                 ),
-                (_, true) => _LazyKeepAliveStack(
+                (_, final build?, _) => build(
+                  context,
+                  _shell.activeBranch,
+                  _shell.branchCount,
+                  _buildLazyBranch,
+                  _shell.switchTo,
+                ),
+                (_, _, true) => _LazyKeepAliveStack(
                   index: _shell.activeBranch,
                   itemCount: _shell.branchCount,
                   itemBuilder: _buildLazyBranch,
                 ),
-                (_, false) => IndexedStack(
+                (_, _, false) => IndexedStack(
                   index: _shell.activeBranch,
                   children: _branches,
                 ),
