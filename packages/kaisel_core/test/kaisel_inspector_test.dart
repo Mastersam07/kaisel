@@ -173,6 +173,7 @@ void main() {
         branches: <KaiselBranchSnapshot>[
           KaiselBranchSnapshot(
             index: 0,
+            built: true,
             routeType: 'HomeRoute',
             stack: KaiselStackSnapshot(
               depth: 1,
@@ -185,7 +186,9 @@ void main() {
       final json = shell.toJson();
       expect(json['kind'], 'branched');
       expect(json['activeBranch'], 1);
-      expect((json['branches']! as List<Object?>), hasLength(1));
+      final branches = json['branches'] as List<Object?>;
+      expect(branches, hasLength(1));
+      expect((branches.first as Map<String, Object?>)['built'], true);
     });
 
     test('nav wraps version + roots', () {

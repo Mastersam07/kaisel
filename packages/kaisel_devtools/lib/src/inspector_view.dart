@@ -498,7 +498,11 @@ class _BranchesPanel extends StatelessWidget {
                         const SizedBox(width: 8),
                         if (branch.index == shells[s].activeBranch)
                           const _Tag(text: 'active', tone: _Tone.added)
-                        else
+                        else ...[
+                          if (!branch.built) ...[
+                            const _Tag(text: 'not built', tone: _Tone.neutral),
+                            const SizedBox(width: 8),
+                          ],
                           _WriteButton(
                             controller: controller,
                             icon: Icons.swap_horiz,
@@ -509,10 +513,17 @@ class _BranchesPanel extends StatelessWidget {
                               'branch': branch.index,
                             },
                           ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 4),
-                    _MiniStack(stack: branch.stack),
+                    if (branch.built)
+                      _MiniStack(stack: branch.stack)
+                    else
+                      Text(
+                        'Lazy — builds on first visit.',
+                        style: theme.textTheme.bodySmall,
+                      ),
                   ],
                 ),
               ),

@@ -120,10 +120,19 @@ void main() {
               ],
             },
           },
+          <String, Object?>{
+            'index': 1,
+            'built': false,
+            'routeType': '—',
+            'stack': <String, Object?>{'depth': 0, 'entries': <Object?>[]},
+          },
         ],
       });
       expect(shell.activeBranch, 1);
-      expect(shell.branches.single.stack.entries.single.label, 'Home');
+      expect(shell.branches.first.stack.entries.single.label, 'Home');
+      expect(shell.branches.first.built, isTrue); // defaults true when absent
+      expect(shell.branches.last.built, isFalse);
+      expect(shell.branches.last.stack.entries, isEmpty);
 
       final module = ModuleSnapshot.fromJson(const <String, Object?>{
         'prefix': '/c',
@@ -247,6 +256,7 @@ void main() {
         branches: <BranchSnapshot>[
           BranchSnapshot(
             index: 0,
+            built: true,
             routeType: 'R',
             stack: StackSnapshot(
               depth: 1,

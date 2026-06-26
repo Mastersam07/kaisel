@@ -23,6 +23,15 @@
   `buildBranch(context, index)` callback that materialises a branch on demand,
   so a custom container (e.g. a lazy `PageView`) can build and keep alive what
   it chooses.
+- **DevTools shows lazy branch build-state** — the inspector snapshot reports
+  every branch by index with a `built` flag (read without materialising dormant
+  branches), so you can watch lazy tabs build as they're first visited, and the
+  branch/no-op panels stay index-accurate for a lazy shell. Requires
+  `kaisel_core ^0.19.0`.
+
+### Dependencies
+
+- Requires `kaisel_core: ^0.19.0` (for `KaiselBranchSnapshot.built`).
 
 ## 0.20.0
 

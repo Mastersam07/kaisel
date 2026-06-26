@@ -271,11 +271,13 @@ class KaiselShellSnapshot {
   };
 }
 
-/// One branch of a shell: its index, route-type hint, and stack.
+/// One branch of a shell: its index, whether it is built, route-type hint, and
+/// stack.
 class KaiselBranchSnapshot {
   /// Create a branch snapshot.
   const KaiselBranchSnapshot({
     required this.index,
+    required this.built,
     required this.routeType,
     required this.stack,
   });
@@ -283,15 +285,20 @@ class KaiselBranchSnapshot {
   /// The branch index.
   final int index;
 
+  /// Whether the branch is materialised. A lazy shell builds a branch only on
+  /// first activation; an unbuilt branch has an empty [stack].
+  final bool built;
+
   /// Best-effort route-type hint for the branch.
   final String routeType;
 
-  /// The branch's stack.
+  /// The branch's stack (empty when not [built]).
   final KaiselStackSnapshot stack;
 
   /// Serialise to the wire format.
   Map<String, Object?> toJson() => <String, Object?>{
     'index': index,
+    'built': built,
     'routeType': routeType,
     'stack': stack.toJson(),
   };

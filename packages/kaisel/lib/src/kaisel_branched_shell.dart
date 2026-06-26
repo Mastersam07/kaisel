@@ -133,6 +133,11 @@ class BranchedShellRouter extends ChangeNotifier
     return _ensure(index);
   }
 
+  /// The built branch at [index], or null if a lazy shell has not built it yet.
+  /// Unlike [branchAt] this never builds a branch — it is for inspection
+  /// (DevTools) only, so reading it doesn't defeat laziness.
+  KaiselNavigator? builtBranchAt(int index) => _created[index];
+
   /// Whether `pop` on the active branch would remove a route.
   bool get currentCanPop => current.canPop;
 
