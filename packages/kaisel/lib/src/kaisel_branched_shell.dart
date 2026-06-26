@@ -328,7 +328,9 @@ class KaiselBranchSpec<R extends KaiselRoute> {
     this.pageWrapper,
     this.scope,
   }) : _builder = builder,
-       _adaptiveBuilder = null;
+       _adaptiveBuilder = null,
+       _load = null,
+       _placeholder = null;
 
   /// A branch with an adaptive [builder] (master-detail absorption).
   const KaiselBranchSpec.adaptive({
@@ -338,7 +340,30 @@ class KaiselBranchSpec<R extends KaiselRoute> {
     this.pageWrapper,
     this.scope,
   }) : _builder = null,
-       _adaptiveBuilder = builder;
+       _adaptiveBuilder = builder,
+       _load = null,
+       _placeholder = null;
+
+  /// A branch whose code loads on first activation. [load] — typically
+  /// `() => feature.loadLibrary()` for a `deferred as` import — runs the first
+  /// time the branch is shown; until it resolves the branch renders
+  /// [placeholder]. Keep the branch's route values and [initial] in a
+  /// non-deferred library and put only the screens the [builder] returns behind
+  /// the deferred import, so the router, back handling, and deep links keep
+  /// working while the code loads. Use with
+  /// `KaiselBranchedShell.specs(lazy: true)`.
+  KaiselBranchSpec.deferred({
+    required this.initial,
+    required KaiselPageBuilder<R> builder,
+    required Future<void> Function() load,
+    Widget placeholder = const SizedBox.shrink(),
+    this.guards = const [],
+    this.pageWrapper,
+    this.scope,
+  }) : _builder = builder,
+       _adaptiveBuilder = null,
+       _load = load,
+       _placeholder = placeholder;
 
   /// The branch's initial route.
   final R initial;
@@ -354,6 +379,12 @@ class KaiselBranchSpec<R extends KaiselRoute> {
 
   final KaiselPageBuilder<R>? _builder;
   final KaiselAdaptivePageBuilder<R>? _adaptiveBuilder;
+  final Future<void> Function()? _load;
+  final Widget? _placeholder;
+
+  /// Whether this branch loads its code on first activation
+  /// (see [KaiselBranchSpec.deferred]).
+  bool get isDeferred => _load != null;
 
   /// Create this branch's router. Called once by the shell.
   KaiselRouter<R> createRouter() =>
@@ -365,27 +396,30 @@ class KaiselBranchSpec<R extends KaiselRoute> {
   /// its own router.
   Widget buildBranch(KaiselNavigator router) {
     final typed = router as KaiselRouter<R>;
-    switch ((_builder, _adaptiveBuilder)) {
-      case (final builder?, _):
-        return KaiselBranch<R>(
-          router: typed,
-          pageBuilder: builder,
-          pageWrapper: pageWrapper,
-          scope: scope,
-        );
-      case (_, final adaptive?):
-        return KaiselBranch<R>.adaptive(
-          router: typed,
-          pageBuilder: adaptive,
-          pageWrapper: pageWrapper,
-          scope: scope,
-        );
-      // Unreachable: both constructors set exactly one builder.
+    final Widget branch = switch ((_builder, _adaptiveBuilder)) {
+      (final builder?, _) => KaiselBranch<R>(
+        router: typed,
+        pageBuilder: builder,
+        pageWrapper: pageWrapper,
+        scope: scope,
+      ),
+      (_, final adaptive?) => KaiselBranch<R>.adaptive(
+        router: typed,
+        pageBuilder: adaptive,
+        pageWrapper: pageWrapper,
+        scope: scope,
+      ),
       // coverage:ignore-start
-      case _:
-        throw StateError('KaiselBranchSpec has no builder.');
+      _ => throw StateError('KaiselBranchSpec has no builder.'),
       // coverage:ignore-end
-    }
+    };
+    final load = _load;
+    if (load == null) return branch;
+    return _DeferredBranch(
+      load: load,
+      placeholder: _placeholder ?? const SizedBox.shrink(),
+      child: branch,
+    );
   }
 }
 
@@ -532,6 +566,11 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
     super.initState();
     switch ((widget.specs, widget.shell)) {
       case (final specs?, _):
+        assert(
+          widget.lazy || !specs.any((s) => s.isDeferred),
+          'KaiselBranchedShell: deferred branch specs require lazy: true, so '
+          'their code is loaded on activation rather than at mount.',
+        );
         _ownsShell = true;
         if (widget.lazy) {
           _lazy = true;
@@ -722,4 +761,41 @@ class _LazyKeepAliveStackState extends State<_LazyKeepAliveStack> {
       ],
     );
   }
+}
+
+/// Renders [placeholder] while [load] runs (a branch's `loadLibrary`), then
+/// swaps in [child]. Built once per branch on first activation, so the load
+/// fires once and the loaded child is kept alive by the lazy container.
+class _DeferredBranch extends StatefulWidget {
+  const _DeferredBranch({
+    required this.load,
+    required this.placeholder,
+    required this.child,
+  });
+
+  final Future<void> Function() load;
+  final Widget placeholder;
+  final Widget child;
+
+  @override
+  State<_DeferredBranch> createState() => _DeferredBranchState();
+}
+
+class _DeferredBranchState extends State<_DeferredBranch> {
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _run();
+  }
+
+  Future<void> _run() async {
+    await widget.load();
+    if (mounted) setState(() => _loaded = true);
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      _loaded ? widget.child : widget.placeholder;
 }
