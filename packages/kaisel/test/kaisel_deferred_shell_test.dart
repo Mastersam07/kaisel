@@ -20,7 +20,11 @@ final class _FeatureRoot extends _FeatureRoute {
   const _FeatureRoot();
 }
 
-Widget _app({required Future<void> Function() load, bool lazy = true}) {
+Widget _app({
+  required Future<void> Function() load,
+  bool lazy = true,
+  Widget Function(BuildContext context, Object error)? errorBuilder,
+}) {
   return MaterialApp(
     home: KaiselBranchedShell.specs(
       lazy: lazy,
@@ -31,8 +35,9 @@ Widget _app({required Future<void> Function() load, bool lazy = true}) {
         ),
         KaiselBranchSpec<_FeatureRoute>.deferred(
           initial: const _FeatureRoot(),
-          load: load,
+          loadLibrary: load,
           placeholder: const Text('loading'),
+          errorBuilder: errorBuilder,
           builder: (context, route) => const Text('feature-screen'),
         ),
       ],
@@ -118,5 +123,33 @@ void main() {
   testWidgets('a deferred spec requires lazy: true', (tester) async {
     await tester.pumpWidget(_app(load: () async {}, lazy: false));
     expect(tester.takeException(), isAssertionError);
+  });
+
+  testWidgets('a load failure shows the errorBuilder', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        load: () async => throw Exception('boom'),
+        errorBuilder: (context, error) => Text('error: $error'),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('tab1')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('error:'), findsOneWidget);
+    expect(find.text('feature-screen'), findsNothing);
+  });
+
+  testWidgets('a load failure without an errorBuilder keeps the placeholder', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(load: () async => throw Exception('boom')));
+
+    await tester.tap(find.byKey(const ValueKey('tab1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('loading'), findsOneWidget);
+    expect(find.text('feature-screen'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 }
