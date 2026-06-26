@@ -114,6 +114,14 @@ void main() {
       expect(() => shell.switchTo(-1), throwsRangeError);
     });
 
+    test('branchAt out of range throws RangeError', () {
+      final spies = _spies(2);
+      final shell = BranchedShellRouter.lazy(branchFactories: spies.factories);
+      addTearDown(shell.dispose);
+      expect(() => shell.branchAt(2), throwsRangeError);
+      expect(() => shell.branchAt(-1), throwsRangeError);
+    });
+
     test(
       'currentCanPop / popCurrent operate on the lazily-built branch',
       () async {
