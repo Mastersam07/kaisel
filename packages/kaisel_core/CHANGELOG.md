@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.19.0
+
+### Added
+
+- **`KaiselBranchSnapshot.built`** — the inspector snapshot now reports whether a
+  shell branch is materialised, so a lazy shell can show which branches are
+  built and which are still dormant. An unbuilt branch carries an empty stack.
+
 ## 0.18.0
 
 ### Added

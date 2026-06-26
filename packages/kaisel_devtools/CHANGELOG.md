@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+### Added
+
+- **Lazy branch build-state in the Branches panel** — a shell branch a lazy
+  shell hasn't built yet shows a "not built" tag and "builds on first visit"
+  instead of a stack, reflecting the new `built` flag in the navigation
+  snapshot. Branches are listed by their real index, so a lazy shell's panel
+  stays accurate.
+
 ## 0.2.0
 
 ### Added
