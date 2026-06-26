@@ -192,6 +192,26 @@
                 "--target=lib/main_lazy_shell.dart",
                 "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
             ],
+        },
+        {
+            "name": "[MOBILE AUTH REDIRECT] example",
+            "cwd": "packages/kaisel/example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_auth_redirect.dart",
+                "--device-id=63D5D2F7-1483-4A33-997C-534B6C8C4871"
+            ],
+        },
+        {
+            "name": "[AUTH REDIRECT] example",
+            "cwd": "packages/kaisel/example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_auth_redirect.dart",
+                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+            ],
         }
     ]
 }

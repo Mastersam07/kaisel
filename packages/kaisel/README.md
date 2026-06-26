@@ -124,6 +124,8 @@ final router = KaiselRouter<AppRoute>(
 
 Each guard either allows (return `proposed`), redirects (return something different), or refuses (return `current`). Sync guards complete synchronously; async guards make the navigation async.
 
+To **redirect to login and then continue** to where the user was headed, stash the `proposed` stack before redirecting and replay it with `router.set` after login — the intended destination is plain `List<R>` data, so the *whole* intended stack (Cart under Payment, back and all) is reconstructed, not just the final screen. The same guard handles deep links into protected routes. See [`example/lib/main_auth_redirect.dart`](example/lib/main_auth_redirect.dart).
+
 Guards do **not** run on system back — the pop has already animated by the time we hear about it. State-driven redirects (e.g. force back to login on logout) should be app-state listeners that call `router.set` directly.
 
 ### 4. Shells (bottom-nav with per-tab state)
