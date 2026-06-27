@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.21.0-dev.2
+
+### Changed
+
+- **Replace-style navigation overwrites the browser history entry instead of
+  adding one.** On the web, `replaceTop` / `set` (and the replace half of
+  `pushOrReplaceTop`) now report a *replace*, so they overwrite the current
+  history entry rather than pushing a new one — matching go_router's `go` /
+  `replace`. `push` still adds an entry; inbound restore (browser back/forward,
+  deep links) is unchanged. Works for both `context.*` verbs and bare `router.*`
+  calls. ([#25])
+- **A programmatic `pop` / `popUntil` now replaces too** ([#27]). Popping B→A
+  overwrites B's entry instead of pushing a fresh `/a`, so the browser's forward
+  button no longer resurfaces the popped screen. (Flutter's delegate API can
+  only replace the current entry, not pop a browser entry, so a deep multi-pop
+  still leaves the intermediate pushed entries.)
+- **Replaces inside a shell branch or module are reported as replaces**
+  ([#28]). The route-information provider reads the delegate's disposition, which
+  tracks whichever router — the main router or the active nested handle —
+  committed last. A `replaceTop` inside a branch overwrites the entry; switching
+  branches still adds one.
+
+### Dependencies
+
+- Requires `kaisel_core: ^0.20.0` (for the `replacesHistoryEntry` hints).
+
+[#25]: https://github.com/Mastersam07/kaisel/issues/25
+[#27]: https://github.com/Mastersam07/kaisel/issues/27
+[#28]: https://github.com/Mastersam07/kaisel/issues/28
+
 ## 0.21.0-dev.1
 
 ### Added

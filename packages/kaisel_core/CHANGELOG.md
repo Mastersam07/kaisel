@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.20.0
+
+### Added
+
+- **`KaiselRouter.replacesHistoryEntry`** — whether the most recent committed
+  stack change should overwrite the browser history entry (`replaceTop` / `set`
+  / `pop`) rather than add one (`push`). The Flutter layer's route-information
+  provider reads it to report a replace instead of a new entry. ([#25])
+- **`KaiselNavigator.replacesHistoryEntry`** and
+  **`KaiselNestedHandle.replacesHistoryEntry`** — the same hint on the
+  non-generic router view and on a nested handle, so a shell container can read
+  its active branch's disposition and the host can report a nested replace as a
+  replace. `KaiselNestedHandle` defaults it to `false`. ([#28])
+
+### Changed
+
+- **`pop` / `popUntil` now mark the change as a history replace.** Popping back
+  to a screen overwrites the entry it returns to instead of adding one, so the
+  browser's forward button no longer resurfaces the popped screen. ([#27])
+
+[#25]: https://github.com/Mastersam07/kaisel/issues/25
+[#27]: https://github.com/Mastersam07/kaisel/issues/27
+[#28]: https://github.com/Mastersam07/kaisel/issues/28
+
 ## 0.19.0
 
 ### Added
