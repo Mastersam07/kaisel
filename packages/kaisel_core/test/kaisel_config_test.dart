@@ -1,3 +1,4 @@
+import 'package:kaisel_core/framework.dart' show KaiselNestedHandle;
 import 'package:kaisel_core/kaisel_core.dart';
 import 'package:test/test.dart';
 
@@ -51,7 +52,34 @@ class _LegacyStackCodec implements KaiselStackCodec<_Top> {
   };
 }
 
+// A handle that extends (not implements) KaiselNestedHandle, so it inherits the
+// default replacesHistoryEntry. Real handles (shell controller, module mount)
+// all override it; this pins the documented default for any future subclass.
+class _DefaultHandle extends KaiselNestedHandle {
+  @override
+  Type get configType => KaiselModuleConfig;
+
+  @override
+  KaiselNestedConfig captureConfig() =>
+      KaiselModuleConfig(stack: const [_HomeRoot()]);
+
+  @override
+  Future<void> restoreFromConfig(KaiselNestedConfig config) async {}
+
+  @override
+  void addListener(void Function() listener) {}
+
+  @override
+  void removeListener(void Function() listener) {}
+}
+
 void main() {
+  group('KaiselNestedHandle', () {
+    test('replacesHistoryEntry defaults to false', () {
+      expect(_DefaultHandle().replacesHistoryEntry, isFalse);
+    });
+  });
+
   group('KaiselConfig', () {
     test('equality is value-based', () {
       final a = KaiselConfig<_Top>(
