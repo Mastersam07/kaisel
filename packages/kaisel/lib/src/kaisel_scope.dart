@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:kaisel_core/kaisel_core.dart';
 
+import 'kaisel_browser_history.dart';
 import 'kaisel_page_scope.dart';
 
 /// Inherited widget that exposes the [KaiselRouter] in effect at a point
@@ -191,6 +192,57 @@ extension KaiselContextNavigation on BuildContext {
         navigator.maybePop(result),
       _ => _nearestRouterScope().router.pop(result),
     };
+  }
+
+  /// Go back one step, history-aligned, so the browser's own Back/Forward
+  /// buttons keep mirroring the app stack — even across several pops in a row.
+  ///
+  /// On the web this moves the browser history *pointer* (a true Back) rather
+  /// than rewriting the current entry: the resulting URL change restores the
+  /// stack through your codec — the same inbound path the browser Back button
+  /// uses — so the screen you leave becomes a *forward* entry instead of a
+  /// lingering duplicate. Reach for this (instead of [pop]) when you want the
+  /// browser history to track the app stack across multi-level back navigation.
+  ///
+  /// Falls back to [pop] when there is no browser history to traverse — off the
+  /// web, on a cold deep link (no app entry behind the current one), or without
+  /// a URL codec. Returns whether anything was navigated.
+  ///
+  /// Unlike [pop], it does not deliver a `pushForResult` value; the stack is
+  /// restored from the URL, so use [pop] when a screen must return a result.
+  Future<bool> historyBack() => historyGo(-1);
+
+  /// Like [historyBack] but moves [delta] history entries — negative goes back,
+  /// positive forward (forward is web-only). See [historyBack] for the
+  /// web-vs-fallback behavior.
+  Future<bool> historyGo(int delta) async {
+    final history = KaiselBrowserHistory.instance;
+    if (history.isWeb) {
+      // Going back: only if there are that many app entries behind us, else we
+      // would step out of the app (e.g. a cold deep link). Forward is
+      // best-effort — the browser ignores it past the end of history.
+      if (delta < 0 && history.depth >= -delta) {
+        history.go(delta);
+        return true;
+      }
+      if (delta > 0) {
+        history.go(delta);
+        return true;
+      }
+    }
+    // Fallback: pop |delta| times, clamped at the root. Forward has no
+    // off-web meaning.
+    if (delta >= 0) {
+      return false;
+    }
+    var moved = false;
+    for (var i = 0; i < -delta; i++) {
+      if (!await pop()) {
+        break;
+      }
+      moved = true;
+    }
+    return moved;
   }
 
   /// Replace the top of the nearest router that accepts [route].

@@ -22,6 +22,7 @@ dependencies:
     sdk: flutter
   meta: ^1.15.0
   kaisel_core: ^0.20.0
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:

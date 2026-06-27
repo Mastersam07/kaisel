@@ -2,6 +2,22 @@
 
 ## 0.21.0-dev.2
 
+### Added
+
+- **`context.historyBack()` / `context.historyGo(int delta)`** — history-aligned
+  back navigation so the browser's own Back/Forward buttons keep mirroring the
+  app stack, even across several pops in a row. On the web it moves the browser
+  history *pointer* (a true Back) and lets the inbound URL restore the stack
+  through your codec — so the screen you leave becomes a *forward* entry instead
+  of a lingering duplicate, closing the multi-pop gap that `pop`'s
+  replace-the-top behavior can't (see [#27]). It reads the engine's `serialCount`
+  to avoid stepping out of the app on a cold deep link, and **falls back to
+  `pop`** off the web, without a codec, or when there's no app history behind the
+  current entry. Reach for it (instead of `pop`) where you want browser history
+  to track multi-level back navigation; `pop` stays the choice when a screen must
+  return a `pushForResult` value. Adds a web-only `package:web` dependency (via
+  conditional import — `kaisel_core` and non-web builds never reference it).
+
 ### Changed
 
 - **Replace-style navigation overwrites the browser history entry instead of
@@ -15,7 +31,8 @@
   overwrites B's entry instead of pushing a fresh `/a`, so the browser's forward
   button no longer resurfaces the popped screen. (Flutter's delegate API can
   only replace the current entry, not pop a browser entry, so a deep multi-pop
-  still leaves the intermediate pushed entries.)
+  still leaves the intermediate pushed entries — use `historyBack` above when you
+  need the browser stack to track multi-level back navigation.)
 - **Replaces inside a shell branch or module are reported as replaces**
   ([#28]). The route-information provider reads the delegate's disposition, which
   tracks whichever router — the main router or the active nested handle —
@@ -25,6 +42,7 @@
 ### Dependencies
 
 - Requires `kaisel_core: ^0.20.0` (for the `replacesHistoryEntry` hints).
+- Adds `web: ^1.1.0` — web-only, behind a conditional import.
 
 [#25]: https://github.com/Mastersam07/kaisel/issues/25
 [#27]: https://github.com/Mastersam07/kaisel/issues/27
