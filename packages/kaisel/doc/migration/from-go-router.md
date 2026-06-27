@@ -555,12 +555,13 @@ Be honest with yourself about whether these matter before migrating.
 process death. kaisel doesn't, yet — it's on the roadmap.
 If your app relies on this in production, wait.
 
-**Browser back-button history on the web.** go_router integrates
-with `RouteInformationProvider` and handles browser history natively.
-kaisel does the same in principle (via the codec round-tripping),
-but the integration is less polished than go_router's. If your app
-is web-first, test this carefully on a migration branch before
-committing.
+**Browser history replace-vs-push.** Browser back/forward and deep links work —
+each navigation round-trips through the codec, so back restores the previous
+stack. The remaining gap is go_router's control over *replacing* vs *pushing* a
+browser history entry: kaisel reports every navigation as a new entry, so
+`replaceTop` / `set` add a history entry rather than replacing the current one.
+Only matters if you deliberately keep a screen out of the back stack (a splash,
+an interstitial). Tracked for a fix.
 
 **`errorBuilder:`.** go_router has a built-in error page when no
 route matches. kaisel doesn't have a separate slot; you add an
