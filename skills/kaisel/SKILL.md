@@ -76,11 +76,12 @@ Read these only when the topic at hand demands the depth.
 | `KaiselRouterDelegate<R>` | `RouterDelegate` that drives Flutter's `Router` from a `KaiselRouter`. Takes a `builder`, optional `pageWrapper`, optional `modalBuilder`. |
 | `KaiselPageBuilder<R>` | `Widget Function(BuildContext, R)`. Pattern-match on the route to produce the screen. |
 | `KaiselPageWrapper<R>` | `Page<Object?> Function(KaiselPageWrapperContext<R>)`. Wrap the widget in a `Page` subclass to pick a transition. |
-| `KaiselModalBuilder<R>` | Required when using `run<T>`. Describes how a modal flow's UI overlays the main stack. |
+| `KaiselModalBuilder` | Required when using `run<T>`. Describes how a modal flow's UI overlays the main stack. |
 | `KaiselGuard<R>` | `FutureOr<List<R>> Function(List<R> current, List<R> proposed)`. Filters every stack mutation. |
 | `KaiselConfigCodec<R>` | URL ↔ `KaiselConfig<R>` mapping. The single place strings live. |
 | `KaiselBranchedShell` | A shell with N branches, each with its own typed `KaiselRouter`. Per-branch state preserved by default. |
 | `KaiselBranch<R>` | One branch inside a `KaiselBranchedShell`. Pass `KaiselBranch.adaptive` for absorbing pages. |
+| `KaiselBranchSpec<R>` | Declarative branch for `KaiselBranchedShell.specs`. `lazy: true` builds branches on first visit (kept alive); `KaiselBranchSpec.deferred(loadLibrary:, placeholder:, errorBuilder:)` code-splits a branch behind a `deferred as` import. |
 | `KaiselModalRoute<T>` | Abstract base for routes used with `run<T>`. Carries the typed completion contract. |
 
 ## 1. Defining routes
