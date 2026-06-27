@@ -387,7 +387,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     } else {
       next[next.length - 1] = route;
     }
-    return _navigate(next, recordNoOp: true);
+    return _navigate(next, recordNoOp: true, replacesHistory: true);
   });
 
   /// Push [route] onto the stack, or replace the top entry if [when]
@@ -429,7 +429,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       throw ArgumentError('Stack must contain at least one route.');
     }
     final captured = List<R>.of(routes);
-    return _enqueueOrigin(() => _navigate(captured));
+    return _enqueueOrigin(() => _navigate(captured, replacesHistory: true));
   }
 
   /// Pop routes until [predicate] returns true for the top route, or
@@ -596,12 +596,27 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
 
   static void _void(Object? _) {}
 
-  Future<void> _navigate(List<R> proposed, {bool recordNoOp = false}) async {
+  bool _replacesHistoryEntry = false;
+
+  /// Whether the most recently applied stack change should overwrite the browser
+  /// history entry (`replaceTop` / `set`) rather than add one (`push`). The
+  /// route-information provider reads this when reporting to the platform.
+  bool get replacesHistoryEntry => _replacesHistoryEntry;
+
+  Future<void> _navigate(
+    List<R> proposed, {
+    bool recordNoOp = false,
+    bool replacesHistory = false,
+  }) async {
     // Only flag a no-op when the caller's proposal was already value-equal to
     // the current stack — not when a guard later collapses it.
     final proposedNoOp = recordNoOp && _sameRoutes(stack, proposed);
     final result = await _runGuards(stack, proposed);
-    _applyStack(result, recordNoOp: proposedNoOp);
+    _applyStack(
+      result,
+      recordNoOp: proposedNoOp,
+      replacesHistory: replacesHistory,
+    );
   }
 
   Future<List<R>> _runGuards(List<R> current, List<R> proposed) async {
@@ -651,7 +666,11 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   /// whose route at the same position is equal keep their id. New
   /// positions get fresh entries. This means a push only allocates
   /// the new entry; existing pages keep their navigator state.
-  void _applyStack(List<R> next, {bool recordNoOp = true}) {
+  void _applyStack(
+    List<R> next, {
+    bool recordNoOp = true,
+    bool replacesHistory = false,
+  }) {
     if (next.isEmpty) {
       // Guards must not produce an empty stack. Refuse silently rather
       // than crashing — the user almost certainly wants the current
@@ -699,6 +718,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       _debugLastOriginSeq = kaiselNextOriginSeq();
       return true;
     }());
+    _replacesHistoryEntry = replacesHistory;
     _recordHistory();
     notifyListeners();
   }

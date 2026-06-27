@@ -51,6 +51,37 @@ void main() {
       expect(notifications, 2);
     });
 
+    test(
+      'replacesHistoryEntry is true after replaceTop/set, false after push',
+      () async {
+        final r = KaiselRouter<_R>(initial: const _A());
+
+        await r.push(const _B('x'));
+        expect(r.replacesHistoryEntry, isFalse);
+
+        await r.replaceTop(const _C());
+        expect(r.replacesHistoryEntry, isTrue);
+
+        await r.set(const [_A()]);
+        expect(r.replacesHistoryEntry, isTrue);
+
+        await r.push(const _B('y'));
+        expect(r.replacesHistoryEntry, isFalse);
+      },
+    );
+
+    test('pushOrReplaceTop sets replacesHistoryEntry per branch', () async {
+      final r = KaiselRouter<_R>(initial: const _A());
+
+      // Top is _A, different type → pushes.
+      await r.pushOrReplaceTop(const _B('x'));
+      expect(r.replacesHistoryEntry, isFalse);
+
+      // Top is _B, same type → replaces.
+      await r.pushOrReplaceTop(const _B('y'));
+      expect(r.replacesHistoryEntry, isTrue);
+    });
+
     test('pop removes the top and notifies; returns false on root', () async {
       final r = KaiselRouter<_R>(initial: const _A());
       await r.push(const _B('x'));
