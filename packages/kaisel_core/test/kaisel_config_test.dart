@@ -73,6 +73,19 @@ class _DefaultHandle extends KaiselNestedHandle {
   void removeListener(void Function() listener) {}
 }
 
+// Extends (not implements) KaiselConfigCodec, exercising the base class's const
+// constructor. First-party codecs all implement the interface, so without this
+// the super constructor is never invoked.
+class _ExtConfigCodec extends KaiselConfigCodec<_Top> {
+  _ExtConfigCodec();
+
+  @override
+  Uri encode(KaiselConfig<_Top> config) => Uri(path: '/');
+
+  @override
+  KaiselConfig<_Top>? decode(Uri uri) => null;
+}
+
 void main() {
   group('KaiselNestedHandle', () {
     test('replacesHistoryEntry defaults to false', () {
@@ -134,6 +147,15 @@ void main() {
         throwsA(isA<AssertionError>()),
       );
     });
+
+    test('toString names both fields', () {
+      final c = KaiselConfig<_Top>(
+        mainStack: const [_Shell()],
+        nestedState: KaiselModuleConfig(stack: const [_HomeRoot()]),
+      );
+      expect(c.toString(), startsWith('KaiselConfig(mainStack:'));
+      expect(c.toString(), contains('nestedState:'));
+    });
   });
 
   group('KaiselShellConfig', () {
@@ -190,6 +212,15 @@ void main() {
         throwsA(isA<AssertionError>()),
       );
     });
+
+    test('toString names both fields', () {
+      final c = KaiselShellConfig(
+        activeBranch: 1,
+        activeBranchStack: const [_HomeRoot()],
+      );
+      expect(c.toString(), startsWith('KaiselShellConfig(activeBranch: 1,'));
+      expect(c.toString(), contains('activeBranchStack:'));
+    });
   });
 
   group('KaiselModuleConfig', () {
@@ -220,6 +251,11 @@ void main() {
         () => KaiselModuleConfig(stack: const []),
         throwsA(isA<AssertionError>()),
       );
+    });
+
+    test('toString names the stack', () {
+      final c = KaiselModuleConfig(stack: const [_HomeRoot()]);
+      expect(c.toString(), startsWith('KaiselModuleConfig(stack:'));
     });
   });
 
@@ -253,6 +289,15 @@ void main() {
     test('returns null for unrecognised URLs (parser will use fallback)', () {
       const adapter = StackToConfigCodec<_Top>(_LegacyStackCodec());
       expect(adapter.decode(Uri(path: '/nope')), isNull);
+    });
+
+    test('KaiselConfigCodec can be extended, not just implemented', () {
+      final codec = _ExtConfigCodec();
+      expect(
+        codec.encode(KaiselConfig<_Top>(mainStack: const [_Splash()])).path,
+        '/',
+      );
+      expect(codec.decode(Uri(path: '/x')), isNull);
     });
   });
 
