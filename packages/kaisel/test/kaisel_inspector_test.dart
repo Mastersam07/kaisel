@@ -93,6 +93,9 @@ class _FakeModuleHandle implements KaiselNestedHandle {
   Future<void> restoreFromConfig(KaiselNestedConfig config) async {}
 
   @override
+  bool get replacesHistoryEntry => false;
+
+  @override
   void addListener(void Function() listener) {}
 
   @override

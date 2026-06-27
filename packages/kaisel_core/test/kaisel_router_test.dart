@@ -82,6 +82,23 @@ void main() {
       expect(r.replacesHistoryEntry, isTrue);
     });
 
+    test('pop and popUntil replace the history entry', () async {
+      final r = KaiselRouter<_R>(initial: const _A());
+
+      await r.push(const _B('x'));
+      expect(r.replacesHistoryEntry, isFalse);
+
+      await r.pop();
+      expect(r.replacesHistoryEntry, isTrue);
+
+      await r.push(const _B('y'));
+      await r.push(const _C());
+      expect(r.replacesHistoryEntry, isFalse);
+
+      await r.popUntil((route) => route is _A);
+      expect(r.replacesHistoryEntry, isTrue);
+    });
+
     test('pop removes the top and notifies; returns false on root', () async {
       final r = KaiselRouter<_R>(initial: const _A());
       await r.push(const _B('x'));

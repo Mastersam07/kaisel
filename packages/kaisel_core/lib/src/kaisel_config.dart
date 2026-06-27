@@ -274,6 +274,13 @@ abstract class KaiselNestedHandle implements KaiselListenable {
   /// configs whose runtime type doesn't match [configType] — the host
   /// filters before calling, but a defensive check costs nothing.
   Future<void> restoreFromConfig(KaiselNestedConfig config);
+
+  /// Whether the nested router's most recent committed change should overwrite
+  /// the browser history entry rather than add one — the nested counterpart of
+  /// [KaiselNavigator.replacesHistoryEntry], read by the host when the nested
+  /// state drives the URL. Defaults to `false` (a push / branch switch adds an
+  /// entry).
+  bool get replacesHistoryEntry => false;
 }
 
 /// Interface implemented by [KaiselRouterDelegate] so a mounted nested

@@ -62,6 +62,43 @@ void main() {
       expect(shell.branches, hasLength(1));
     });
 
+    test(
+      'replacesHistoryEntry mirrors the active branch, resets on switch',
+      () async {
+        final spies = _spies(2);
+        final shell = BranchedShellRouter.lazy(
+          branchFactories: spies.factories,
+          initialBranch: 0,
+        );
+        addTearDown(shell.dispose);
+
+        expect(shell.replacesHistoryEntry, isFalse);
+
+        await spies.built[0].replaceTop(const _Detail('a'));
+        expect(
+          shell.replacesHistoryEntry,
+          isTrue,
+          reason: 'a replace inside the active branch overwrites the entry',
+        );
+
+        await spies.built[0].push(const _Detail('b'));
+        expect(
+          shell.replacesHistoryEntry,
+          isFalse,
+          reason: 'a push inside the active branch adds an entry',
+        );
+
+        await spies.built[0].replaceTop(const _Detail('c'));
+        expect(shell.replacesHistoryEntry, isTrue);
+        shell.switchTo(1);
+        expect(
+          shell.replacesHistoryEntry,
+          isFalse,
+          reason: 'selecting a different branch adds an entry, not a replace',
+        );
+      },
+    );
+
     test('honours initialBranch and builds only it', () {
       final spies = _spies(3);
       final shell = BranchedShellRouter.lazy(

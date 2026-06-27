@@ -101,6 +101,13 @@ abstract class KaiselNavigator implements KaiselListenable {
   /// Stack positions absorbed by adaptive rendering, for DevTools. Empty for
   /// non-adaptive routers. See [KaiselRouter.debugAbsorbedPositions].
   Set<int> get debugAbsorbedPositions;
+
+  /// Whether this router's most recent committed change should overwrite the
+  /// browser history entry (`replaceTop` / `set` / `pop`) rather than add one
+  /// (`push`). A shell container reads it from its active branch so a nested
+  /// replace is reported as a replace too. See
+  /// [KaiselRouter.replacesHistoryEntry].
+  bool get replacesHistoryEntry;
 }
 
 /// Identity-stable wrapper for a route on the stack.
@@ -370,7 +377,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     if (!canPop) return false;
     if (result != null) _resultValues[_entries.last.id] = result;
     final next = stack.sublist(0, stack.length - 1);
-    await _navigate(next);
+    await _navigate(next, replacesHistory: true);
     return true;
   });
 
@@ -439,7 +446,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     while (next.length > 1 && !predicate(next.last)) {
       next.removeLast();
     }
-    return _navigate(next);
+    return _navigate(next, replacesHistory: true);
   });
 
   /// Used by the delegate to sync state when the navigator pops a page
@@ -599,8 +606,9 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   bool _replacesHistoryEntry = false;
 
   /// Whether the most recently applied stack change should overwrite the browser
-  /// history entry (`replaceTop` / `set`) rather than add one (`push`). The
-  /// route-information provider reads this when reporting to the platform.
+  /// history entry (`replaceTop` / `set` / `pop`) rather than add one (`push`).
+  /// The route-information provider reads this when reporting to the platform.
+  @override
   bool get replacesHistoryEntry => _replacesHistoryEntry;
 
   Future<void> _navigate(

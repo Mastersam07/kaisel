@@ -119,7 +119,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
        _adaptiveBuilder = null,
        navigatorKey = navigatorKey ?? GlobalKey<NavigatorState>(),
        _codec = codec {
-    router.addListener(_safeNotifyListeners);
+    router.addListener(_onRootChanged);
     _registerWithInspector();
   }
 
@@ -170,7 +170,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
        _adaptiveBuilder = builder,
        navigatorKey = navigatorKey ?? GlobalKey<NavigatorState>(),
        _codec = codec {
-    router.addListener(_safeNotifyListeners);
+    router.addListener(_onRootChanged);
     _registerWithInspector();
   }
 
@@ -237,8 +237,19 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   // registers.
 
   final List<KaiselNestedHandle> _nested = <KaiselNestedHandle>[];
+  final Map<KaiselNestedHandle, VoidCallback> _nestedListeners = {};
   KaiselNestedConfig? _pendingNested;
   bool _isDisposed = false;
+
+  bool _reportReplaces = false;
+
+  /// Whether the next route-information report should overwrite the browser
+  /// history entry rather than add one. Tracks the disposition of whichever
+  /// router — the main router or the active nested (shell branch / module)
+  /// router — committed the most recent change, so a nested `replaceTop` /
+  /// `set` / `pop` is reported as a replace too. Read by the
+  /// route-information provider at report time.
+  bool get replacesHistoryEntry => _reportReplaces;
 
   /// Number of pages produced by the most recent build of the main
   /// navigator. Used by [popRoute] to detect adaptive absorbing
@@ -283,6 +294,14 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     });
   }
 
+  /// Root-router change: capture its replace/push disposition for the next
+  /// report, then notify. A nested handle does the same in [registerNested],
+  /// so [_reportReplaces] always reflects whichever router committed last.
+  void _onRootChanged() {
+    _reportReplaces = router.replacesHistoryEntry;
+    _safeNotifyListeners();
+  }
+
   @override
   void registerNested(KaiselNestedHandle handle) {
     // De-duplicate by identity; re-registering moves the handle to
@@ -294,7 +313,13 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     if (existing >= 0) {
       _nested.removeAt(existing);
     } else {
-      handle.addListener(_safeNotifyListeners);
+      void listener() {
+        _reportReplaces = handle.replacesHistoryEntry;
+        _safeNotifyListeners();
+      }
+
+      _nestedListeners[handle] = listener;
+      handle.addListener(listener);
     }
     _nested.add(handle);
 
@@ -311,7 +336,8 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     final index = _nested.indexWhere((h) => identical(h, handle));
     if (index < 0) return;
     _nested.removeAt(index);
-    handle.removeListener(_safeNotifyListeners);
+    final listener = _nestedListeners.remove(handle);
+    if (listener != null) handle.removeListener(listener);
     _safeNotifyListeners();
   }
 
@@ -966,11 +992,13 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     if (token case final t?) {
       KaiselInspector.instance.deregister(t);
     }
-    router.removeListener(_safeNotifyListeners);
+    router.removeListener(_onRootChanged);
     for (final handle in _nested) {
-      handle.removeListener(_safeNotifyListeners);
+      final listener = _nestedListeners.remove(handle);
+      if (listener != null) handle.removeListener(listener);
     }
     _nested.clear();
+    _nestedListeners.clear();
     super.dispose();
   }
 }

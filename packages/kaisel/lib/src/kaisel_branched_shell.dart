@@ -89,8 +89,34 @@ class BranchedShellRouter extends ChangeNotifier
 
   int _activeBranch;
 
-  KaiselNavigator _ensure(int i) =>
-      _created[i] ??= (_factories[i]()..addListener(notifyListeners));
+  bool _replacesHistoryEntry = false;
+
+  /// Whether the active branch's most recent committed change should overwrite
+  /// the browser history entry rather than add one — so a `replaceTop` / `set`
+  /// inside a branch is reported as a replace. A branch switch resets it to
+  /// `false` (selecting a tab adds an entry).
+  @override
+  bool get replacesHistoryEntry => _replacesHistoryEntry;
+
+  final Map<int, VoidCallback> _branchListeners = {};
+
+  KaiselNavigator _ensure(int i) {
+    final existing = _created[i];
+    if (existing != null) return existing;
+    final branch = _factories[i]();
+    void listener() => _onBranchChanged(i);
+    _branchListeners[i] = listener;
+    branch.addListener(listener);
+    _created[i] = branch;
+    return branch;
+  }
+
+  void _onBranchChanged(int i) {
+    if (i == _activeBranch) {
+      _replacesHistoryEntry = current.replacesHistoryEntry;
+    }
+    notifyListeners();
+  }
 
   StackTrace? _debugLastSwitchOrigin;
   int _debugLastSwitchSeq = 0;
@@ -155,6 +181,7 @@ class BranchedShellRouter extends ChangeNotifier
     if (branch == _activeBranch) return;
     _ensure(branch);
     _activeBranch = branch;
+    _replacesHistoryEntry = false;
     assert(() {
       _debugLastSwitchOrigin = StackTrace.current;
       _debugLastSwitchSeq = kaiselNextOriginSeq();
@@ -209,9 +236,9 @@ class BranchedShellRouter extends ChangeNotifier
 
   @override
   void dispose() {
-    for (final branch in _created.values) {
-      branch.removeListener(notifyListeners);
-    }
+    _branchListeners.forEach(
+      (i, listener) => _created[i]?.removeListener(listener),
+    );
     // A lazy shell disposes the branches it built; an eager shell leaves its
     // externally-owned branches to the caller.
     if (_ownsCreated) {

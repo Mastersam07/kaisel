@@ -99,6 +99,20 @@ void main() {
         isTrue,
         reason: 'set overwrites the current history entry',
       );
+
+      await config.router.push(const _B());
+      await tester.pumpAndSettle();
+      updates.clear();
+      await config.router.pop();
+      await tester.pumpAndSettle();
+      expect(uriOf(updates.last), '/a');
+      expect(
+        updates.last['replace'],
+        isTrue,
+        reason:
+            'a programmatic pop overwrites the entry it returns to rather '
+            'than leaving the popped screen reachable via forward',
+      );
     },
   );
 
