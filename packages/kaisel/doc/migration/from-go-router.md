@@ -76,8 +76,9 @@ codec entirely.
 | Global `redirect: (ctx, state) => ...`          | Guard function `(current, proposed) → stack` in the pipeline |
 | Per-route `redirect:`                           | Same pipeline; pattern-match on the route           |
 | `ShellRoute`                                    | `KaiselBranchedShell.specs` with one branch         |
-| `StatefulShellRoute.indexedStack`               | `KaiselBranchedShell.specs` with N branches         |
+| `StatefulShellRoute.indexedStack`               | `KaiselBranchedShell.specs` with N branches (`lazy: true` for go_router-style lazy branches; `KaiselBranchSpec.deferred` to code-split a tab) |
 | `context.push('/products/42')`                  | `context.push(const ProductDetail('42'))`           |
+| `await context.push<T>('/edit')` (returns a value) | `await context.pushForResult<T>(const Edit())` — typed result from a main-stack screen, resolved with `context.pop(value)` |
 | `context.go('/products/42')`                    | `context.set([const Home(), ProductDetail('42')])` (replace stack) or `context.replaceTop(...)` |
 | `context.pop()`                                 | `context.pop()` (also closes a sheet/dialog from inside one — see the note below) |
 | `context.replace('/login')`                     | `context.replaceTop(const Login())`                 |
@@ -95,9 +96,16 @@ distinction.
 > typed stack), not on whatever `Navigator` you're under. `context.pop()` closes
 > a `showModalBottomSheet` / `showDialog` when called from inside one (as in
 > go_router), and pops the typed stack on a kaisel page. To pop the route
-> *underneath* an overlay, use a held router (`context.router<R>().pop()`). For a
-> modal that should live on the typed stack with a typed result, reach for
-> `context.run<T>(SomeFlow())` instead of `showModalBottomSheet`.
+> *underneath* an overlay, use a held router (`context.router<R>().pop()`).
+>
+> To **return a value from a normal screen** (go_router's `await context.push<T>()`
+> → `Navigator.pop(result)`), use `context.pushForResult<T>(SomeScreen())` and
+> `context.pop(result)` — the screen stays a normal route on the main stack
+> (observed, with root dialogs above it). Reach for `context.run<T>(SomeFlow())`
+> only when you want a multi-screen modal *flow*. Since 0.20 a `run<T>` flow
+> renders as a route on the main navigator, so a `showDialog` /
+> `showModalBottomSheet` lands **above** an active flow and a shared
+> `RouteObserver` sees the flow open and close.
 
 ## The migration in six steps
 
@@ -110,7 +118,7 @@ Swap go_router for kaisel in `pubspec.yaml`:
    flutter:
      sdk: flutter
 -  go_router: ^14.0.0
-+  kaisel: ^0.18.0
++  kaisel: ^0.20.0
 ```
 
 If you used `go_router_builder` for typed routes, drop both that and
@@ -522,6 +530,22 @@ you hand to `MaterialApp.router(routerConfig:)`, declared as a
 top-level `final` — the exact shape of `final _router = GoRouter(...)`.
 No `StatefulWidget`, no manual delegate or parser. See step 1.
 
+**Typed results from a screen.** `await context.pushForResult<T>(SomeScreen())`
+returns a value from a normal main-stack route (resolved with
+`context.pop(value)`) — the direct analogue of go_router's
+`await context.push<T>('/edit')`. `run<T>` is the heavier tool, for multi-screen
+modal flows.
+
+**Lazy / deferred shell branches.** `KaiselBranchedShell.specs(lazy: true)` builds
+tabs on first visit and keeps them alive — the `StatefulShellRoute` lazy-first
+model — and `KaiselBranchSpec.deferred` code-splits a tab behind a `deferred as`
+import (placeholder, error builder with retry, then the screen).
+
+**DevTools extension.** kaisel ships its own zero-integration DevTools extension —
+a live inspector of the stack, shells, modules, flows, guard trace, and a
+transitions log showing the call site behind each navigation. Open DevTools in
+any debug run.
+
 ## What kaisel doesn't yet do at parity
 
 Be honest with yourself about whether these matter before migrating.
@@ -531,18 +555,13 @@ Be honest with yourself about whether these matter before migrating.
 process death. kaisel doesn't, yet — it's on the roadmap.
 If your app relies on this in production, wait.
 
-**Browser back-button history on the web.** go_router integrates
-with `RouteInformationProvider` and handles browser history natively.
-kaisel does the same in principle (via the codec round-tripping),
-but the integration is less polished than go_router's. If your app
-is web-first, test this carefully on a migration branch before
-committing.
-
-**DevTools extension.** go_router has community extensions and
-observable router output. kaisel ships its own zero-integration
-DevTools extension — a live inspector of the stack, shells, modules,
-flows, guard trace, and a transitions log showing the call site
-behind each navigation. Open DevTools in any debug run.
+**Browser history replace-vs-push.** Browser back/forward and deep links work —
+each navigation round-trips through the codec, so back restores the previous
+stack. The remaining gap is go_router's control over *replacing* vs *pushing* a
+browser history entry: kaisel reports every navigation as a new entry, so
+`replaceTop` / `set` add a history entry rather than replacing the current one.
+Only matters if you deliberately keep a screen out of the back stack (a splash,
+an interstitial). Tracked for a fix.
 
 **`errorBuilder:`.** go_router has a built-in error page when no
 route matches. kaisel doesn't have a separate slot; you add an

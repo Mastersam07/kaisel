@@ -674,7 +674,7 @@ Lints are always opt-in in Dart (a dependency can't enable them for you), so add
 ```yaml
 # pubspec.yaml
 dev_dependencies:
-  kaisel_lint: ^0.3.0
+  kaisel_lint: ^0.5.0
 ```
 
 ```yaml
@@ -688,7 +688,7 @@ That activates the plugin with its correctness baseline on — `require_route_pr
 # analysis_options.yaml
 plugins:
   kaisel_lint:
-    version: ^0.3.0
+    version: ^0.5.0
     diagnostics:
       require_route_props: true
       avoid_modal_route_on_main_stack: true

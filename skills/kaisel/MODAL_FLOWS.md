@@ -53,7 +53,7 @@ itself. The flow has:
 |:-----|:--------|
 | `KaiselModalRoute<T>` | Abstract base for routes used as flow entry points. `T` is the typed completion value. |
 | `KaiselRouter.run<T>(flow)` | Opens the flow. Returns `Future<T?>` that completes when the flow completes or dismisses. |
-| `KaiselModalBuilder<R>` | Function passed via `modalBuilder:` (on `KaiselRouterConfig` or `KaiselRouterDelegate`) — required when the app uses flows. |
+| `KaiselModalBuilder` | Function passed via `modalBuilder:` (on `KaiselRouterConfig` or `KaiselRouterDelegate`) — required when the app uses flows. |
 | `KaiselActiveFlow<R>` | Represents one active flow at runtime (one per `run` call). The delegate iterates these to render flows on top of the main stack. |
 | `context.completeFlow<T>(value)` | From inside a flow screen: complete the flow with `value`. |
 | `context.dismissFlow()` | From inside a flow screen (or in response to a backdrop tap): dismiss with `null`. |

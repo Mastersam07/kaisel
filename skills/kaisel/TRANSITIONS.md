@@ -43,7 +43,7 @@ Three things to internalise:
 | Type | Purpose |
 |:-----|:--------|
 | `KaiselPageWrapper<R>` | `Page<Object?> Function(KaiselPageWrapperContext<R>)`. Passed to the delegate's `pageWrapper`. |
-| `KaiselPageWrapperContext<R>` | `route`, `child`, `key`, `position`, `stackLength`, `previous`. |
+| `KaiselPageWrapperContext<R>` | `route`, `child`, `key`, `position`, `stackLength`, `previous`, `isFlow`, plus `isTop`/`isBottom` getters. `isFlow` is `true` for a modal-flow page — branch on it to give a flow its own entrance transition. |
 | `Page<T>` | Flutter's `Page` API — you subclass this for each transition style. |
 | `PageRouteBuilder<T>` | Flutter's low-level route builder for custom transitions. Constructed inside your `Page` subclass's `createRoute`. |
 
