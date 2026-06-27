@@ -37,56 +37,70 @@ class _Codec implements KaiselStackCodec<_R> {
 }
 
 void main() {
-  testWidgets('push adds a browser history entry; replaceTop also adds one '
-      '(no replace-vs-push control yet)', (tester) async {
-    final updates = <Map<Object?, Object?>>[];
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      SystemChannels.navigation,
-      (call) async {
-        if (call.method == 'routeInformationUpdated') {
-          updates.add((call.arguments as Map).cast<Object?, Object?>());
-        }
-        return null;
-      },
-    );
-    addTearDown(
-      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+  testWidgets(
+    'push adds a browser history entry; replaceTop and set replace it',
+    (tester) async {
+      final updates = <Map<Object?, Object?>>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.navigation,
-        null,
-      ),
-    );
+        (call) async {
+          if (call.method == 'routeInformationUpdated') {
+            updates.add((call.arguments as Map).cast<Object?, Object?>());
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.navigation,
+          null,
+        ),
+      );
 
-    final config = KaiselRouterConfig<_R>(
-      initial: const _Home(),
-      builder: (_, _) => const SizedBox.shrink(),
-      codec: const StackToConfigCodec<_R>(_Codec()),
-      fallback: const [_Home()],
-    );
-    addTearDown(config.router.dispose);
+      final config = KaiselRouterConfig<_R>(
+        initial: const _Home(),
+        builder: (_, _) => const SizedBox.shrink(),
+        codec: const StackToConfigCodec<_R>(_Codec()),
+        fallback: const [_Home()],
+      );
+      addTearDown(config.router.dispose);
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: config));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(MaterialApp.router(routerConfig: config));
+      await tester.pumpAndSettle();
 
-    String uriOf(Map<Object?, Object?> u) => '${u['uri'] ?? u['location']}';
+      String uriOf(Map<Object?, Object?> u) => '${u['uri'] ?? u['location']}';
 
-    updates.clear();
-    await config.router.push(const _A());
-    await tester.pumpAndSettle();
-    expect(uriOf(updates.last), '/a');
-    expect(
-      updates.last['replace'],
-      isFalse,
-      reason: 'a push to a new URL adds a browser history entry',
-    );
+      updates.clear();
+      await config.router.push(const _A());
+      await tester.pumpAndSettle();
+      expect(uriOf(updates.last), '/a');
+      expect(
+        updates.last['replace'],
+        isFalse,
+        reason: 'a push to a new URL adds a browser history entry',
+      );
 
-    updates.clear();
-    await config.router.replaceTop(const _B());
-    await tester.pumpAndSettle();
-    expect(uriOf(updates.last), '/b');
-    // Known gap: replaceTop reports replace:false (adds an entry) rather than
-    // replace:true. Flip when replace-vs-push history control lands.
-    expect(updates.last['replace'], isFalse);
-  });
+      updates.clear();
+      await config.router.replaceTop(const _B());
+      await tester.pumpAndSettle();
+      expect(uriOf(updates.last), '/b');
+      expect(
+        updates.last['replace'],
+        isTrue,
+        reason: 'replaceTop overwrites the current history entry',
+      );
+
+      updates.clear();
+      await config.router.set(const [_Home(), _A()]);
+      await tester.pumpAndSettle();
+      expect(uriOf(updates.last), '/a');
+      expect(
+        updates.last['replace'],
+        isTrue,
+        reason: 'set overwrites the current history entry',
+      );
+    },
+  );
 
   testWidgets('an inbound URL (browser back/forward, deep link) restores the '
       'stack via the codec', (tester) async {

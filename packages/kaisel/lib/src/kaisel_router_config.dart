@@ -131,8 +131,9 @@ class KaiselRouterConfig<R extends KaiselRoute>
       final initialUri = platformUri.pathSegments.isEmpty
           ? codec.encode(KaiselConfig<R>(mainStack: router.stack))
           : platformUri;
-      provider = PlatformRouteInformationProvider(
+      provider = _KaiselRouteInformationProvider(
         initialRouteInformation: RouteInformation(uri: initialUri),
+        replacesHistoryEntry: () => router.replacesHistoryEntry,
       );
     }
     return KaiselRouterConfig<R>._(
@@ -164,5 +165,30 @@ class KaiselRouterConfig<R extends KaiselRoute>
     router.dispose();
     final provider = _provider;
     if (provider is PlatformRouteInformationProvider) provider.dispose();
+  }
+}
+
+/// A [PlatformRouteInformationProvider] that lets `replaceTop` / `set` overwrite
+/// the browser history entry instead of adding one. Read at report time because
+/// the router's mutation is async — a synchronous `Router.neglect` can't catch it.
+class _KaiselRouteInformationProvider extends PlatformRouteInformationProvider {
+  _KaiselRouteInformationProvider({
+    required super.initialRouteInformation,
+    required this.replacesHistoryEntry,
+  });
+
+  final bool Function() replacesHistoryEntry;
+
+  @override
+  void routerReportsNewRouteInformation(
+    RouteInformation routeInformation, {
+    RouteInformationReportingType type = RouteInformationReportingType.none,
+  }) {
+    super.routerReportsNewRouteInformation(
+      routeInformation,
+      type: replacesHistoryEntry()
+          ? RouteInformationReportingType.neglect
+          : type,
+    );
   }
 }
