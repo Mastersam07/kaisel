@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaisel/kaisel.dart';
 import 'package:kaisel/src/kaisel_browser_history.dart';
+import 'package:kaisel/src/kaisel_browser_history_stub.dart' as stub;
 
 sealed class _R extends KaiselRoute {
   const _R();
@@ -137,5 +138,24 @@ void main() {
 
     expect(fake.gos, isEmpty);
     expect(config.router.stack, const [_A()]);
+  });
+
+  testWidgets('historyGo(1) goes forward on web', (tester) async {
+    final fake = _FakeHistory(isWeb: true, depth: 0);
+    addTearDown(KaiselBrowserHistory.debugOverride(fake));
+
+    final (config, context) = await pumpDeepStack(tester);
+
+    // Forward needs no depth check — the browser ignores it past the end.
+    expect(await context.historyGo(1), isTrue);
+    expect(fake.gos, [1]);
+    expect(config.router.stack, const [_A(), _B(), _C()]);
+  });
+
+  test('the non-web stub is inert', () {
+    final history = stub.createBrowserHistory();
+    expect(history.isWeb, isFalse);
+    expect(history.depth, 0);
+    expect(() => history.go(-1), returnsNormally);
   });
 }
