@@ -108,10 +108,10 @@ void main() {
       expect(uriOf(updates.last), '/a');
       expect(
         updates.last['replace'],
-        isTrue,
+        isFalse,
         reason:
-            'a programmatic pop overwrites the entry it returns to rather '
-            'than leaving the popped screen reachable via forward',
+            'a programmatic pop adds an entry (the ecosystem default); '
+            'context.back() does a true browser back instead',
       );
     },
   );

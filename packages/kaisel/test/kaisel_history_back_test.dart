@@ -67,7 +67,7 @@ void main() {
     return (config, tester.element(find.text('_C')));
   }
 
-  testWidgets('historyBack on web moves the history pointer, not the stack', (
+  testWidgets('back() on web moves the history pointer, not the stack', (
     tester,
   ) async {
     final fake = _FakeHistory(isWeb: true, depth: 2);
@@ -75,7 +75,7 @@ void main() {
 
     final (config, context) = await pumpDeepStack(tester);
 
-    final moved = await context.historyBack();
+    final moved = await context.back();
     await tester.pumpAndSettle();
 
     expect(moved, isTrue);
@@ -102,7 +102,7 @@ void main() {
 
     final (config, context) = await pumpDeepStack(tester);
 
-    expect(await context.historyBack(), isTrue);
+    expect(await context.back(), isTrue);
     await tester.pumpAndSettle();
 
     expect(fake.gos, isEmpty);
@@ -117,7 +117,7 @@ void main() {
 
     final (config, context) = await pumpDeepStack(tester);
 
-    expect(await context.historyBack(), isTrue);
+    expect(await context.back(), isTrue);
     await tester.pumpAndSettle();
 
     expect(fake.gos, isEmpty);

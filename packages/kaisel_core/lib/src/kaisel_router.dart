@@ -377,7 +377,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     if (!canPop) return false;
     if (result != null) _resultValues[_entries.last.id] = result;
     final next = stack.sublist(0, stack.length - 1);
-    await _navigate(next, replacesHistory: true);
+    await _navigate(next);
     return true;
   });
 
@@ -446,7 +446,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     while (next.length > 1 && !predicate(next.last)) {
       next.removeLast();
     }
-    return _navigate(next, replacesHistory: true);
+    return _navigate(next);
   });
 
   /// Used by the delegate to sync state when the navigator pops a page

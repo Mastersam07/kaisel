@@ -210,10 +210,10 @@ extension KaiselContextNavigation on BuildContext {
   ///
   /// Unlike [pop], it does not deliver a `pushForResult` value; the stack is
   /// restored from the URL, so use [pop] when a screen must return a result.
-  Future<bool> historyBack() => historyGo(-1);
+  Future<bool> back() => historyGo(-1);
 
-  /// Like [historyBack] but moves [delta] history entries — negative goes back,
-  /// positive forward (forward is web-only). See [historyBack] for the
+  /// Like [back] but moves [delta] history entries — negative goes back,
+  /// positive forward (forward is web-only). See [back] for the
   /// web-vs-fallback behavior.
   Future<bool> historyGo(int delta) async {
     final history = KaiselBrowserHistory.instance;

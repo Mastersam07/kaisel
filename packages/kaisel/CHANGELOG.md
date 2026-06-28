@@ -4,19 +4,20 @@
 
 ### Added
 
-- **`context.historyBack()` / `context.historyGo(int delta)`** — history-aligned
-  back navigation so the browser's own Back/Forward buttons keep mirroring the
-  app stack, even across several pops in a row. On the web it moves the browser
+- **`context.back()` / `context.historyGo(int delta)`** — history-aligned back
+  navigation so the browser's own Back/Forward buttons keep mirroring the app
+  stack, even across several pops in a row. On the web it moves the browser
   history *pointer* (a true Back) and lets the inbound URL restore the stack
   through your codec — so the screen you leave becomes a *forward* entry instead
-  of a lingering duplicate, closing the multi-pop gap that `pop`'s
-  replace-the-top behavior can't (see [#27]). It reads the engine's `serialCount`
-  to avoid stepping out of the app on a cold deep link, and **falls back to
-  `pop`** off the web, without a codec, or when there's no app history behind the
-  current entry. Reach for it (instead of `pop`) where you want browser history
-  to track multi-level back navigation; `pop` stays the choice when a screen must
-  return a `pushForResult` value. Adds a web-only `package:web` dependency (via
-  conditional import — `kaisel_core` and non-web builds never reference it).
+  of a lingering duplicate. Unlike `pop` (which adds a history entry, the
+  ecosystem default), `back` makes multi-level back navigation track the app
+  stack. It reads the engine's `serialCount` to avoid stepping out of the app on
+  a cold deep link, and **falls back to `pop`** off the web, without a codec, or
+  when there's no app history behind the current entry. Reach for it where you
+  want browser history to track multi-level back navigation; `pop` stays the
+  choice when a screen must return a `pushForResult` value. Adds a web-only
+  `package:web` dependency (via conditional import — `kaisel_core` and non-web
+  builds never reference it).
 
 ### Changed
 
@@ -26,13 +27,8 @@
   history entry rather than pushing a new one — matching go_router's `go` /
   `replace`. `push` still adds an entry; inbound restore (browser back/forward,
   deep links) is unchanged. Works for both `context.*` verbs and bare `router.*`
-  calls. ([#25])
-- **A programmatic `pop` / `popUntil` now replaces too** ([#27]). Popping B→A
-  overwrites B's entry instead of pushing a fresh `/a`, so the browser's forward
-  button no longer resurfaces the popped screen. (Flutter's delegate API can
-  only replace the current entry, not pop a browser entry, so a deep multi-pop
-  still leaves the intermediate pushed entries — use `historyBack` above when you
-  need the browser stack to track multi-level back navigation.)
+  calls. ([#25]) `pop` deliberately stays a *push* (the ecosystem default) — see
+  `context.back()` above for history-aligned back navigation ([#27]).
 - **Replaces inside a shell branch or module are reported as replaces**
   ([#28]). The route-information provider reads the delegate's disposition, which
   tracks whichever router — the main router or the active nested handle —

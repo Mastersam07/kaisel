@@ -5,8 +5,8 @@ import 'kaisel_browser_history_stub.dart'
     as impl;
 
 /// A thin seam over the browser's session history, used by
-/// `context.historyBack` / `context.historyGo` for history-aligned back
-/// navigation on the web. Off the web every member is inert.
+/// `context.back` / `context.historyGo` for history-aligned back navigation on
+/// the web. Off the web every member is inert.
 ///
 /// The real implementation is selected by conditional import, so `kaisel_core`
 /// (and every non-web build) never references `package:web`.

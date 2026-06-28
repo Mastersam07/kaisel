@@ -82,21 +82,24 @@ void main() {
       expect(r.replacesHistoryEntry, isTrue);
     });
 
-    test('pop and popUntil replace the history entry', () async {
+    test('pop and popUntil add a history entry, not replace', () async {
       final r = KaiselRouter<_R>(initial: const _A());
 
       await r.push(const _B('x'));
-      expect(r.replacesHistoryEntry, isFalse);
-
-      await r.pop();
+      await r.replaceTop(const _C());
       expect(r.replacesHistoryEntry, isTrue);
+
+      // pop reports a push (the ecosystem default); use the Flutter layer's
+      // history-aligned `back` for a true browser back.
+      await r.pop();
+      expect(r.replacesHistoryEntry, isFalse);
 
       await r.push(const _B('y'));
-      await r.push(const _C());
-      expect(r.replacesHistoryEntry, isFalse);
+      await r.replaceTop(const _C());
+      expect(r.replacesHistoryEntry, isTrue);
 
       await r.popUntil((route) => route is _A);
-      expect(r.replacesHistoryEntry, isTrue);
+      expect(r.replacesHistoryEntry, isFalse);
     });
 
     test('pop removes the top and notifies; returns false on root', () async {
