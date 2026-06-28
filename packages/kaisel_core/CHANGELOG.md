@@ -13,6 +13,10 @@
   non-generic router view and on a nested handle, so a shell container can read
   its active branch's disposition and the host can report a nested replace as a
   replace. `KaiselNestedHandle` defaults it to `false`. ([#28])
+- **`KaiselRootSnapshot.replacesHistory`** — the inspector snapshot now carries
+  the last committed change's history disposition (`true` when it overwrote the
+  entry rather than added one), so DevTools can show whether a navigation was a
+  push or a replace. Defaults to `false`.
 
 ### Changed
 

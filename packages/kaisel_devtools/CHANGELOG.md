@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+
+### Added
+
+- **History disposition in the URL panel** — shows whether the last navigation
+  was reported to browser history as a **push** or a **replace** (driven by
+  `KaiselRootSnapshot.replacesHistory` from `kaisel_core 0.20.0`), so you can
+  see at a glance when a `replaceTop` / `set` / `pop` overwrote the entry
+  instead of adding one.
+
 ## 0.3.0
 
 ### Added
