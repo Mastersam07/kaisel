@@ -204,4 +204,21 @@ void main() {
       }
     });
   });
+
+  test('UntypedModuleStackCodec can be extended, not just implemented', () {
+    final codec = _ExtModuleCodec();
+    expect(codec.encodeAny(const [_Home()]), isEmpty);
+    expect(codec.decodeAny(const ['x']), isNull);
+  });
+}
+
+// Extends (not implements) UntypedModuleStackCodec, exercising its const ctor.
+class _ExtModuleCodec extends UntypedModuleStackCodec {
+  _ExtModuleCodec();
+
+  @override
+  List<String> encodeAny(List<KaiselRoute> stack) => const [];
+
+  @override
+  List<KaiselRoute>? decodeAny(List<String> segments) => null;
 }
