@@ -53,7 +53,7 @@ Dart 3 has had the type machinery to do better since 2023: sealed classes, exhau
 - **URL-addressable** — deep-link into a branch stack (`/home/products/sku-42`) or a module stack (`/checkout/confirm`). Inactive branches keep in-memory state across tab switches.
 - **Typed results, two ways** — `await context.pushForResult<T>(SomeScreen())` keeps the screen on the **main stack** (a normal route — observed, with root dialogs above it) and resolves when it pops with `context.pop(result)`. `await router.run<T>(SomeFlow())` lifts a multi-screen **modal flow** into its own sub-router; flows can nest, unwinding LIFO.
 - **Adaptive layouts** — at the main delegate, inside shell branches, and inside modules. A detail route can absorb its master into one rendered page (master-detail without changing the stack model).
-- **Direction-aware transitions** — pattern-match on the `(previous, current)` route pair to pick a `Page` subclass per transition. Shared elements via Flutter's `Hero`.
+- **Direction-aware transitions** — pattern-match on the `(previous, current)` route pair to pick a `Page` subclass per transition. Web-friendly fade by default. Shared elements via Flutter's `Hero`.
 - **Navigator observers** — attach `NavigatorObserver`s (analytics, Sentry, `RouteObserver`) with an `observers: () => [...]` builder. It's called once per navigator — the main stack and each shell branch, module, and flow — so every navigator gets its own fresh instance.
 - **`KaiselPageScope` for descendants** — deeply-nested widgets read the page's position in the rendered stack (`isTop`, `isBottom`, `previous`, …) without prop-drilling.
 - **Identity-preserving stack diff** — pushing one route doesn't rebuild the others.
@@ -592,6 +592,8 @@ Two things about page identity under absorption:
 - The pop target is the top absorbing entry. OS back on `[List, Detail]` absorbed pops `Detail`, leaving `[List]` — back means "undo the last push" regardless of rendering. At the main delegate this needs a `popRoute` override (handled for you) because `Navigator.maybePop` declines when only one page is visible. At the shell-branch and module level, `PopScope` calls `router.pop()` directly, so it's correct by construction.
 
 ### 9. Transitions (route-pair-aware)
+
+On the web the default page **fades** — `MaterialPage`'s OS-derived slide feels out of place in a browser; off the web you get the native transition. Change the default with `webTransition:` on `KaiselRouterConfig` / `KaiselRouterDelegate` (`KaiselWebTransition.fade` default, `.none`, or `.platform` to keep the OS transition). A custom `pageWrapper` overrides it entirely.
 
 Customise transitions by passing a `pageWrapper`. The wrapper receives a `KaiselPageWrapperContext<R>` with the route, child, key, and stack context (`position`, `stackLength`, `previous`, `isTop`, `isBottom`). Pattern-match on the route pair to pick a `Page` subclass:
 
