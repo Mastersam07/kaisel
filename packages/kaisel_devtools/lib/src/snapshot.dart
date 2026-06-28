@@ -83,6 +83,7 @@ class RootSnapshot {
     required this.url,
     required this.history,
     required this.origin,
+    required this.replacesHistory,
   });
 
   /// Decode from the wire format.
@@ -114,6 +115,7 @@ class RootSnapshot {
       for (final frame in _list(json['origin']))
         OriginFrame.fromJson(_obj(frame)),
     ],
+    replacesHistory: json['replacesHistory'] as bool? ?? false,
   );
 
   /// Stable root id.
@@ -147,6 +149,10 @@ class RootSnapshot {
   /// "who navigated" for the Transitions log. Empty when there was no app call
   /// site (a system-back pop) or in release.
   final List<OriginFrame> origin;
+
+  /// Whether the most recent committed change overwrote the browser history
+  /// entry (`replaceTop` / `set`) rather than adding one (`push` / `pop`).
+  final bool replacesHistory;
 }
 
 /// One app call frame behind a navigation: a display line plus, when parsed,

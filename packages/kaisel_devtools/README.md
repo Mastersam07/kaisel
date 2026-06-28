@@ -26,7 +26,8 @@ debug mode exposes the data automatically; just open DevTools and select the
   behind it** — click a frame to open it in your editor when DevTools is
   embedded in an IDE.
 - **URL** — the URL the current configuration encodes to (when a codec is
-  wired), with a deep-link **decode** preview.
+  wired), with a deep-link **decode** preview, and whether the last navigation
+  was reported to browser history as a **push** or a **replace**.
 - **History** — the main router's past stacks, with time-travel (under the
   Write toggle).
 

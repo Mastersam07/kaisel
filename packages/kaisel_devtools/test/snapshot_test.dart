@@ -32,6 +32,13 @@ void main() {
       expect(root.branches, isEmpty);
       expect(root.guardTrace, isNull);
       expect(root.url, isNull);
+      expect(root.replacesHistory, isFalse);
+      expect(
+        RootSnapshot.fromJson(const <String, Object?>{
+          'replacesHistory': true,
+        }).replacesHistory,
+        isTrue,
+      );
     });
 
     test('absent / non-list fields decode defensively', () {

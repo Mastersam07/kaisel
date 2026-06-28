@@ -192,8 +192,12 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
       (
         'URL',
         Memo(
-          value: root.url,
-          child: _UrlPanel(controller: widget.controller, url: root.url),
+          value: (root.url, root.replacesHistory),
+          child: _UrlPanel(
+            controller: widget.controller,
+            url: root.url,
+            replacesHistory: root.replacesHistory,
+          ),
         ),
       ),
       if (widget.transitions.isNotEmpty)
@@ -750,10 +754,15 @@ class _GuardPanel extends StatelessWidget {
 }
 
 class _UrlPanel extends StatefulWidget {
-  const _UrlPanel({required this.controller, required this.url});
+  const _UrlPanel({
+    required this.controller,
+    required this.url,
+    required this.replacesHistory,
+  });
 
   final InspectorController controller;
   final String? url;
+  final bool replacesHistory;
 
   @override
   State<_UrlPanel> createState() => _UrlPanelState();
@@ -829,6 +838,21 @@ class _UrlPanelState extends State<_UrlPanel> {
             url,
             style: theme.textTheme.bodyLarge?.copyWith(fontFamily: 'monospace'),
           ),
+        if (url != null) ...[
+          const SizedBox(height: 10),
+          Text.rich(
+            TextSpan(
+              children: [
+                const TextSpan(text: 'Last nav reported to history: '),
+                TextSpan(
+                  text: widget.replacesHistory ? 'replace' : 'push',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            style: theme.textTheme.bodyMedium,
+          ),
+        ],
         const Divider(height: 28),
         Text(
           'Decode a URL (preview), or Apply it (navigates — write mode)',
