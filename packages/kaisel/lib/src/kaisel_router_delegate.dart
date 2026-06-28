@@ -6,6 +6,7 @@ import 'package:kaisel_core/framework.dart';
 
 import 'kaisel_adaptive.dart';
 import 'kaisel_branched_shell.dart';
+import 'kaisel_default_page.dart';
 import 'kaisel_inner_navigator.dart';
 import 'kaisel_page_scope.dart';
 import 'kaisel_page_wrapper.dart';
@@ -113,6 +114,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.pageWrapper,
     this.modalBuilder,
     this.observers,
+    this.webTransition = KaiselWebTransition.fade,
     GlobalKey<NavigatorState>? navigatorKey,
     KaiselConfigCodec<R>? codec,
   }) : _builder = builder,
@@ -164,6 +166,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.pageWrapper,
     this.modalBuilder,
     this.observers,
+    this.webTransition = KaiselWebTransition.fade,
     GlobalKey<NavigatorState>? navigatorKey,
     KaiselConfigCodec<R>? codec,
   }) : _builder = null,
@@ -193,6 +196,11 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   /// Optional customiser for the [Page] wrapping. Defaults to
   /// [MaterialPage].
   final KaiselPageWrapper<R>? pageWrapper;
+
+  /// The default page transition on the **web** when no [pageWrapper] is given.
+  /// Defaults to [KaiselWebTransition.fade]; ignored off the web and when a
+  /// [pageWrapper] is set.
+  final KaiselWebTransition webTransition;
 
   /// Optional builder that renders an active modal flow over the main
   /// UI. Required if your app uses `router.run<T>(...)`.
@@ -409,11 +417,17 @@ class KaiselRouterDelegate<R extends KaiselRoute>
 
   @override
   Widget build(BuildContext context) {
-    return KaiselObserverScope(
-      observers: observers,
-      child: KaiselNestedHostScope(
-        host: this,
-        child: RouterScope<R>(router: router, child: _buildNavigator(context)),
+    return KaiselWebTransitionScope(
+      transition: webTransition,
+      child: KaiselObserverScope(
+        observers: observers,
+        child: KaiselNestedHostScope(
+          host: this,
+          child: RouterScope<R>(
+            router: router,
+            child: _buildNavigator(context),
+          ),
+        ),
       ),
     );
   }
@@ -595,23 +609,13 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   Page<Object?> _wrapSimple(KaiselPageWrapperContext<R> ctx) {
     final wrapper = pageWrapper;
     if (wrapper != null) return wrapper(ctx);
-    return MaterialPage<Object?>(
-      key: ctx.key,
-      name: ctx.route.routeName,
-      arguments: ctx.route,
-      child: ctx.child,
-    );
+    return kaiselDefaultPage(ctx, transition: webTransition);
   }
 
   Page<Object?> _wrapAdaptive(KaiselPageWrapperContext<R> ctx) {
     final wrapper = pageWrapper;
     if (wrapper != null) return wrapper(ctx);
-    return MaterialPage<Object?>(
-      key: ctx.key,
-      name: ctx.route.routeName,
-      arguments: ctx.route,
-      child: ctx.child,
-    );
+    return kaiselDefaultPage(ctx, transition: webTransition);
   }
 
   void _onDidRemovePage(Page<Object?> page) {

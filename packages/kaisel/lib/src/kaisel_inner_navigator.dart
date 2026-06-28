@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:kaisel_core/framework.dart';
 
 import 'kaisel_adaptive.dart';
+import 'kaisel_default_page.dart';
 import 'kaisel_page_scope.dart';
 import 'kaisel_page_wrapper.dart';
 import 'kaisel_router_delegate.dart';
@@ -89,9 +90,12 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
     widget.router.addListener(_onChange);
   }
 
+  KaiselWebTransition _webTransition = KaiselWebTransition.fade;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _webTransition = KaiselWebTransitionScope.of(context);
     final builder = KaiselObserverScope.of(context);
     if (!identical(builder, _observersBuilder)) {
       _observersBuilder = builder;
@@ -127,23 +131,13 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
   Page<Object?> _wrapSimple(KaiselPageWrapperContext<R> ctx) {
     final wrapper = widget.pageWrapper;
     if (wrapper != null) return wrapper(ctx);
-    return MaterialPage<Object?>(
-      key: ctx.key,
-      name: ctx.route.routeName,
-      arguments: ctx.route,
-      child: ctx.child,
-    );
+    return kaiselDefaultPage(ctx, transition: _webTransition);
   }
 
   Page<Object?> _wrapAdaptive(KaiselPageWrapperContext<R> ctx) {
     final wrapper = widget.pageWrapper;
     if (wrapper != null) return wrapper(ctx);
-    return MaterialPage<Object?>(
-      key: ctx.key,
-      name: ctx.route.routeName,
-      arguments: ctx.route,
-      child: ctx.child,
-    );
+    return kaiselDefaultPage(ctx, transition: _webTransition);
   }
 
   @override
