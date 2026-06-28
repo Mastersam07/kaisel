@@ -37,7 +37,7 @@ set_version() {
   ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
 }
 
-echo "Setting kaisel_devtools and the extension config to $version…"
+echo "Setting kaisel_devtools and the extension config to ${version}..."
 set_version "$pubspec"
 set_version "$config"
 
