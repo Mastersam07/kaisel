@@ -25,6 +25,7 @@ export 'src/kaisel_branched_shell.dart'
         KaiselBranchSpec,
         KaiselBranchedShell,
         KaiselBranchedShellChromeBuilder;
+export 'src/kaisel_default_page.dart' show KaiselWebTransition;
 export 'src/kaisel_inner_navigator.dart';
 export 'src/kaisel_listenable.dart'
     show KaiselListenableBuilder, KaiselRouterListenable;
