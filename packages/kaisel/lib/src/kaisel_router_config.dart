@@ -133,7 +133,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
           : platformUri;
       provider = _KaiselRouteInformationProvider(
         initialRouteInformation: RouteInformation(uri: initialUri),
-        replacesHistoryEntry: () => router.replacesHistoryEntry,
+        replacesHistoryEntry: () => delegate.replacesHistoryEntry,
       );
     }
     return KaiselRouterConfig<R>._(

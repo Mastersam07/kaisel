@@ -99,6 +99,20 @@ void main() {
         isTrue,
         reason: 'set overwrites the current history entry',
       );
+
+      await config.router.push(const _B());
+      await tester.pumpAndSettle();
+      updates.clear();
+      await config.router.pop();
+      await tester.pumpAndSettle();
+      expect(uriOf(updates.last), '/a');
+      expect(
+        updates.last['replace'],
+        isFalse,
+        reason:
+            'a programmatic pop adds an entry (the ecosystem default); '
+            'context.back() does a true browser back instead',
+      );
     },
   );
 

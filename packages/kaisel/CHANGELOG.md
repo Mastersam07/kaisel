@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.21.0-dev.2
+
+### Added
+
+- **`context.back()` / `context.historyGo(int delta)`** — history-aligned back
+  navigation so the browser's own Back/Forward buttons keep mirroring the app
+  stack, even across several pops in a row. On the web it moves the browser
+  history *pointer* (a true Back) and lets the inbound URL restore the stack
+  through your codec — so the screen you leave becomes a *forward* entry instead
+  of a lingering duplicate. Unlike `pop` (which adds a history entry, the
+  ecosystem default), `back` makes multi-level back navigation track the app
+  stack. It reads the engine's `serialCount` to avoid stepping out of the app on
+  a cold deep link, and **falls back to `pop`** off the web, without a codec, or
+  when there's no app history behind the current entry. Reach for it where you
+  want browser history to track multi-level back navigation; `pop` stays the
+  choice when a screen must return a `pushForResult` value. Adds a web-only
+  `package:web` dependency (via conditional import — `kaisel_core` and non-web
+  builds never reference it).
+
+### Changed
+
+- **Replace-style navigation overwrites the browser history entry instead of
+  adding one.** On the web, `replaceTop` / `set` (and the replace half of
+  `pushOrReplaceTop`) now report a *replace*, so they overwrite the current
+  history entry rather than pushing a new one — matching go_router's `go` /
+  `replace`. `push` still adds an entry; inbound restore (browser back/forward,
+  deep links) is unchanged. Works for both `context.*` verbs and bare `router.*`
+  calls. ([#25]) `pop` deliberately stays a *push* (the ecosystem default) — see
+  `context.back()` above for history-aligned back navigation ([#27]).
+- **Replaces inside a shell branch or module are reported as replaces**
+  ([#28]). The route-information provider reads the delegate's disposition, which
+  tracks whichever router — the main router or the active nested handle —
+  committed last. A `replaceTop` inside a branch overwrites the entry; switching
+  branches still adds one.
+
+### Dependencies
+
+- Requires `kaisel_core: ^0.20.0` (for the `replacesHistoryEntry` hints).
+- Adds `web: ^1.1.0` — web-only, behind a conditional import.
+
+[#25]: https://github.com/Mastersam07/kaisel/issues/25
+[#27]: https://github.com/Mastersam07/kaisel/issues/27
+[#28]: https://github.com/Mastersam07/kaisel/issues/28
+
 ## 0.21.0-dev.1
 
 ### Added
