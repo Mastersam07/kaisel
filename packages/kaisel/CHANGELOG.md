@@ -18,6 +18,12 @@
   choice when a screen must return a `pushForResult` value. Adds a web-only
   `package:web` dependency (via conditional import — `kaisel_core` and non-web
   builds never reference it).
+- **Web-aware default page transition.** On the web the default page now uses a
+  quick fade instead of `MaterialPage`'s OS-derived slide, which feels out of
+  place in a browser; native transitions are unchanged off the web. Override with
+  `webTransition:` on `KaiselRouterConfig` / `KaiselRouterDelegate`
+  (`KaiselWebTransition.fade` default, `.none`, or `.platform` to keep the OS
+  transition). A custom `pageWrapper` is unaffected.
 
 ### Changed
 
