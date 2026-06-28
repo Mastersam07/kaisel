@@ -406,6 +406,23 @@ routeInformationParser: KaiselRouteInformationParser<AppRoute>(
 
 `/home/products/sku-42` deep-links into the Home branch with `ProductDetail('sku-42')` on top of `HomeRoot()`. Switching tabs preserves each branch's stack (inactive branches stay off the URL but in memory). A `StackToConfigCodec` adapter wraps a stack-only codec unchanged if you later add shell URLs.
 
+#### Browser history: `pop` vs `back()`
+
+On the web, each verb maps to a browser-history operation. `push` adds an entry; `replaceTop` / `set` (and the replace half of `pushOrReplaceTop`) **replace** the current entry — matching go_router's `go`. **`pop` adds an entry too**, like a plain `Navigator.pop` and every other Flutter router: it reports the screen it returns to as a new location. That's the standard, least-surprising default — but it means the browser's Back button doesn't track multi-level pops (the popped screen sits one click forward).
+
+When you want the browser Back/Forward buttons to **mirror the app stack across several pops** — typically a custom in-app back button on a web app — reach for **`context.back()`** instead of `context.pop()`:
+
+```dart
+// pops the stack and adds a history entry (browser Back won't track it)
+onTap: () => context.pop(),
+
+// moves the browser history pointer (a true Back), so browser Back/Forward
+// stay in sync with the app stack across multi-level back navigation
+onTap: () => context.back(),
+```
+
+`context.back()` (and `context.historyGo(int delta)` for multiple steps) does a real `history.go` on the web and lets the inbound URL restore the stack through your codec. It falls back to `pop` off the web, without a codec, or on a cold deep link (no app history behind the current entry), so it's safe to call everywhere. Unlike `pop`, it doesn't deliver a `pushForResult` value — the stack is restored from the URL — so keep `pop` when a screen must return a result.
+
 ### 7. Modules
 
 A `RouteModule` packages a feature's routes as a `const`-friendly unit: its own sealed subtype, page builder, optional guards, and optional URL codec. The host mounts it at a top-level route and composes URL routing via `ConfigCodecWithModules`. The module doesn't know what prefix the host will mount it at.
