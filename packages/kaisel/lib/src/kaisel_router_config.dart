@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:kaisel_core/kaisel_core.dart';
 
 import 'kaisel_adaptive.dart';
+import 'kaisel_default_page.dart';
 import 'kaisel_page_wrapper.dart';
 import 'kaisel_route_information_parser.dart';
 import 'kaisel_router_delegate.dart';
@@ -57,6 +58,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
     required KaiselPageBuilder<R> builder,
     List<KaiselGuard<R>> guards = const [],
     KaiselPageWrapper<R>? pageWrapper,
+    KaiselWebTransition webTransition = KaiselWebTransition.fade,
     KaiselModalBuilder? modalBuilder,
     KaiselObserversBuilder? observers,
     GlobalKey<NavigatorState>? navigatorKey,
@@ -70,6 +72,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
         router: router,
         builder: builder,
         pageWrapper: pageWrapper,
+        webTransition: webTransition,
         modalBuilder: modalBuilder,
         observers: observers,
         navigatorKey: navigatorKey,
@@ -88,6 +91,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
     required KaiselAdaptivePageBuilder<R> builder,
     List<KaiselGuard<R>> guards = const [],
     KaiselPageWrapper<R>? pageWrapper,
+    KaiselWebTransition webTransition = KaiselWebTransition.fade,
     KaiselModalBuilder? modalBuilder,
     KaiselObserversBuilder? observers,
     GlobalKey<NavigatorState>? navigatorKey,
@@ -101,6 +105,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
         router: router,
         builder: builder,
         pageWrapper: pageWrapper,
+        webTransition: webTransition,
         modalBuilder: modalBuilder,
         observers: observers,
         navigatorKey: navigatorKey,

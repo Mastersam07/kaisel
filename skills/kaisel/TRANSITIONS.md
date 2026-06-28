@@ -8,9 +8,12 @@ sheets, cross-fade between sibling details, etc.
 
 ## The model
 
-By default, `KaiselRouterDelegate` wraps every route's widget in a
-`MaterialPage` — slide-on-push, slide-on-pop. To customise, pass a
-`pageWrapper` to the delegate. The wrapper receives a
+By default, `KaiselRouterDelegate` wraps every route in a `MaterialPage`
+(native slide/zoom) off the web, and a quick **fade** on the web — where
+`MaterialPage`'s OS-derived slide feels out of place. Set `webTransition:`
+on the config/delegate to change the web default: `KaiselWebTransition.fade`
+(default), `.none`, or `.platform` to keep the OS transition. To customise
+fully, pass a `pageWrapper` to the delegate. The wrapper receives a
 `KaiselPageWrapperContext<R>` describing what's being added or
 replaced, and returns a `Page<Object?>` subclass that determines the
 transition.
