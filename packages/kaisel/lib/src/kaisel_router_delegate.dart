@@ -688,6 +688,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
           stack.map((r) => '$r').join(' → '),
       ],
       origin: _originFrames(),
+      replacesHistory: replacesHistoryEntry,
     );
   }
 

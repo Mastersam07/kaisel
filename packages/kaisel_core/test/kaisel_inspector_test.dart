@@ -111,6 +111,7 @@ void main() {
       expect(json['flows'], isEmpty);
       expect(json['guardTrace'], isNull);
       expect(json['url'], isNull);
+      expect(json['replacesHistory'], isFalse);
     });
 
     test('origin frame serialises and compares by value', () {

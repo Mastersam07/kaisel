@@ -97,6 +97,7 @@ class KaiselRootSnapshot {
     this.url,
     this.history = const <String>[],
     this.origin = const <KaiselOriginFrame>[],
+    this.replacesHistory = false,
   });
 
   /// Stable id distinguishing this root from others (multi-delegate apps).
@@ -132,6 +133,11 @@ class KaiselRootSnapshot {
   /// change had no app call site (e.g. a system-back pop).
   final List<KaiselOriginFrame> origin;
 
+  /// Whether the most recent committed change overwrites the browser history
+  /// entry (`replaceTop` / `set`) rather than adding one (`push` / `pop`). What
+  /// the route-information provider reports to the platform.
+  final bool replacesHistory;
+
   /// Serialise to the wire format.
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
@@ -144,6 +150,7 @@ class KaiselRootSnapshot {
     'url': url,
     'history': history,
     'origin': <Object?>[for (final frame in origin) frame.toJson()],
+    'replacesHistory': replacesHistory,
   };
 }
 

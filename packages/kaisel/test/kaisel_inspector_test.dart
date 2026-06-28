@@ -133,6 +133,25 @@ void main() {
     router.dispose();
   });
 
+  test('debugSnapshot.replacesHistory tracks the last disposition', () async {
+    final router = KaiselRouter<_R>(initial: const _Home());
+    final delegate = _delegate(router);
+
+    expect(delegate.debugSnapshot().replacesHistory, isFalse);
+
+    await router.push(const _Detail('a'));
+    expect(delegate.debugSnapshot().replacesHistory, isFalse);
+
+    await router.replaceTop(const _Detail('b'));
+    expect(delegate.debugSnapshot().replacesHistory, isTrue);
+
+    await router.pop();
+    expect(delegate.debugSnapshot().replacesHistory, isFalse);
+
+    delegate.dispose();
+    router.dispose();
+  });
+
   test('debugSnapshot includes a registered branched shell', () {
     final router = KaiselRouter<_R>(initial: const _Home());
     final delegate = _delegate(router);
