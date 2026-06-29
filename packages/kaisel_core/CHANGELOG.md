@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.21.0
+
+### Changed
+
+- **`pop` / `popUntil` add a browser-history entry again, reversing the `0.20.0`
+  change ([#27]).** Popping now pushes a new history entry like a normal
+  `Navigator` pop instead of overwriting the entry it returns to, so the browser's forward button behaves as expected. History-aligned back navigation that mirrors the app stack moved to the opt-in `context.back()` / `context.historyGo()` in `kaisel`. `replaceTop` / `set` ([#25]) and nested replaces ([#28]) still report a replace.
+
 ## 0.20.0
 
 ### Added

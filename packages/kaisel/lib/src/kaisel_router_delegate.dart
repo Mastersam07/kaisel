@@ -255,7 +255,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   /// history entry rather than add one. Tracks the disposition of whichever
   /// router — the main router or the active nested (shell branch / module)
   /// router — committed the most recent change, so a nested `replaceTop` /
-  /// `set` / `pop` is reported as a replace too. Read by the
+  /// `set` is reported as a replace too. Read by the
   /// route-information provider at report time.
   bool get replacesHistoryEntry => _reportReplaces;
 
