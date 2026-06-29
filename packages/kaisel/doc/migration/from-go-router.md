@@ -118,7 +118,7 @@ Swap go_router for kaisel in `pubspec.yaml`:
    flutter:
      sdk: flutter
 -  go_router: ^14.0.0
-+  kaisel: ^0.20.0
++  kaisel: ^0.21.0
 ```
 
 If you used `go_router_builder` for typed routes, drop both that and

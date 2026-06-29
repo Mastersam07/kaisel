@@ -35,6 +35,7 @@ below show the typed form first.
 | `push(route)` | Adds to top | `Future<void>` | Going forward to a new screen |
 | `pushForResult<T>(route)` | Adds to top | `Future<T?>` (screen result) | A main-stack screen that returns a value |
 | `pop([result])` | Removes top | `Future<bool>` (success) | Going back; respects guards, optionally returns `result` |
+| `back()` / `historyGo(delta)` | History-aligned back | `Future<bool>` (navigated) | Browser Back/Forward should mirror multi-level back on the web |
 | `replaceTop(route)` | Removes top, pushes new | `Future<void>` | Swap current screen in place (no back history) |
 | `pushOrReplaceTop(route)` | Push if top differs in runtime type; replace if same | `Future<void>` | Adaptive master-detail; tab-style in-place updates |
 | `set(routes)` | Replaces entire stack | `Future<void>` | Auth state transitions, deep-link landing |
@@ -151,6 +152,31 @@ a screen opened with `pushForResult<T>`.
   care whether it happened.
 - A guard can prevent a pop (e.g., a form-dirty guard that asks
   "discard changes?"). Always check the boolean if you care.
+
+## back / historyGo
+
+```dart
+context.back();          // history-aligned single step back
+context.historyGo(-2);   // two steps back; positive goes forward
+```
+
+Like `pop`, but aligned with **browser history** on the web. On the web `back()`
+moves the browser history *pointer* (a true Back) and lets the inbound URL
+restore the stack through your codec — so the screen you leave becomes a
+*forward* entry instead of a lingering duplicate, and the browser's own
+Back/Forward buttons keep mirroring the app stack across several steps.
+
+**Use for:** A custom in-app back button on a web app where the browser
+Back/Forward buttons should track multi-level back navigation.
+
+**Notes:**
+
+- **Falls back to `pop`** off the web, without a codec, or on a cold deep link
+  (no app history behind the current entry) — safe to call everywhere.
+- Unlike `pop`, it does **not** deliver a `pushForResult` value (the stack is
+  restored from the URL). Keep `pop` when a screen must return a result.
+- `historyGo(int delta)` is the multi-step form — negative back, positive
+  forward; `back()` is `historyGo(-1)`.
 
 ## replaceTop
 
@@ -274,6 +300,8 @@ when the brevity clearly earns the runtime family check:
 - **Going forward to a new screen?** `push`
 - **Going forward to a screen that hands a value back?** `pushForResult<T>`
 - **Going back (optionally returning a value)?** `pop` / `pop(result)`
+- **Going back so the browser Back/Forward track it (web)?** `back()` /
+  `historyGo(delta)`
 - **Swapping the current screen in place (no back to current)?** `replaceTop`
 - **Same screen type would land on top either way?** `pushOrReplaceTop`
 - **Entire stack changes (auth, deep-link land)?** `set`
