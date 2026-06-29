@@ -18,7 +18,7 @@ Most apps should depend on **`kaisel`** (the Flutter package), which re-exports 
 
 ```yaml
 dependencies:
-  kaisel: ^0.20.0
+  kaisel: ^0.21.0
 ```
 
 Depend on `kaisel_core` directly only if you want the navigation logic without Flutter. See the [`kaisel` README](https://github.com/Mastersam07/kaisel/tree/main/packages/kaisel) for the full guide.

@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.21.0-dev.2
+## 0.21.0
 
 ### Added
 
@@ -24,36 +24,6 @@
   `webTransition:` on `KaiselRouterConfig` / `KaiselRouterDelegate`
   (`KaiselWebTransition.fade` default, `.none`, or `.platform` to keep the OS
   transition). A custom `pageWrapper` is unaffected.
-
-### Changed
-
-- **Replace-style navigation overwrites the browser history entry instead of
-  adding one.** On the web, `replaceTop` / `set` (and the replace half of
-  `pushOrReplaceTop`) now report a *replace*, so they overwrite the current
-  history entry rather than pushing a new one — matching go_router's `go` /
-  `replace`. `push` still adds an entry; inbound restore (browser back/forward,
-  deep links) is unchanged. Works for both `context.*` verbs and bare `router.*`
-  calls. ([#25]) `pop` deliberately stays a *push* (the ecosystem default) — see
-  `context.back()` above for history-aligned back navigation ([#27]).
-- **Replaces inside a shell branch or module are reported as replaces**
-  ([#28]). The route-information provider reads the delegate's disposition, which
-  tracks whichever router — the main router or the active nested handle —
-  committed last. A `replaceTop` inside a branch overwrites the entry; switching
-  branches still adds one.
-
-### Dependencies
-
-- Requires `kaisel_core: ^0.20.0` (for the `replacesHistoryEntry` hints).
-- Adds `web: ^1.1.0` — web-only, behind a conditional import.
-
-[#25]: https://github.com/Mastersam07/kaisel/issues/25
-[#27]: https://github.com/Mastersam07/kaisel/issues/27
-[#28]: https://github.com/Mastersam07/kaisel/issues/28
-
-## 0.21.0-dev.1
-
-### Added
-
 - **Lazy shell branches** — `KaiselBranchedShell.specs(lazy: true)` builds each
   branch on first activation instead of all up front, and keeps built branches
   alive so per-tab state still survives switches. Backed by a new
@@ -76,12 +46,33 @@
 - **DevTools shows lazy branch build-state** — the inspector snapshot reports
   every branch by index with a `built` flag (read without materialising dormant
   branches), so you can watch lazy tabs build as they're first visited, and the
-  branch/no-op panels stay index-accurate for a lazy shell. Requires
-  `kaisel_core ^0.19.0`.
+  branch/no-op panels stay index-accurate for a lazy shell.
+
+### Changed
+
+- **Replace-style navigation overwrites the browser history entry instead of
+  adding one.** On the web, `replaceTop` / `set` (and the replace half of
+  `pushOrReplaceTop`) now report a *replace*, so they overwrite the current
+  history entry rather than pushing a new one — matching go_router's `go` /
+  `replace`. `push` still adds an entry; inbound restore (browser back/forward,
+  deep links) is unchanged. Works for both `context.*` verbs and bare `router.*`
+  calls. ([#25]) `pop` deliberately stays a *push* (the ecosystem default) — see
+  `context.back()` above for history-aligned back navigation ([#27]).
+- **Replaces inside a shell branch or module are reported as replaces**
+  ([#28]). The route-information provider reads the delegate's disposition, which
+  tracks whichever router — the main router or the active nested handle —
+  committed last. A `replaceTop` inside a branch overwrites the entry; switching
+  branches still adds one.
 
 ### Dependencies
 
-- Requires `kaisel_core: ^0.19.0` (for `KaiselBranchSnapshot.built`).
+- Requires `kaisel_core: ^0.21.0` (for the `replacesHistoryEntry` hints and the
+  pop-is-a-push disposition).
+- Adds `web: ^1.1.0` — web-only, behind a conditional import.
+
+[#25]: https://github.com/Mastersam07/kaisel/issues/25
+[#27]: https://github.com/Mastersam07/kaisel/issues/27
+[#28]: https://github.com/Mastersam07/kaisel/issues/28
 
 ## 0.20.0
 
