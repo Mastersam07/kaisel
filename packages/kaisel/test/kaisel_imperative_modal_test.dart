@@ -357,4 +357,99 @@ void main() {
     delegate.dispose();
     router.dispose();
   });
+
+  // The customer's access pattern: drive context.pop() through the app's shared
+  // navigator key context (appKey.currentContext) rather than the overlay's own
+  // context. The key context is the main Navigator, so its nearest kaisel
+  // boundary is the root RouterScope → context.pop() closes whatever the
+  // navigator can pop (the overlay), and falls through to the stack otherwise.
+
+  testWidgets('context.pop() via the app key context closes an open dialog', (
+    tester,
+  ) async {
+    final appKey = GlobalKey<NavigatorState>();
+    final router = KaiselRouter<_App>(initial: const _Home());
+    final delegate = _delegate(router, appKey);
+
+    await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
+    await router.push(const _Second());
+    await tester.pumpAndSettle();
+
+    final keyContext = appKey.currentContext;
+    if (keyContext == null) return;
+    unawaited(
+      showDialog<void>(
+        context: keyContext,
+        builder: (_) => const AlertDialog(content: Text('dialog')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('dialog'), findsOneWidget);
+
+    expect(await keyContext.pop(), isTrue);
+    await tester.pumpAndSettle();
+    expect(find.text('dialog'), findsNothing);
+    expect(find.text('second'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    delegate.dispose();
+    router.dispose();
+  });
+
+  testWidgets('context.pop() via the app key context closes an open sheet', (
+    tester,
+  ) async {
+    final appKey = GlobalKey<NavigatorState>();
+    final router = KaiselRouter<_App>(initial: const _Home());
+    final delegate = _delegate(router, appKey);
+
+    await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
+    await router.push(const _Second());
+    await tester.pumpAndSettle();
+
+    final keyContext = appKey.currentContext;
+    if (keyContext == null) return;
+    unawaited(
+      showModalBottomSheet<void>(
+        context: keyContext,
+        builder: (_) =>
+            const SizedBox(height: 120, child: Center(child: Text('sheet'))),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('sheet'), findsOneWidget);
+
+    expect(await keyContext.pop(), isTrue);
+    await tester.pumpAndSettle();
+    expect(find.text('sheet'), findsNothing);
+    expect(find.text('second'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    delegate.dispose();
+    router.dispose();
+  });
+
+  testWidgets('context.pop() via the app key context with no overlay pops the '
+      'stack and keeps the router in sync', (tester) async {
+    final appKey = GlobalKey<NavigatorState>();
+    final router = KaiselRouter<_App>(initial: const _Home());
+    final delegate = _delegate(router, appKey);
+
+    await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
+    await router.push(const _Second());
+    await tester.pumpAndSettle();
+    expect(router.entries.length, 2);
+
+    final keyContext = appKey.currentContext;
+    if (keyContext == null) return;
+    expect(await keyContext.pop(), isTrue);
+    await tester.pumpAndSettle();
+    expect(find.text('second'), findsNothing);
+    expect(find.text('home'), findsOneWidget);
+    expect(router.entries.length, 1);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    delegate.dispose();
+    router.dispose();
+  });
 }
