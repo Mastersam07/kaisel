@@ -19,7 +19,6 @@ import 'package:kaisel/kaisel.dart';
 //
 // SnackBars (ScaffoldMessenger) and toasts (OverlayEntry) are NOT routes: they
 // render on top, but they are dismissed by their own API, not `Navigator.pop`.
-// The last two tests pin that distinction.
 
 sealed class _App extends KaiselRoute {
   const _App();
@@ -61,7 +60,6 @@ void main() {
     expect(keyContext, isNotNull);
     if (keyContext == null) return;
 
-    // Show with the key's context (default useRootNavigator: true).
     unawaited(
       showDialog<void>(
         context: keyContext,
@@ -71,7 +69,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('dialog'), findsOneWidget);
 
-    // Pop with the same key context (default rootNavigator: false).
     Navigator.of(keyContext).pop();
     await tester.pumpAndSettle();
     expect(find.text('dialog'), findsNothing);
@@ -163,7 +160,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 750));
     expect(find.text('snack'), findsOneWidget);
 
-    // A snackbar is not a route — its own API dismisses it.
     ScaffoldMessenger.of(keyContext).hideCurrentSnackBar();
     await tester.pumpAndSettle();
     expect(find.text('snack'), findsNothing);
@@ -212,7 +208,6 @@ void main() {
     expect(find.text('dialog'), findsNothing);
     expect(find.text('toast'), findsOneWidget);
 
-    // Correct dismissal: remove the entry.
     entry.remove();
     await tester.pump();
     expect(find.text('toast'), findsNothing);
