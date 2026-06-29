@@ -557,11 +557,12 @@ If your app relies on this in production, wait.
 
 **Browser history replace-vs-push.** Browser back/forward and deep links work —
 each navigation round-trips through the codec, so back restores the previous
-stack. The remaining gap is go_router's control over *replacing* vs *pushing* a
-browser history entry: kaisel reports every navigation as a new entry, so
-`replaceTop` / `set` add a history entry rather than replacing the current one.
-Only matters if you deliberately keep a screen out of the back stack (a splash,
-an interstitial). Tracked for a fix.
+stack. kaisel mirrors go_router's replace-vs-push control: `replaceTop` / `set`
+(and the replace half of `pushOrReplaceTop`) **replace** the current browser
+history entry — so a splash or interstitial stays out of the back stack — while
+`push` and `pop` add one. For browser Back/Forward that mirror the app stack
+across several pops, reach for `context.back()` / `context.historyGo(delta)`
+instead of `pop`.
 
 **`errorBuilder:`.** go_router has a built-in error page when no
 route matches. kaisel doesn't have a separate slot; you add an

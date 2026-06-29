@@ -103,7 +103,7 @@ abstract class KaiselNavigator implements KaiselListenable {
   Set<int> get debugAbsorbedPositions;
 
   /// Whether this router's most recent committed change should overwrite the
-  /// browser history entry (`replaceTop` / `set` / `pop`) rather than add one
+  /// browser history entry (`replaceTop` / `set`) rather than add one
   /// (`push`). A shell container reads it from its active branch so a nested
   /// replace is reported as a replace too. See
   /// [KaiselRouter.replacesHistoryEntry].
@@ -601,7 +601,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   bool _replacesHistoryEntry = false;
 
   /// Whether the most recently applied stack change should overwrite the browser
-  /// history entry (`replaceTop` / `set` / `pop`) rather than add one (`push`).
+  /// history entry (`replaceTop` / `set`) rather than add one (`push`).
   /// The route-information provider reads this when reporting to the platform.
   @override
   bool get replacesHistoryEntry => _replacesHistoryEntry;

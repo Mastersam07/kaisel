@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.21.0
+
+### Changed
+
+- **`pop` / `popUntil` add a browser-history entry again, reversing the `0.20.0`
+  change ([#27]).** Popping now pushes a new history entry like a normal
+  `Navigator` pop — and like go_router / auto_route / zenrouter — instead of
+  overwriting the entry it returns to, so the browser's forward button behaves
+  as expected. History-aligned back navigation that mirrors the app stack moved
+  to the opt-in `context.back()` / `context.historyGo()` in `kaisel`.
+  `replaceTop` / `set` ([#25]) and nested replaces ([#28]) still report a
+  replace.
+
+### Added
+
+- **`KaiselRootSnapshot.replacesHistory`** — the inspector snapshot now carries
+  the last committed change's history disposition (`true` when it overwrote the
+  entry rather than added one), so DevTools can show whether a navigation was a
+  push or a replace. Defaults to `false`.
+
 ## 0.20.0
 
 ### Added
@@ -13,10 +33,6 @@
   non-generic router view and on a nested handle, so a shell container can read
   its active branch's disposition and the host can report a nested replace as a
   replace. `KaiselNestedHandle` defaults it to `false`. ([#28])
-- **`KaiselRootSnapshot.replacesHistory`** — the inspector snapshot now carries
-  the last committed change's history disposition (`true` when it overwrote the
-  entry rather than added one), so DevTools can show whether a navigation was a
-  push or a replace. Defaults to `false`.
 
 ### Changed
 
