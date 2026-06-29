@@ -221,4 +221,140 @@ void main() {
     delegate.dispose();
     router.dispose();
   });
+
+  // context.pop() is kaisel's pop, and it is boundary-aware: called from inside
+  // an imperative overlay (dialog/sheet) it closes that overlay; called from a
+  // normal screen it pops the kaisel stack. See KaiselContextNavigation.pop.
+
+  testWidgets('context.pop() inside a dialog closes the dialog, not the page', (
+    tester,
+  ) async {
+    final appKey = GlobalKey<NavigatorState>();
+    final router = KaiselRouter<_App>(initial: const _Home());
+    final delegate = KaiselRouterDelegate<_App>(
+      router: router,
+      navigatorKey: appKey,
+      builder: (context, route) => switch (route) {
+        _Home() => Scaffold(
+          body: Center(
+            child: ElevatedButton(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  content: const Text('dialog'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => dialogContext.pop(),
+                      child: const Text('close'),
+                    ),
+                  ],
+                ),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+        _Second() => const Scaffold(body: Center(child: Text('second'))),
+      },
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text('dialog'), findsOneWidget);
+
+    await tester.tap(find.text('close'));
+    await tester.pumpAndSettle();
+    expect(find.text('dialog'), findsNothing);
+    expect(find.text('open'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    delegate.dispose();
+    router.dispose();
+  });
+
+  testWidgets('context.pop() inside a bottom sheet closes the sheet', (
+    tester,
+  ) async {
+    final appKey = GlobalKey<NavigatorState>();
+    final router = KaiselRouter<_App>(initial: const _Home());
+    final delegate = KaiselRouterDelegate<_App>(
+      router: router,
+      navigatorKey: appKey,
+      builder: (context, route) => switch (route) {
+        _Home() => Scaffold(
+          body: Center(
+            child: ElevatedButton(
+              onPressed: () => showModalBottomSheet<void>(
+                context: context,
+                builder: (sheetContext) => SizedBox(
+                  height: 120,
+                  child: Center(
+                    child: ElevatedButton(
+                      onPressed: () => sheetContext.pop(),
+                      child: const Text('close-sheet'),
+                    ),
+                  ),
+                ),
+              ),
+              child: const Text('open-sheet'),
+            ),
+          ),
+        ),
+        _Second() => const Scaffold(body: Center(child: Text('second'))),
+      },
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
+    await tester.tap(find.text('open-sheet'));
+    await tester.pumpAndSettle();
+    expect(find.text('close-sheet'), findsOneWidget);
+
+    await tester.tap(find.text('close-sheet'));
+    await tester.pumpAndSettle();
+    expect(find.text('close-sheet'), findsNothing);
+    expect(find.text('open-sheet'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    delegate.dispose();
+    router.dispose();
+  });
+
+  testWidgets('context.pop() from a screen pops the kaisel stack', (
+    tester,
+  ) async {
+    final appKey = GlobalKey<NavigatorState>();
+    final router = KaiselRouter<_App>(initial: const _Home());
+    final delegate = KaiselRouterDelegate<_App>(
+      router: router,
+      navigatorKey: appKey,
+      builder: (context, route) => switch (route) {
+        _Home() => const Scaffold(body: Center(child: Text('home'))),
+        _Second() => Scaffold(
+          body: Center(
+            child: Builder(
+              builder: (screenContext) => ElevatedButton(
+                onPressed: () => screenContext.pop(),
+                child: const Text('pop-screen'),
+              ),
+            ),
+          ),
+        ),
+      },
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
+    await router.push(const _Second());
+    await tester.pumpAndSettle();
+    expect(find.text('pop-screen'), findsOneWidget);
+
+    await tester.tap(find.text('pop-screen'));
+    await tester.pumpAndSettle();
+    expect(find.text('pop-screen'), findsNothing);
+    expect(find.text('home'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    delegate.dispose();
+    router.dispose();
+  });
 }
