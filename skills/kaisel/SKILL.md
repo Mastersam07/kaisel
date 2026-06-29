@@ -12,7 +12,7 @@ description: >
   KaiselAbsorbingPage, KaiselStandalonePage, KaiselMasterDetailScaffold,
   KaiselPageWrapper, KaiselPageWrapperContext, KaiselStackContext,
   BranchedShellRouter, ShellRouter, RouteModule, ModuleStackCodec,
-  package:kaisel, push, pushForResult, pop, pushOrReplaceTop, replaceTop, set, run,
+  package:kaisel, push, pushForResult, pop, back, historyGo, pushOrReplaceTop, replaceTop, set, run,
   pageWrapper, modalBuilder, chromeBuilder, sealed route, codec,
   route guard, modal flow, branched shell, adaptive layout,
   master-detail, route transition, deep link.
@@ -57,7 +57,7 @@ Read these only when the topic at hand demands the depth.
 
 | File | When to read |
 |:-----|:-------------|
-| [NAVIGATION.md](./NAVIGATION.md) | Choosing between `push`, `pushForResult`, `pop`, `set`, `replaceTop`, `pushOrReplaceTop`, `run` |
+| [NAVIGATION.md](./NAVIGATION.md) | Choosing between `push`, `pushForResult`, `pop`, `back` / `historyGo`, `set`, `replaceTop`, `pushOrReplaceTop`, `run` |
 | [SHELLS.md](./SHELLS.md) | Branched shells with per-branch typing; single-branch shells; chrome builders |
 | [ADAPTIVE.md](./ADAPTIVE.md) | Adaptive page builders, absorbing pages, master-detail layouts |
 | [MODAL_FLOWS.md](./MODAL_FLOWS.md) | Typed modal flows via `router.run<T>(...)`, nested flows, dismissal |
