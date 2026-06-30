@@ -371,6 +371,12 @@ void main() {
     test('routeName can be overridden', () {
       expect(const _Named().routeName, 'custom-name');
     });
+
+    test('restorationId is routeName when props are empty, null otherwise', () {
+      expect(const _A().restorationId, '_A');
+      expect(const _Named().restorationId, 'custom-name');
+      expect(const _B('x').restorationId, isNull);
+    });
   });
 
   group('transition origin', () {
