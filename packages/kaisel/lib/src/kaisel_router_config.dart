@@ -6,6 +6,7 @@ import 'kaisel_default_page.dart';
 import 'kaisel_page_wrapper.dart';
 import 'kaisel_route_information_parser.dart';
 import 'kaisel_router_delegate.dart';
+import 'kaisel_stack_restorer.dart';
 
 /// A ready-made [RouterConfig] that bundles a [KaiselRouter] and a
 /// [KaiselRouterDelegate] — plus a URL parser and platform provider when you
@@ -62,6 +63,8 @@ class KaiselRouterConfig<R extends KaiselRoute>
     KaiselModalBuilder? modalBuilder,
     KaiselObserversBuilder? observers,
     GlobalKey<NavigatorState>? navigatorKey,
+    String? restorationScopeId,
+    KaiselRouteRestorer<R>? restoreRoute,
     KaiselConfigCodec<R>? codec,
     List<R>? fallback,
   }) {
@@ -76,6 +79,8 @@ class KaiselRouterConfig<R extends KaiselRoute>
         modalBuilder: modalBuilder,
         observers: observers,
         navigatorKey: navigatorKey,
+        restorationScopeId: restorationScopeId,
+        restoreRoute: restoreRoute,
         codec: codec,
       ),
       codec: codec,
@@ -95,6 +100,8 @@ class KaiselRouterConfig<R extends KaiselRoute>
     KaiselModalBuilder? modalBuilder,
     KaiselObserversBuilder? observers,
     GlobalKey<NavigatorState>? navigatorKey,
+    String? restorationScopeId,
+    KaiselRouteRestorer<R>? restoreRoute,
     KaiselConfigCodec<R>? codec,
     List<R>? fallback,
   }) {
@@ -109,6 +116,8 @@ class KaiselRouterConfig<R extends KaiselRoute>
         modalBuilder: modalBuilder,
         observers: observers,
         navigatorKey: navigatorKey,
+        restorationScopeId: restorationScopeId,
+        restoreRoute: restoreRoute,
         codec: codec,
       ),
       codec: codec,

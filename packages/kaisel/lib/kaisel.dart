@@ -42,5 +42,6 @@ export 'src/kaisel_router_delegate.dart'
         KaiselPageBuilder,
         KaiselRouterDelegate;
 export 'src/kaisel_scope.dart';
+export 'src/kaisel_stack_restorer.dart' show KaiselRouteRestorer;
 export 'src/kaisel_shell.dart'
     show KaiselBranchScope, KaiselShell, KaiselShellChromeBuilder, ShellRouter;

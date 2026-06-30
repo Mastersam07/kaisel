@@ -83,9 +83,6 @@ Both guides flag these in their own "what doesn't translate" sections;
 worth surfacing here too so you can decide before reading either
 guide.
 
-- **State restoration.** Not shipped yet — on the roadmap. If your
-  app relies on stack restoration after Android process death in
-  production, wait.
 - **Browser back integration on the web.** Works via the codec, but
   less polished than go_router's native integration. Test carefully
   on a migration branch if web is your primary platform.

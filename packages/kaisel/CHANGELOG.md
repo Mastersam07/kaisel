@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.22.0
+
+### Added
+
+- **State restoration** — survive an OS process-kill (iOS background-kill,
+  Android low-memory) and relaunch where the user left off. Opt in with
+  `restorationScopeId` on your `MaterialApp`.
+  - **Stack restoration (URL/codec apps)** rides Flutter's `Router` restoration
+    — no kaisel code needed beyond the app `restorationScopeId`.
+  - **`restorationScopeId`** on `KaiselRouterConfig` / `KaiselRouterDelegate`
+    gives the main stack a restoration scope; shell branches and modules each get
+    their own automatically, so a page's inner widget state (scroll offset, text
+    fields via `RestorationMixin`) survives the restart.
+  - **`KaiselRoute.restorationId`** (from `kaisel_core`) feeds each page's id —
+    defaults to the route's `routeName` for parameterless routes.
+  - **`restoreRoute` — codec-less stack restoration.** Apps with no URL codec can
+    restore the **main** stack with a small `(name, props) => route` rebuild
+    function; kaisel saves `routeName` + `props` to a restoration bucket and
+    replays it. (Nested shell/module state still needs a codec.)
+
+### Changed
+
+- Requires `kaisel_core: ^0.22.0` (for `KaiselRoute.restorationId`).
+
 ## 0.21.0
 
 ### Added

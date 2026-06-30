@@ -11,6 +11,7 @@ import 'kaisel_inner_navigator.dart';
 import 'kaisel_page_scope.dart';
 import 'kaisel_page_wrapper.dart';
 import 'kaisel_scope.dart';
+import 'kaisel_stack_restorer.dart';
 
 /// Signature for the function that turns a route into a screen.
 ///
@@ -114,6 +115,8 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.pageWrapper,
     this.modalBuilder,
     this.observers,
+    this.restorationScopeId,
+    this.restoreRoute,
     this.webTransition = KaiselWebTransition.fade,
     GlobalKey<NavigatorState>? navigatorKey,
     KaiselConfigCodec<R>? codec,
@@ -166,6 +169,8 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.pageWrapper,
     this.modalBuilder,
     this.observers,
+    this.restorationScopeId,
+    this.restoreRoute,
     this.webTransition = KaiselWebTransition.fade,
     GlobalKey<NavigatorState>? navigatorKey,
     KaiselConfigCodec<R>? codec,
@@ -211,6 +216,18 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   /// shell branch, module, and flow), so each gets its own fresh instances.
   /// Null for no observers. See [KaiselObserversBuilder].
   final KaiselObserversBuilder? observers;
+
+  /// Passed to the main [Navigator.restorationScopeId]. Set it to give the main
+  /// stack a restoration scope so its pages' inner widget state (via
+  /// `RestorationMixin`) survives process death. The app must also have a
+  /// `restorationScopeId` (e.g. on `MaterialApp`). Null disables it.
+  final String? restorationScopeId;
+
+  /// Rebuilds routes for codec-less stack restoration. When set, the **main**
+  /// stack is saved to and restored from a `RestorationMixin` bucket — no URL
+  /// codec needed. Use this *or* a `codec`, not both. The app must also have a
+  /// `restorationScopeId` (e.g. on `MaterialApp`).
+  final KaiselRouteRestorer<R>? restoreRoute;
 
   /// The main stack's observers, built once from [observers] and reused for the
   /// delegate's lifetime (so they aren't rebuilt every frame).
@@ -417,7 +434,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
 
   @override
   Widget build(BuildContext context) {
-    return KaiselWebTransitionScope(
+    Widget content = KaiselWebTransitionScope(
       transition: webTransition,
       child: KaiselObserverScope(
         observers: observers,
@@ -430,6 +447,15 @@ class KaiselRouterDelegate<R extends KaiselRoute>
         ),
       ),
     );
+    final restore = restoreRoute;
+    if (restore != null) {
+      content = KaiselStackRestorer<R>(
+        router: router,
+        restore: restore,
+        child: content,
+      );
+    }
+    return content;
   }
 
   /// Builds the single main [Navigator]. Its pages are the main stack
@@ -468,6 +494,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     return Navigator(
       key: navigatorKey,
       observers: _mainObservers,
+      restorationScopeId: restorationScopeId,
       onDidRemovePage: _onDidRemovePage,
       pages: <Page<Object?>>[
         ...mainPages,

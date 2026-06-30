@@ -727,7 +727,10 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
   }
 
   Widget _buildLazyBranch(BuildContext context, int index) =>
-      _lazySpecs[index].buildBranch(_shell.branchAt(index));
+      KaiselRestorationScope(
+        restorationId: 'kaisel-branch-$index',
+        child: _lazySpecs[index].buildBranch(_shell.branchAt(index)),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -747,6 +750,13 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
         child: ShellChromeScope(
           child: Builder(
             builder: (context) {
+              final restorableBranches = <Widget>[
+                for (var i = 0; i < _branches.length; i++)
+                  KaiselRestorationScope(
+                    restorationId: 'kaisel-branch-$i',
+                    child: _branches[i],
+                  ),
+              ];
               final branchContent = switch ((
                 widget.branchContentBuilder,
                 widget.lazyBranchContentBuilder,
@@ -755,7 +765,7 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
                 (final build?, _, _) => build(
                   context,
                   _shell.activeBranch,
-                  _branches,
+                  restorableBranches,
                   _shell.switchTo,
                 ),
                 (_, final build?, _) => build(
@@ -772,7 +782,7 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
                 ),
                 (_, _, false) => IndexedStack(
                   index: _shell.activeBranch,
-                  children: _branches,
+                  children: restorableBranches,
                 ),
               };
               return widget.chromeBuilder(

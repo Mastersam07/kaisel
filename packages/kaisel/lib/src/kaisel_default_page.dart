@@ -41,6 +41,7 @@ Page<Object?> kaiselDefaultPage<R extends KaiselRoute>(
       key: ctx.key,
       name: ctx.route.routeName,
       arguments: ctx.route,
+      restorationId: ctx.route.restorationId,
       child: ctx.child,
     );
   }
@@ -48,6 +49,7 @@ Page<Object?> kaiselDefaultPage<R extends KaiselRoute>(
     key: ctx.key,
     name: ctx.route.routeName,
     arguments: ctx.route,
+    restorationId: ctx.route.restorationId,
     fade: transition == KaiselWebTransition.fade,
     child: ctx.child,
   );

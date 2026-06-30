@@ -269,8 +269,6 @@ the terseness clearly earns that trade (a single-router screen, say).
 Be honest about gaps before assuming kaisel can drop into any existing
 codebase as a one-for-one replacement.
 
-- **State restoration.** Not shipped yet — on the roadmap. If the
-  app relies on stack restoration after Android process death, wait.
 - **Browser back integration on the web.** Works via the codec, but less
   polished than go_router's native integration. Test on a migration
   branch if web is the primary target.

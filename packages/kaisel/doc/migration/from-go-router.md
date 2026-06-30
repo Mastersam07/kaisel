@@ -118,7 +118,7 @@ Swap go_router for kaisel in `pubspec.yaml`:
    flutter:
      sdk: flutter
 -  go_router: ^14.0.0
-+  kaisel: ^0.21.0
++  kaisel: ^0.22.0
 ```
 
 If you used `go_router_builder` for typed routes, drop both that and
@@ -549,11 +549,6 @@ any debug run.
 ## What kaisel doesn't yet do at parity
 
 Be honest with yourself about whether these matter before migrating.
-
-**State restoration.** go_router supports the Flutter
-`RestorationManager` integration that lets stacks survive Android
-process death. kaisel doesn't, yet — it's on the roadmap.
-If your app relies on this in production, wait.
 
 **Browser history replace-vs-push.** Browser back/forward and deep links work —
 each navigation round-trips through the codec, so back restores the previous
