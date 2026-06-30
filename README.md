@@ -21,7 +21,7 @@ Add `kaisel` to your app:
 
 ```yaml
 dependencies:
-  kaisel: ^0.21.0
+  kaisel: ^0.22.0
 ```
 
 Then see the [`kaisel` README](packages/kaisel/README.md) for the full guide, and [`packages/kaisel/example`](packages/kaisel/example) for runnable examples.

@@ -60,7 +60,7 @@ In `pubspec.yaml`, swap auto_route for kaisel:
    flutter:
      sdk: flutter
 -  auto_route: ^9.0.0
-+  kaisel: ^0.21.0
++  kaisel: ^0.22.0
 
  dev_dependencies:
 -  auto_route_generator: ^9.0.0

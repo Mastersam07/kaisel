@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.22.0
+
+### Added
+
+- **`KaiselRoute.restorationId`** — a stable id (defaults to `routeName` for
+  parameterless routes, `null` for routes with `props`) set as each page's
+  `restorationId`, so the page's inner widget state (scroll, text fields via
+  `RestorationMixin`) survives process death. Override with a param-aware id
+  (e.g. `'product-$id'`) to opt parameterized routes in.
+
 ## 0.21.0
 
 ### Changed
