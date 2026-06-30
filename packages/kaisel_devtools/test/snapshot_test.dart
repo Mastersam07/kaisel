@@ -32,6 +32,13 @@ void main() {
       expect(root.branches, isEmpty);
       expect(root.guardTrace, isNull);
       expect(root.url, isNull);
+      expect(root.replacesHistory, isFalse);
+      expect(
+        RootSnapshot.fromJson(const <String, Object?>{
+          'replacesHistory': true,
+        }).replacesHistory,
+        isTrue,
+      );
     });
 
     test('absent / non-list fields decode defensively', () {
@@ -120,10 +127,19 @@ void main() {
               ],
             },
           },
+          <String, Object?>{
+            'index': 1,
+            'built': false,
+            'routeType': '—',
+            'stack': <String, Object?>{'depth': 0, 'entries': <Object?>[]},
+          },
         ],
       });
       expect(shell.activeBranch, 1);
-      expect(shell.branches.single.stack.entries.single.label, 'Home');
+      expect(shell.branches.first.stack.entries.single.label, 'Home');
+      expect(shell.branches.first.built, isTrue); // defaults true when absent
+      expect(shell.branches.last.built, isFalse);
+      expect(shell.branches.last.stack.entries, isEmpty);
 
       final module = ModuleSnapshot.fromJson(const <String, Object?>{
         'prefix': '/c',
@@ -247,6 +263,7 @@ void main() {
         branches: <BranchSnapshot>[
           BranchSnapshot(
             index: 0,
+            built: true,
             routeType: 'R',
             stack: StackSnapshot(
               depth: 1,
@@ -306,6 +323,22 @@ void main() {
           ProblemSnapshot(kind: 'noOp', router: 'main', detail: detail);
       expect(problem('d'), problem('d'));
       expect(problem('d'), isNot(problem('e')));
+    });
+
+    test('origin frame equality + canOpen', () {
+      OriginFrame frame({int? line}) => OriginFrame.fromJson(<String, Object?>{
+        'display': 'onTap',
+        'uri': 'package:app/x.dart',
+        'line': ?line,
+        'column': 3,
+      });
+
+      expect(frame(line: 12), frame(line: 12));
+      expect(frame(line: 12).hashCode, frame(line: 12).hashCode);
+      expect(frame(line: 12), isNot(frame(line: 9)));
+
+      expect(frame(line: 12).canOpen, isTrue);
+      expect(frame().canOpen, isFalse);
     });
   });
 }

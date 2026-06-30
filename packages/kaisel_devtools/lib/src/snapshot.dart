@@ -82,6 +82,8 @@ class RootSnapshot {
     required this.guardTrace,
     required this.url,
     required this.history,
+    required this.origin,
+    required this.replacesHistory,
   });
 
   /// Decode from the wire format.
@@ -109,6 +111,11 @@ class RootSnapshot {
         : GuardTrace.fromJson(_obj(json['guardTrace'])),
     url: json['url'] as String?,
     history: _strings(json['history']),
+    origin: <OriginFrame>[
+      for (final frame in _list(json['origin']))
+        OriginFrame.fromJson(_obj(frame)),
+    ],
+    replacesHistory: json['replacesHistory'] as bool? ?? false,
   );
 
   /// Stable root id.
@@ -137,6 +144,56 @@ class RootSnapshot {
 
   /// The main router's past stacks (oldest first), each as a "A → B" label.
   final List<String> history;
+
+  /// App call frames behind the most recent transition (closest first) — the
+  /// "who navigated" for the Transitions log. Empty when there was no app call
+  /// site (a system-back pop) or in release.
+  final List<OriginFrame> origin;
+
+  /// Whether the most recent committed change overwrote the browser history
+  /// entry (`replaceTop` / `set`) rather than adding one (`push` / `pop`).
+  final bool replacesHistory;
+}
+
+/// One app call frame behind a navigation: a display line plus, when parsed,
+/// the source location the host can open in an editor.
+class OriginFrame {
+  /// Create an origin frame.
+  OriginFrame({required this.display, this.uri, this.line, this.column});
+
+  /// Decode from the wire format.
+  factory OriginFrame.fromJson(Map<String, Object?> json) => OriginFrame(
+    display: '${json['display'] ?? ''}',
+    uri: json['uri'] as String?,
+    line: (json['line'] as num?)?.toInt(),
+    column: (json['column'] as num?)?.toInt(),
+  );
+
+  /// The trimmed frame line, as shown.
+  final String display;
+
+  /// The source URI (`package:…` / `file://…`), or null if unparsed.
+  final String? uri;
+
+  /// 1-based line, or null if unparsed.
+  final int? line;
+
+  /// 1-based column, or null if unparsed.
+  final int? column;
+
+  /// Whether this frame has enough location to open in an editor.
+  bool get canOpen => uri != null && line != null;
+
+  @override
+  bool operator ==(Object other) =>
+      other is OriginFrame &&
+      other.display == display &&
+      other.uri == uri &&
+      other.line == line &&
+      other.column == column;
+
+  @override
+  int get hashCode => Object.hash(display, uri, line, column);
 }
 
 /// A detected problem in the navigation state.
@@ -288,6 +345,7 @@ class BranchSnapshot with _Eq {
   /// Create a branch snapshot.
   BranchSnapshot({
     required this.index,
+    required this.built,
     required this.routeType,
     required this.stack,
   });
@@ -295,6 +353,7 @@ class BranchSnapshot with _Eq {
   /// Decode from the wire format.
   factory BranchSnapshot.fromJson(Map<String, Object?> json) => BranchSnapshot(
     index: (json['index'] as num?)?.toInt() ?? 0,
+    built: json['built'] as bool? ?? true,
     routeType: '${json['routeType'] ?? '?'}',
     stack: StackSnapshot.fromJson(_obj(json['stack'])),
   );
@@ -302,14 +361,17 @@ class BranchSnapshot with _Eq {
   /// Branch index.
   final int index;
 
+  /// Whether the branch is materialised (a lazy shell builds on first visit).
+  final bool built;
+
   /// Route-type hint.
   final String routeType;
 
-  /// The branch's stack.
+  /// The branch's stack (empty when not [built]).
   final StackSnapshot stack;
 
   @override
-  List<Object?> get _eqFields => <Object?>[index, routeType, stack];
+  List<Object?> get _eqFields => <Object?>[index, built, routeType, stack];
 }
 
 /// A mounted module.

@@ -6,6 +6,7 @@ import 'package:kaisel_core/framework.dart';
 
 import 'kaisel_adaptive.dart';
 import 'kaisel_branched_shell.dart';
+import 'kaisel_default_page.dart';
 import 'kaisel_inner_navigator.dart';
 import 'kaisel_page_scope.dart';
 import 'kaisel_page_wrapper.dart';
@@ -116,11 +117,14 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.observers,
     this.restorationScopeId,
     this.restoreRoute,
+    this.webTransition = KaiselWebTransition.fade,
+    GlobalKey<NavigatorState>? navigatorKey,
     KaiselConfigCodec<R>? codec,
   }) : _builder = builder,
        _adaptiveBuilder = null,
+       navigatorKey = navigatorKey ?? GlobalKey<NavigatorState>(),
        _codec = codec {
-    router.addListener(_safeNotifyListeners);
+    router.addListener(_onRootChanged);
     _registerWithInspector();
   }
 
@@ -167,11 +171,14 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.observers,
     this.restorationScopeId,
     this.restoreRoute,
+    this.webTransition = KaiselWebTransition.fade,
+    GlobalKey<NavigatorState>? navigatorKey,
     KaiselConfigCodec<R>? codec,
   }) : _builder = null,
        _adaptiveBuilder = builder,
+       navigatorKey = navigatorKey ?? GlobalKey<NavigatorState>(),
        _codec = codec {
-    router.addListener(_safeNotifyListeners);
+    router.addListener(_onRootChanged);
     _registerWithInspector();
   }
 
@@ -194,6 +201,11 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   /// Optional customiser for the [Page] wrapping. Defaults to
   /// [MaterialPage].
   final KaiselPageWrapper<R>? pageWrapper;
+
+  /// The default page transition on the **web** when no [pageWrapper] is given.
+  /// Defaults to [KaiselWebTransition.fade]; ignored off the web and when a
+  /// [pageWrapper] is set.
+  final KaiselWebTransition webTransition;
 
   /// Optional builder that renders an active modal flow over the main
   /// UI. Required if your app uses `router.run<T>(...)`.
@@ -222,8 +234,12 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   late final List<NavigatorObserver> _mainObservers =
       observers?.call() ?? const <NavigatorObserver>[];
 
+  /// Key for the main [Navigator]. Pass one to reach the navigator imperatively
+  /// (e.g. a third-party SDK that wants a `GlobalKey<NavigatorState>`); defaults
+  /// to a freshly created key. For context-free *navigation*, prefer the typed
+  /// `router` — the key is for raw `NavigatorState` access.
   @override
-  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> navigatorKey;
 
   /// Stable [GlobalKey]s for each active modal flow's inner Navigator.
   /// Indexed parallel to `router.activeFlows`. Grown lazily in [build]
@@ -246,8 +262,19 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   // registers.
 
   final List<KaiselNestedHandle> _nested = <KaiselNestedHandle>[];
+  final Map<KaiselNestedHandle, VoidCallback> _nestedListeners = {};
   KaiselNestedConfig? _pendingNested;
   bool _isDisposed = false;
+
+  bool _reportReplaces = false;
+
+  /// Whether the next route-information report should overwrite the browser
+  /// history entry rather than add one. Tracks the disposition of whichever
+  /// router — the main router or the active nested (shell branch / module)
+  /// router — committed the most recent change, so a nested `replaceTop` /
+  /// `set` is reported as a replace too. Read by the
+  /// route-information provider at report time.
+  bool get replacesHistoryEntry => _reportReplaces;
 
   /// Number of pages produced by the most recent build of the main
   /// navigator. Used by [popRoute] to detect adaptive absorbing
@@ -292,6 +319,14 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     });
   }
 
+  /// Root-router change: capture its replace/push disposition for the next
+  /// report, then notify. A nested handle does the same in [registerNested],
+  /// so [_reportReplaces] always reflects whichever router committed last.
+  void _onRootChanged() {
+    _reportReplaces = router.replacesHistoryEntry;
+    _safeNotifyListeners();
+  }
+
   @override
   void registerNested(KaiselNestedHandle handle) {
     // De-duplicate by identity; re-registering moves the handle to
@@ -303,7 +338,13 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     if (existing >= 0) {
       _nested.removeAt(existing);
     } else {
-      handle.addListener(_safeNotifyListeners);
+      void listener() {
+        _reportReplaces = handle.replacesHistoryEntry;
+        _safeNotifyListeners();
+      }
+
+      _nestedListeners[handle] = listener;
+      handle.addListener(listener);
     }
     _nested.add(handle);
 
@@ -320,7 +361,8 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     final index = _nested.indexWhere((h) => identical(h, handle));
     if (index < 0) return;
     _nested.removeAt(index);
-    handle.removeListener(_safeNotifyListeners);
+    final listener = _nestedListeners.remove(handle);
+    if (listener != null) handle.removeListener(listener);
     _safeNotifyListeners();
   }
 
@@ -392,6 +434,35 @@ class KaiselRouterDelegate<R extends KaiselRoute>
 
   @override
   Widget build(BuildContext context) {
+    Widget content = KaiselWebTransitionScope(
+      transition: webTransition,
+      child: KaiselObserverScope(
+        observers: observers,
+        child: KaiselNestedHostScope(
+          host: this,
+          child: RouterScope<R>(
+            router: router,
+            child: _buildNavigator(context),
+          ),
+        ),
+      ),
+    );
+    final restore = restoreRoute;
+    if (restore != null) {
+      content = KaiselStackRestorer<R>(
+        router: router,
+        restore: restore,
+        child: content,
+      );
+    }
+    return content;
+  }
+
+  /// Builds the single main [Navigator]. Its pages are the main stack
+  /// followed by one transparent page per active modal flow, so a flow — and
+  /// any dialog pushed above it — lives in the same overlay as everything
+  /// else.
+  Widget _buildNavigator(BuildContext context) {
     final entries = router.entries;
     final mainPages = switch (_adaptiveBuilder) {
       final builder? => _adaptiveMainPages(context, entries, builder),
@@ -399,16 +470,6 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     };
 
     _lastBuiltMainPageCount = mainPages.length;
-
-    final mainNavigator = Navigator(
-      key: navigatorKey,
-      pages: mainPages,
-      observers: _mainObservers,
-      restorationScopeId: restorationScopeId,
-      onDidRemovePage: _onDidRemovePage,
-    );
-
-    Widget content = mainNavigator;
 
     final activeFlows = router.activeFlows;
     if (activeFlows.isNotEmpty && modalBuilder == null) {
@@ -430,39 +491,64 @@ class KaiselRouterDelegate<R extends KaiselRoute>
       _flowNavigatorKeys.removeLast();
     }
 
-    for (var i = 0; i < activeFlows.length; i++) {
-      content = _buildFlowLayer(
-        context: context,
-        inner: content,
-        flow: activeFlows[i],
-        flowNavigatorKey: _flowNavigatorKeys[i],
-      );
-    }
-
-    content = RouterScope<R>(router: router, child: content);
-    // Install the host scope so descendant nested routers (branched
-    // shells and module mounts) can register for URL capture/restore.
-    content = KaiselNestedHostScope(host: this, child: content);
-    // Carry the observers builder down so nested navigators can attach their
-    // own fresh observer instances.
-    content = KaiselObserverScope(observers: observers, child: content);
-    final restore = restoreRoute;
-    if (restore != null) {
-      content = KaiselStackRestorer<R>(
-        router: router,
-        restore: restore,
-        child: content,
-      );
-    }
-    return content;
+    return Navigator(
+      key: navigatorKey,
+      observers: _mainObservers,
+      restorationScopeId: restorationScopeId,
+      onDidRemovePage: _onDidRemovePage,
+      pages: <Page<Object?>>[
+        ...mainPages,
+        for (var i = 0; i < activeFlows.length; i++)
+          _flowPage(
+            i,
+            mainPages.length,
+            activeFlows.length,
+            activeFlows[i],
+            _flowPageChild(context, activeFlows[i], _flowNavigatorKeys[i]),
+          ),
+      ],
+    );
   }
 
-  Widget _buildFlowLayer({
-    required BuildContext context,
-    required Widget inner,
-    required KaiselActiveFlow<R> flow,
-    required GlobalKey<NavigatorState> flowNavigatorKey,
-  }) {
+  /// Builds the outer page for an active flow. A `pageWrapper` can customise
+  /// its entrance transition via an `isFlow` context; otherwise it is the
+  /// instant, transparent [_FlowPage].
+  Page<Object?> _flowPage(
+    int flowIndex,
+    int mainCount,
+    int flowCount,
+    KaiselActiveFlow<R> flow,
+    Widget child,
+  ) {
+    final key = _FlowPageKey(flowIndex);
+    final wrapper = pageWrapper;
+    if (wrapper != null) {
+      return wrapper(
+        KaiselPageWrapperContext<R>(
+          route: flow.route as R,
+          child: child,
+          key: key,
+          position: mainCount + flowIndex,
+          stackLength: mainCount + flowCount,
+          isFlow: true,
+        ),
+      );
+    }
+    return _FlowPage(
+      key: key,
+      name: flow.route.routeName,
+      arguments: flow.route,
+      child: child,
+    );
+  }
+
+  /// The content of a flow page: the flow's inner navigator wrapped in its
+  /// scopes and back handling, then the app's `modalBuilder` presentation.
+  Widget _flowPageChild(
+    BuildContext context,
+    KaiselActiveFlow<R> flow,
+    GlobalKey<NavigatorState> flowNavigatorKey,
+  ) {
     final flowNavigator = KaiselInnerNavigator<R>(
       router: flow.router,
       navigatorKey: flowNavigatorKey,
@@ -489,8 +575,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
       ),
     );
 
-    final flowUi = modalBuilder!(context, flow.route, flowWithScopes);
-    return Stack(children: [inner, flowUi]);
+    return modalBuilder!(context, flow.route, flowWithScopes);
   }
 
   List<Page<Object?>> _simpleMainPages(
@@ -551,31 +636,28 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   Page<Object?> _wrapSimple(KaiselPageWrapperContext<R> ctx) {
     final wrapper = pageWrapper;
     if (wrapper != null) return wrapper(ctx);
-    return MaterialPage<Object?>(
-      key: ctx.key,
-      name: ctx.route.routeName,
-      arguments: ctx.route,
-      restorationId: ctx.route.restorationId,
-      child: ctx.child,
-    );
+    return kaiselDefaultPage(ctx, transition: webTransition);
   }
 
   Page<Object?> _wrapAdaptive(KaiselPageWrapperContext<R> ctx) {
     final wrapper = pageWrapper;
     if (wrapper != null) return wrapper(ctx);
-    return MaterialPage<Object?>(
-      key: ctx.key,
-      name: ctx.route.routeName,
-      arguments: ctx.route,
-      restorationId: ctx.route.restorationId,
-      child: ctx.child,
-    );
+    return kaiselDefaultPage(ctx, transition: webTransition);
   }
 
   void _onDidRemovePage(Page<Object?> page) {
     // Navigator-driven pops sync our state, but guards do NOT rerun
     // on this path. That's by design.
-    final entryId = adaptiveEntryIdFromPageKey(page.key);
+    final key = page.key;
+    if (key is _FlowPageKey) {
+      // A flow page left the navigator. If the flow is still active, the
+      // Navigator popped it imperatively (a raw Navigator.pop) — sync by
+      // dismissing it with null. If it's already gone, completeFlow already
+      // ran and this is just the declarative removal.
+      if (key.flowIndex < router.activeFlows.length) router.dismissFlow();
+      return;
+    }
+    final entryId = adaptiveEntryIdFromPageKey(key);
     if (entryId != null) {
       router.onPageRemoved(entryId);
     }
@@ -632,7 +714,36 @@ class KaiselRouterDelegate<R extends KaiselRoute>
         for (final stack in router.debugHistory)
           stack.map((r) => '$r').join(' → '),
       ],
+      origin: _originFrames(),
+      replacesHistory: replacesHistoryEntry,
     );
+  }
+
+  // The app call site behind the most recent transition across the main
+  // router, the shells, and their branches — the highest origin stamp wins.
+  List<KaiselOriginFrame> _originFrames() {
+    StackTrace? best;
+    var bestSeq = 0;
+    void consider(StackTrace? trace, int seq) {
+      if (seq > bestSeq) {
+        bestSeq = seq;
+        best = trace;
+      }
+    }
+
+    consider(router.debugLastTransitionOrigin, router.debugLastTransitionSeq);
+    for (final handle in _nested) {
+      if (handle is BranchedShellRouter) {
+        consider(handle.debugLastSwitchOrigin, handle.debugLastSwitchSeq);
+        for (final branch in handle.branches) {
+          consider(
+            branch.debugLastTransitionOrigin,
+            branch.debugLastTransitionSeq,
+          );
+        }
+      }
+    }
+    return kaiselOriginFrames(best);
   }
 
   List<KaiselProblemSnapshot> _problems(KaiselProblemSnapshot? codecProblem) {
@@ -655,8 +766,11 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     var shellIndex = 0;
     for (final handle in _nested) {
       if (handle is BranchedShellRouter) {
-        for (var b = 0; b < handle.branches.length; b++) {
-          add('shell$shellIndex.branch$b', handle.branches[b].debugLastNoOp);
+        for (var b = 0; b < handle.branchCount; b++) {
+          final branch = handle.builtBranchAt(b);
+          if (branch case final branch?) {
+            add('shell$shellIndex.branch$b', branch.debugLastNoOp);
+          }
         }
         shellIndex++;
       }
@@ -811,22 +925,37 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   }
 
   KaiselShellSnapshot _shellSnapshot(BranchedShellRouter shell) {
-    final branches = shell.branches;
     return KaiselShellSnapshot(
       type: shell.runtimeType.toString(),
       activeBranch: shell.activeBranch,
       branchCount: shell.branchCount,
+      // Walk every branch by real index. builtBranchAt never builds, so
+      // inspecting a lazy shell doesn't materialise its dormant branches.
       branches: <KaiselBranchSnapshot>[
-        for (var i = 0; i < branches.length; i++)
-          KaiselBranchSnapshot(
-            index: i,
-            routeType: _routeTypeOf(branches[i].stack),
-            stack: _routesStack(
-              branches[i].stack,
-              branches[i].debugAbsorbedPositions,
-            ),
-          ),
+        for (var i = 0; i < shell.branchCount; i++)
+          _branchSnapshot(i, shell.builtBranchAt(i)),
       ],
+    );
+  }
+
+  KaiselBranchSnapshot _branchSnapshot(int index, KaiselNavigator? branch) {
+    if (branch == null) {
+      return KaiselBranchSnapshot(
+        index: index,
+        built: false,
+        routeType: '—',
+        stack: const KaiselStackSnapshot(
+          depth: 0,
+          canPop: false,
+          entries: <KaiselEntrySnapshot>[],
+        ),
+      );
+    }
+    return KaiselBranchSnapshot(
+      index: index,
+      built: true,
+      routeType: _routeTypeOf(branch.stack),
+      stack: _routesStack(branch.stack, branch.debugAbsorbedPositions),
     );
   }
 
@@ -895,11 +1024,13 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     if (token case final t?) {
       KaiselInspector.instance.deregister(t);
     }
-    router.removeListener(_safeNotifyListeners);
+    router.removeListener(_onRootChanged);
     for (final handle in _nested) {
-      handle.removeListener(_safeNotifyListeners);
+      final listener = _nestedListeners.remove(handle);
+      if (listener != null) handle.removeListener(listener);
     }
     _nested.clear();
+    _nestedListeners.clear();
     super.dispose();
   }
 }
@@ -932,4 +1063,49 @@ class KaiselNestedHostScope extends InheritedWidget {
   @override
   bool updateShouldNotify(KaiselNestedHostScope old) =>
       !identical(old.host, host);
+}
+
+/// Identity key for a modal flow's page, tagged so [_onDidRemovePage] can tell
+/// a flow page apart from a main-stack entry page. Keyed by the flow's index in
+/// `activeFlows`, which is stable for the flow's lifetime because flows
+/// complete LIFO.
+@immutable
+class _FlowPageKey extends LocalKey {
+  const _FlowPageKey(this.flowIndex);
+
+  final int flowIndex;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _FlowPageKey && other.flowIndex == flowIndex;
+
+  @override
+  int get hashCode => Object.hash(_FlowPageKey, flowIndex);
+}
+
+/// A modal flow rendered as a transparent route on the main navigator. The
+/// route is non-opaque so the main stack shows through; the app's
+/// `modalBuilder` draws the scrim and the route barrier stays out of the way.
+class _FlowPage extends Page<Object?> {
+  const _FlowPage({
+    required _FlowPageKey super.key,
+    required this.child,
+    super.name,
+    super.arguments,
+  });
+
+  final Widget child;
+
+  @override
+  Route<Object?> createRoute(BuildContext context) {
+    return PageRouteBuilder<Object?>(
+      settings: this,
+      opaque: false,
+      barrierDismissible: false,
+      maintainState: true,
+      pageBuilder: (_, _, _) => child,
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+    );
+  }
 }

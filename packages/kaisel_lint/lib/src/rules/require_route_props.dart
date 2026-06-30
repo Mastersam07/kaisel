@@ -60,7 +60,6 @@ class _Visitor extends SimpleAstVisitor<void> {
     // Must NOT already override props.
     if (overridesProps(element)) return;
 
-    // ignore: deprecated_member_use
-    rule.reportAtToken(node.name);
+    rule.reportAtToken(node.namePart.typeName);
   }
 }

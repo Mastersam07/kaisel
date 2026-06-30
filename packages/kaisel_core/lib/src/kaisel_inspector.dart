@@ -38,6 +38,50 @@ class KaiselNavSnapshot {
   };
 }
 
+/// One app call frame behind a navigation, for the "who navigated" view: a
+/// [display] line plus the parsed [uri] / [line] / [column] when the frame
+/// could be located, so a DevTools host can open it in an editor.
+class KaiselOriginFrame {
+  /// Create an origin frame.
+  const KaiselOriginFrame({
+    required this.display,
+    this.uri,
+    this.line,
+    this.column,
+  });
+
+  /// The trimmed frame line, as shown.
+  final String display;
+
+  /// The source URI (`package:…` / `file://…`), or null if unparsed.
+  final String? uri;
+
+  /// 1-based line, or null if unparsed.
+  final int? line;
+
+  /// 1-based column, or null if unparsed.
+  final int? column;
+
+  /// Serialise to the wire format.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'display': display,
+    'uri': ?uri,
+    'line': ?line,
+    'column': ?column,
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is KaiselOriginFrame &&
+      other.display == display &&
+      other.uri == uri &&
+      other.line == line &&
+      other.column == column;
+
+  @override
+  int get hashCode => Object.hash(display, uri, line, column);
+}
+
 /// One root's navigation state: its main stack plus any shells, modules,
 /// active flows, the last guard run, and the encoded URL.
 class KaiselRootSnapshot {
@@ -52,6 +96,8 @@ class KaiselRootSnapshot {
     this.guardTrace,
     this.url,
     this.history = const <String>[],
+    this.origin = const <KaiselOriginFrame>[],
+    this.replacesHistory = false,
   });
 
   /// Stable id distinguishing this root from others (multi-delegate apps).
@@ -82,6 +128,16 @@ class KaiselRootSnapshot {
   /// DevTools time-travel. Empty in release.
   final List<String> history;
 
+  /// App-code call frames behind the most recent transition (closest first),
+  /// for the Transitions log — "who navigated". Empty in release, or when the
+  /// change had no app call site (e.g. a system-back pop).
+  final List<KaiselOriginFrame> origin;
+
+  /// Whether the most recent committed change overwrites the browser history
+  /// entry (`replaceTop` / `set`) rather than adding one (`push` / `pop`). What
+  /// the route-information provider reports to the platform.
+  final bool replacesHistory;
+
   /// Serialise to the wire format.
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
@@ -93,6 +149,8 @@ class KaiselRootSnapshot {
     'guardTrace': guardTrace?.toJson(),
     'url': url,
     'history': history,
+    'origin': <Object?>[for (final frame in origin) frame.toJson()],
+    'replacesHistory': replacesHistory,
   };
 }
 
@@ -220,11 +278,13 @@ class KaiselShellSnapshot {
   };
 }
 
-/// One branch of a shell: its index, route-type hint, and stack.
+/// One branch of a shell: its index, whether it is built, route-type hint, and
+/// stack.
 class KaiselBranchSnapshot {
   /// Create a branch snapshot.
   const KaiselBranchSnapshot({
     required this.index,
+    required this.built,
     required this.routeType,
     required this.stack,
   });
@@ -232,15 +292,20 @@ class KaiselBranchSnapshot {
   /// The branch index.
   final int index;
 
+  /// Whether the branch is materialised. A lazy shell builds a branch only on
+  /// first activation; an unbuilt branch has an empty [stack].
+  final bool built;
+
   /// Best-effort route-type hint for the branch.
   final String routeType;
 
-  /// The branch's stack.
+  /// The branch's stack (empty when not [built]).
   final KaiselStackSnapshot stack;
 
   /// Serialise to the wire format.
   Map<String, Object?> toJson() => <String, Object?>{
     'index': index,
+    'built': built,
     'routeType': routeType,
     'stack': stack.toJson(),
   };

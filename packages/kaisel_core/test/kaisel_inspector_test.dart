@@ -111,6 +111,59 @@ void main() {
       expect(json['flows'], isEmpty);
       expect(json['guardTrace'], isNull);
       expect(json['url'], isNull);
+      expect(json['replacesHistory'], isFalse);
+    });
+
+    test('origin frame serialises and compares by value', () {
+      const located = KaiselOriginFrame(
+        display: 'onTap',
+        uri: 'package:app/x.dart',
+        line: 12,
+        column: 3,
+      );
+      expect(located.toJson(), <String, Object?>{
+        'display': 'onTap',
+        'uri': 'package:app/x.dart',
+        'line': 12,
+        'column': 3,
+      });
+
+      const same = KaiselOriginFrame(
+        display: 'onTap',
+        uri: 'package:app/x.dart',
+        line: 12,
+        column: 3,
+      );
+      const displayOnly = KaiselOriginFrame(display: 'onTap');
+      expect(located, same);
+      expect(located.hashCode, same.hashCode);
+      expect(located == displayOnly, isFalse);
+
+      // A display-only frame omits the null location fields.
+      expect(displayOnly.toJson(), <String, Object?>{'display': 'onTap'});
+    });
+
+    test('root serialises its origin frames', () {
+      const root = KaiselRootSnapshot(
+        id: 'root-0',
+        main: KaiselStackSnapshot(
+          depth: 0,
+          canPop: false,
+          entries: <KaiselEntrySnapshot>[],
+        ),
+        origin: <KaiselOriginFrame>[
+          KaiselOriginFrame(
+            display: 'onTap',
+            uri: 'package:app/x.dart',
+            line: 1,
+          ),
+        ],
+      );
+      expect((root.toJson()['origin'] as List).single, <String, Object?>{
+        'display': 'onTap',
+        'uri': 'package:app/x.dart',
+        'line': 1,
+      });
     });
 
     test('shell uses kind/branched and nests branch stacks', () {
@@ -121,6 +174,7 @@ void main() {
         branches: <KaiselBranchSnapshot>[
           KaiselBranchSnapshot(
             index: 0,
+            built: true,
             routeType: 'HomeRoute',
             stack: KaiselStackSnapshot(
               depth: 1,
@@ -133,7 +187,9 @@ void main() {
       final json = shell.toJson();
       expect(json['kind'], 'branched');
       expect(json['activeBranch'], 1);
-      expect((json['branches']! as List<Object?>), hasLength(1));
+      final branches = json['branches'] as List<Object?>;
+      expect(branches, hasLength(1));
+      expect((branches.first as Map<String, Object?>)['built'], true);
     });
 
     test('nav wraps version + roots', () {
@@ -530,6 +586,68 @@ void main() {
       expect(router.debugHistory, hasLength(1));
       expect(router.debugHistory.last, <_TestRoute>[const _A(), const _B()]);
       router.dispose();
+    });
+  });
+
+  group('kaiselOriginFrames', () {
+    test('keeps app frames and drops kaisel, Flutter, SDK, and async lines', () {
+      final trace = StackTrace.fromString(
+        '#0 KaiselRouter._captureOrigin (package:kaisel_core/src/kaisel_router.dart:1:1)\n'
+        '#1 BranchedShellRouter.switchTo (package:kaisel/src/kaisel_branched_shell.dart:90:7)\n'
+        '#2 MyNotifier.onAuth (package:myapp/notifier.dart:42:10)\n'
+        '<asynchronous suspension>\n'
+        '#3 _rootRun (dart:async/zone.dart:1:1)\n'
+        '#4 Widget.build (package:flutter/src/widgets/framework.dart:1:1)',
+      );
+
+      final frames = kaiselOriginFrames(trace);
+      expect(frames, hasLength(1));
+      expect(
+        frames.single.display,
+        '#2 MyNotifier.onAuth (package:myapp/notifier.dart:42:10)',
+      );
+    });
+
+    test('parses the source location of a VM-format frame', () {
+      final trace = StackTrace.fromString(
+        '#0 onAuth (package:myapp/notifier.dart:42:10)',
+      );
+      final frame = kaiselOriginFrames(trace).single;
+      expect(frame.uri, 'package:myapp/notifier.dart');
+      expect(frame.line, 42);
+      expect(frame.column, 10);
+    });
+
+    test('parses the source location of a web-format frame', () {
+      final trace = StackTrace.fromString(
+        'package:myapp/notifier.dart 42:10  onAuth',
+      );
+      final frame = kaiselOriginFrames(trace).single;
+      expect(frame.uri, 'package:myapp/notifier.dart');
+      expect(frame.line, 42);
+      expect(frame.column, 10);
+    });
+
+    test('keeps an unparseable frame as display-only', () {
+      final trace = StackTrace.fromString('some opaque frame');
+      final frame = kaiselOriginFrames(trace).single;
+      expect(frame.display, 'some opaque frame');
+      expect(frame.uri, isNull);
+      expect(frame.line, isNull);
+    });
+
+    test('returns empty for a null trace', () {
+      expect(kaiselOriginFrames(null), isEmpty);
+    });
+
+    test('honours the frame limit', () {
+      final trace = StackTrace.fromString(
+        '#0 a (package:myapp/a.dart:1:1)\n'
+        '#1 b (package:myapp/b.dart:1:1)\n'
+        '#2 c (package:myapp/c.dart:1:1)',
+      );
+
+      expect(kaiselOriginFrames(trace, limit: 2), hasLength(2));
     });
   });
 }

@@ -192,8 +192,12 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
       (
         'URL',
         Memo(
-          value: root.url,
-          child: _UrlPanel(controller: widget.controller, url: root.url),
+          value: (root.url, root.replacesHistory),
+          child: _UrlPanel(
+            controller: widget.controller,
+            url: root.url,
+            replacesHistory: root.replacesHistory,
+          ),
         ),
       ),
       if (widget.transitions.isNotEmpty)
@@ -201,7 +205,10 @@ class _RootViewState extends State<_RootView> with TickerProviderStateMixin {
           'Log (${widget.transitions.length})',
           Memo(
             value: widget.transitions,
-            child: _TransitionsPanel(transitions: widget.transitions),
+            child: _TransitionsPanel(
+              controller: widget.controller,
+              transitions: widget.transitions,
+            ),
           ),
         ),
       if (root.history.isNotEmpty)
@@ -495,7 +502,11 @@ class _BranchesPanel extends StatelessWidget {
                         const SizedBox(width: 8),
                         if (branch.index == shells[s].activeBranch)
                           const _Tag(text: 'active', tone: _Tone.added)
-                        else
+                        else ...[
+                          if (!branch.built) ...[
+                            const _Tag(text: 'not built', tone: _Tone.neutral),
+                            const SizedBox(width: 8),
+                          ],
                           _WriteButton(
                             controller: controller,
                             icon: Icons.swap_horiz,
@@ -506,10 +517,17 @@ class _BranchesPanel extends StatelessWidget {
                               'branch': branch.index,
                             },
                           ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 4),
-                    _MiniStack(stack: branch.stack),
+                    if (branch.built)
+                      _MiniStack(stack: branch.stack)
+                    else
+                      Text(
+                        'Lazy — builds on first visit.',
+                        style: theme.textTheme.bodySmall,
+                      ),
                   ],
                 ),
               ),
@@ -736,10 +754,15 @@ class _GuardPanel extends StatelessWidget {
 }
 
 class _UrlPanel extends StatefulWidget {
-  const _UrlPanel({required this.controller, required this.url});
+  const _UrlPanel({
+    required this.controller,
+    required this.url,
+    required this.replacesHistory,
+  });
 
   final InspectorController controller;
   final String? url;
+  final bool replacesHistory;
 
   @override
   State<_UrlPanel> createState() => _UrlPanelState();
@@ -815,6 +838,21 @@ class _UrlPanelState extends State<_UrlPanel> {
             url,
             style: theme.textTheme.bodyLarge?.copyWith(fontFamily: 'monospace'),
           ),
+        if (url != null) ...[
+          const SizedBox(height: 10),
+          Text.rich(
+            TextSpan(
+              children: [
+                const TextSpan(text: 'Last nav reported to history: '),
+                TextSpan(
+                  text: widget.replacesHistory ? 'replace' : 'push',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            style: theme.textTheme.bodyMedium,
+          ),
+        ],
         const Divider(height: 28),
         Text(
           'Decode a URL (preview), or Apply it (navigates — write mode)',
@@ -869,27 +907,105 @@ class _UrlPanelState extends State<_UrlPanel> {
 }
 
 class _TransitionsPanel extends StatelessWidget {
-  const _TransitionsPanel({required this.transitions});
+  const _TransitionsPanel({
+    required this.controller,
+    required this.transitions,
+  });
 
+  final InspectorController controller;
   final List<Transition> transitions;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final mono = theme.textTheme.bodyMedium?.copyWith(fontFamily: 'monospace');
+    final origin = mono?.copyWith(fontSize: 11, color: theme.hintColor);
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 6),
       itemCount: transitions.length,
       itemBuilder: (context, i) {
         final t = transitions[i];
         final noOp = t.op == 'no-op';
-        return ListTile(
+        final tag = _Tag(text: t.op, tone: noOp ? _Tone.added : _Tone.neutral);
+        final badge = _Badge(text: t.router);
+        if (t.origin.isEmpty) {
+          return ListTile(
+            dense: true,
+            leading: tag,
+            title: Text(t.label, style: mono),
+            trailing: badge,
+          );
+        }
+        return ExpansionTile(
           dense: true,
-          leading: _Tag(text: t.op, tone: noOp ? _Tone.added : _Tone.neutral),
-          title: Text(t.label, style: mono),
-          trailing: _Badge(text: t.router),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+          leading: tag,
+          title: Row(
+            children: [
+              Expanded(child: Text(t.label, style: mono)),
+              const SizedBox(width: 8),
+              badge,
+            ],
+          ),
+          subtitle: Text(
+            t.origin.first.display,
+            style: origin,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          childrenPadding: const EdgeInsets.fromLTRB(24, 0, 16, 10),
+          children: [
+            for (final frame in t.origin)
+              _OriginRow(controller: controller, frame: frame, style: origin),
+          ],
         );
       },
+    );
+  }
+}
+
+class _OriginRow extends StatelessWidget {
+  const _OriginRow({
+    required this.controller,
+    required this.frame,
+    required this.style,
+  });
+
+  final InspectorController controller;
+  final OriginFrame frame;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!frame.canOpen) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: SelectableText(frame.display, style: style),
+      );
+    }
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: () => controller.openInEditor(frame),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                frame.display,
+                style: style?.copyWith(
+                  color: theme.colorScheme.primary,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+            Tooltip(
+              message: 'Open in editor',
+              child: Icon(Icons.open_in_new, size: 12, color: theme.hintColor),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

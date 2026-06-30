@@ -1,14 +1,79 @@
 # Changelog
 
+## 0.21.0
+
+### Changed
+
+- **`pop` / `popUntil` add a browser-history entry again, reversing the `0.20.0`
+  change ([#27]).** Popping now pushes a new history entry like a normal
+  `Navigator` pop instead of overwriting the entry it returns to, so the browser's forward button behaves as expected. History-aligned back navigation that mirrors the app stack moved to the opt-in `context.back()` / `context.historyGo()` in `kaisel`. `replaceTop` / `set` ([#25]) and nested replaces ([#28]) still report a replace.
+
+## 0.20.0
+
+### Added
+
+- **`KaiselRouter.replacesHistoryEntry`** — whether the most recent committed
+  stack change should overwrite the browser history entry (`replaceTop` / `set`
+  / `pop`) rather than add one (`push`). The Flutter layer's route-information
+  provider reads it to report a replace instead of a new entry. ([#25])
+- **`KaiselNavigator.replacesHistoryEntry`** and
+  **`KaiselNestedHandle.replacesHistoryEntry`** — the same hint on the
+  non-generic router view and on a nested handle, so a shell container can read
+  its active branch's disposition and the host can report a nested replace as a
+  replace. `KaiselNestedHandle` defaults it to `false`. ([#28])
+- **`KaiselRootSnapshot.replacesHistory`** — the inspector snapshot now carries
+  the last committed change's history disposition (`true` when it overwrote the
+  entry rather than added one), so DevTools can show whether a navigation was a
+  push or a replace. Defaults to `false`.
+
+### Changed
+
+- **`pop` / `popUntil` now mark the change as a history replace.** Popping back
+  to a screen overwrites the entry it returns to instead of adding one, so the
+  browser's forward button no longer resurfaces the popped screen. ([#27])
+
+[#25]: https://github.com/Mastersam07/kaisel/issues/25
+[#27]: https://github.com/Mastersam07/kaisel/issues/27
+[#28]: https://github.com/Mastersam07/kaisel/issues/28
+
+## 0.19.0
+
+### Added
+
+- **`KaiselBranchSnapshot.built`** — the inspector snapshot now reports whether a
+  shell branch is materialised, so a lazy shell can show which branches are
+  built and which are still dormant. An unbuilt branch carries an empty stack.
+
+## 0.18.0
+
+### Added
+
+- **`pushForResult<T>` — typed results from a main-stack screen.** Push a route
+  onto the router's own stack and await a typed value:
+  `final r = await router.pushForResult<T>(route)`. The screen returns the value
+  by popping with one (`pop(result)`); the future resolves when the pushed entry
+  leaves the stack — with the popped value, or `null` if it is popped without
+  one, replaced by `set` / `replaceTop`, removed by system back, the router is
+  disposed, or a guard prevents it from landing. Unlike `run<T>`, the screen is a
+  normal route in the same navigator, so a shared observer sees it and a
+  root-navigator dialog renders above it.
+- **`pop` now accepts an optional `Object? result`**, delivered to a matching
+  `pushForResult` awaiter.
+
 ## 0.17.0
 
 ### Added
 
-- **`KaiselRoute.restorationId`** — a stable id (defaults to [routeName] for
-  parameterless routes, `null` for routes with `props`) set as each page's
-  `RestorationId`, so the page's inner widget state survives process death.
-  Override with a param-aware id (e.g. `'product-$id'`) to opt parameterized
-  routes in.
+- **Navigation origin tracking** for DevTools. Each committed navigation now
+  records the app call site that issued it: `KaiselNavigator` exposes
+  `debugLastTransitionOrigin` (the captured `StackTrace`) and a monotonic
+  `debugLastTransitionSeq`, and `KaiselRootSnapshot` carries an `origin` list of
+  the app frames behind the most recent transition. Two helpers back it —
+  `kaiselNextOriginSeq()` and `kaiselOriginFrames()` (trims kaisel, Flutter, and
+  SDK frames to the caller) — exposed via `kaisel_core/framework.dart`. Each
+  frame is a `KaiselOriginFrame` carrying its display line plus a parsed
+  `uri`/`line`/`column` (when locatable), so a DevTools host can open it in an
+  editor. Capture is `assert`-gated, so it costs nothing and is null in release.
 
 ## 0.16.0
 

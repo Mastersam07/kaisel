@@ -45,15 +45,15 @@ Dart 3 has had the type machinery to do better since 2023: sealed classes, exhau
 ## Features
 
 - **Typed route stack** — `List<R>` over your sealed class. Pattern-matched page resolution with compile-time exhaustiveness.
-- **One-line setup, typed navigation** — `KaiselRouterConfig` collapses the router, delegate, and parser into a single `routerConfig:`; navigate with the typed `context.router<R>().push` / `pop` / `replaceTop` / `pushOrReplaceTop` / `set` / `run<T>` (a wrong-family route is a compile error), or the terser `context.push(...)` when you'll take a runtime family check for the brevity.
+- **One-line setup, typed navigation** — `KaiselRouterConfig` collapses the router, delegate, and parser into a single `routerConfig:`; navigate with the typed `context.router<R>().push` / `pop` / `replaceTop` / `pushOrReplaceTop` / `set` / `pushForResult<T>` / `run<T>` (a wrong-family route is a compile error), or the terser `context.push(...)` when you'll take a runtime family check for the brevity.
 - **Value equality for free** — default `props`-based `==`/`hashCode` on `KaiselRoute`. No manual equality, no codegen.
 - **Guard pipeline** — composable `FutureOr<List<R>> Function(current, proposed)` functions. Async-aware and pure-Dart testable.
-- **Shells** — `KaiselShell<R>` (homogeneous branches) and `KaiselBranchedShell` (per-branch typed routes; `.specs` declares branches without wiring routers), with per-tab back stacks, scoped state, and correct back-button handling. One `context.shell()` accessor drives either.
+- **Shells** — `KaiselShell<R>` (homogeneous branches) and `KaiselBranchedShell` (per-branch typed routes; `.specs` declares branches without wiring routers), with per-tab back stacks, scoped state, and correct back-button handling. One `context.shell()` accessor drives either. Opt into `lazy: true` to build tabs on first visit (kept alive after), and `KaiselBranchSpec.deferred` to code-split a tab's screens behind a `deferred as` import — with a placeholder, error builder, and retry.
 - **Composable modules** — package a feature's routes, page builder, guards, and URL codec as a `const`-friendly `RouteModule`. Mount with `KaiselModuleMount<R>`; compose URLs with `ConfigCodecWithModules` without the host knowing the module's internal structure.
 - **URL-addressable** — deep-link into a branch stack (`/home/products/sku-42`) or a module stack (`/checkout/confirm`). Inactive branches keep in-memory state across tab switches.
-- **Modal flows with typed results** — `await router.run<T>(SomeFlow())` returns `Future<T?>`. Flows have their own sub-router and can nest, unwinding LIFO.
+- **Typed results, two ways** — `await context.pushForResult<T>(SomeScreen())` keeps the screen on the **main stack** (a normal route — observed, with root dialogs above it) and resolves when it pops with `context.pop(result)`. `await router.run<T>(SomeFlow())` lifts a multi-screen **modal flow** into its own sub-router; flows can nest, unwinding LIFO.
 - **Adaptive layouts** — at the main delegate, inside shell branches, and inside modules. A detail route can absorb its master into one rendered page (master-detail without changing the stack model).
-- **Direction-aware transitions** — pattern-match on the `(previous, current)` route pair to pick a `Page` subclass per transition. Shared elements via Flutter's `Hero`.
+- **Direction-aware transitions** — pattern-match on the `(previous, current)` route pair to pick a `Page` subclass per transition. Web-friendly fade by default. Shared elements via Flutter's `Hero`.
 - **Navigator observers** — attach `NavigatorObserver`s (analytics, Sentry, `RouteObserver`) with an `observers: () => [...]` builder. It's called once per navigator — the main stack and each shell branch, module, and flow — so every navigator gets its own fresh instance.
 - **`KaiselPageScope` for descendants** — deeply-nested widgets read the page's position in the rendered stack (`isTop`, `isBottom`, `previous`, …) without prop-drilling.
 - **Identity-preserving stack diff** — pushing one route doesn't rebuild the others.
@@ -101,6 +101,8 @@ Add a variant and the switch fails to compile until you handle it. That's the en
 
 `_config.router` is the underlying `KaiselRouter<AppRoute>` for imperative navigation outside the tree; pass `codec:` to make the app URL-addressable ([§6](#6-urls-optional)). For full control you can still construct the `KaiselRouterDelegate` and parser yourself — `KaiselRouterConfig` is the convenience layer over them.
 
+Need a raw `GlobalKey<NavigatorState>` (for a third-party SDK, or `Navigator.of`-style overlays without a `BuildContext`)? Pass `navigatorKey:` to the config, or read the auto-created one via `_config.navigatorKey` / `_config.navigator`. For *navigation* itself, prefer `_config.router` — it's the context-free handle.
+
 ### 3. Guards
 
 Guards are `FutureOr<List<R>> Function(current, proposed)`. They run in order, each receiving the previous's output:
@@ -121,6 +123,8 @@ final router = KaiselRouter<AppRoute>(
 ```
 
 Each guard either allows (return `proposed`), redirects (return something different), or refuses (return `current`). Sync guards complete synchronously; async guards make the navigation async.
+
+To **redirect to login and then continue** to where the user was headed, stash the `proposed` stack before redirecting and replay it with `router.set` after login — the intended destination is plain `List<R>` data, so the *whole* intended stack (Cart under Payment, back and all) is reconstructed, not just the final screen. The same guard handles deep links into protected routes. See [`example/lib/main_auth_redirect.dart`](example/lib/main_auth_redirect.dart).
 
 Guards do **not** run on system back — the pop has already animated by the time we hear about it. State-driven redirects (e.g. force back to login on logout) should be app-state listeners that call `router.set` directly.
 
@@ -204,6 +208,27 @@ KaiselBranchedShell.specs(
 
 Use `KaiselBranchSpec.adaptive(...)` for an adaptive branch. When you need to hold the branch routers yourself, the explicit `KaiselBranchedShell(shell: BranchedShellRouter(...), branches: [KaiselBranch<R>(...)])` form stays. Pass `branchContentBuilder` to swap the default `IndexedStack` for a `PageView` or any other layout (you then own per-branch state preservation).
 
+**Lazy and deferred branches.** Pass `lazy: true` to build each tab's screen only on first visit (kept alive afterwards) instead of all up front — handy for heavy tabs. A branch can go further and load its *code* on demand with `KaiselBranchSpec.deferred`, behind a `deferred as` import:
+
+```dart
+KaiselBranchedShell.specs(
+  lazy: true,
+  branches: [
+    KaiselBranchSpec<HomeRoute>(initial: const HomeRoot(), builder: ...),
+    KaiselBranchSpec<ReportsRoute>.deferred(
+      initial: const ReportsRoot(),
+      loadLibrary: reports.loadLibrary,        // the deferred import's tear-off
+      placeholder: const Center(child: CircularProgressIndicator()),
+      errorBuilder: (context, error, retry) => RetryTile(error, retry),
+      builder: (context, route) => reports.ReportsScreen(),
+    ),
+  ],
+  chromeBuilder: (context, active, branchContent, switchBranch) => /* ... */,
+)
+```
+
+The route values stay in the main bundle, so back, URL capture, and deep links keep working while the screen code loads — the placeholder shows until it arrives, and a failed load renders `errorBuilder` (scoped to that tab) with a `retry` that re-runs the load. For a custom lazy layout, pass `lazyBranchContentBuilder` (the lazy counterpart to `branchContentBuilder`, with a `buildBranch(context, index)` callback). See [`example/lib/main_lazy_shell.dart`](example/lib/main_lazy_shell.dart).
+
 Inside a Home branch screen:
 
 ```dart
@@ -220,9 +245,22 @@ context.push(const ProductDetail('42'));
 
 > **Inside the `chromeBuilder`, `context.router<BranchRoute>()` does not resolve** — each branch's `RouterScope` is installed *below* the chrome, and lookups only walk up. Use the `activeBranch`/`switchBranch` arguments or `context.shell()` to drive the shell, and `context.router<AppRoute>()` for the root router. The typed branch router is only reachable from that branch's own screens.
 
-### 5. Modal flows with typed results
+### 5. Typed results from a screen
 
-A modal flow is a route variant that *also* implements `KaiselModalRoute<T>` to declare its result type:
+Two ways to get a value back, depending on whether the screen should live on the main stack or in its own modal flow.
+
+**`pushForResult<T>` — a normal screen on the main stack.** The screen is an ordinary route in the same `Navigator`, so a shared observer sees it, a root-navigator dialog renders above it, and back behaves normally. It resolves when the screen pops with a value:
+
+```dart
+final String? picked = await context.pushForResult<String>(const ColorPicker());
+// inside ColorPicker:
+context.pop('teal');               // resolves the awaiter with 'teal'
+context.pop();                     // or null when dismissed without a value
+```
+
+The future resolves with `null` if the screen is popped without a value, replaced by `set` / `replaceTop`, or removed by system back. Reach for this when a screen just needs to hand back a value — no modal-flow machinery required.
+
+**Modal flows — a multi-step sub-flow with its own router.** A modal flow is a route variant that *also* implements `KaiselModalRoute<T>` to declare its result type:
 
 ```dart
 final class ConfirmAddToCart extends AppRoute
@@ -367,6 +405,23 @@ routeInformationParser: KaiselRouteInformationParser<AppRoute>(
 ```
 
 `/home/products/sku-42` deep-links into the Home branch with `ProductDetail('sku-42')` on top of `HomeRoot()`. Switching tabs preserves each branch's stack (inactive branches stay off the URL but in memory). A `StackToConfigCodec` adapter wraps a stack-only codec unchanged if you later add shell URLs.
+
+#### Browser history: `pop` vs `back()`
+
+On the web, each verb maps to a browser-history operation. `push` adds an entry; `replaceTop` / `set` (and the replace half of `pushOrReplaceTop`) **replace** the current entry — matching go_router's `go`. **`pop` adds an entry too**, like a plain `Navigator.pop` and every other Flutter router: it reports the screen it returns to as a new location. That's the standard, least-surprising default — but it means the browser's Back button doesn't track multi-level pops (the popped screen sits one click forward).
+
+When you want the browser Back/Forward buttons to **mirror the app stack across several pops** — typically a custom in-app back button on a web app — reach for **`context.back()`** instead of `context.pop()`:
+
+```dart
+// pops the stack and adds a history entry (browser Back won't track it)
+onTap: () => context.pop(),
+
+// moves the browser history pointer (a true Back), so browser Back/Forward
+// stay in sync with the app stack across multi-level back navigation
+onTap: () => context.back(),
+```
+
+`context.back()` (and `context.historyGo(int delta)` for multiple steps) does a real `history.go` on the web and lets the inbound URL restore the stack through your codec. It falls back to `pop` off the web, without a codec, or on a cold deep link (no app history behind the current entry), so it's safe to call everywhere. Unlike `pop`, it doesn't deliver a `pushForResult` value — the stack is restored from the URL — so keep `pop` when a screen must return a result.
 
 ### 7. Modules
 
@@ -538,6 +593,8 @@ Two things about page identity under absorption:
 
 ### 9. Transitions (route-pair-aware)
 
+On the web the default page **fades** — `MaterialPage`'s OS-derived slide feels out of place in a browser; off the web you get the native transition. Change the default with `webTransition:` on `KaiselRouterConfig` / `KaiselRouterDelegate` (`KaiselWebTransition.fade` default, `.none`, or `.platform` to keep the OS transition). A custom `pageWrapper` overrides it entirely.
+
 Customise transitions by passing a `pageWrapper`. The wrapper receives a `KaiselPageWrapperContext<R>` with the route, child, key, and stack context (`position`, `stackLength`, `previous`, `isTop`, `isBottom`). Pattern-match on the route pair to pick a `Page` subclass:
 
 ```dart
@@ -616,50 +673,6 @@ final class ProductDetail extends AppRoute {
 
 > **Obfuscation caveat.** The default `routeName` is `runtimeType.toString()`, which is **minified** in release builds compiled with `--obfuscate` (`ProductDetail` → `a`). For stable analytics names in obfuscated builds, override `routeName` with a string literal as above — string literals aren't obfuscated.
 
-### 12. State restoration
-
-Survive an OS process-kill (iOS background-kill, Android low-memory) and relaunch where the user left off. Turn it on with `restorationScopeId` on your `MaterialApp`:
-
-```dart
-MaterialApp.router(routerConfig: _config, restorationScopeId: 'app');
-```
-
-**Stack restoration — URL/codec apps.** If you pass a `codec`, the main stack (plus shell/module state your codec encodes) restores through Flutter's `Router` for free — the app `restorationScopeId` above is all you need. The codec is just a serializer: on mobile its `Uri` is internal, never shown.
-
-**Within-page state** (scroll offset, text fields via `RestorationMixin`). Give the navigators a restoration scope and the pages an id:
-
-```dart
-KaiselRouterConfig<AppRoute>(
-  restorationScopeId: 'main',   // scopes the main navigator
-  builder: ...,                 // shell branches + modules get their own scope automatically
-);
-```
-
-The page id comes from `KaiselRoute.restorationId`, which defaults to `routeName` for parameterless routes and `null` for parameterized ones (they'd share a bucket). Opt a parameterized route in with a param-aware id:
-
-```dart
-final class ProductDetail extends AppRoute {
-  const ProductDetail(this.id);
-  final String id;
-  @override
-  String get restorationId => 'product-$id';
-}
-```
-
-**No codec? Restore the stack anyway.** Apps without URLs can restore the **main** stack with a small rebuild function — no codec needed. kaisel saves each route's `routeName` + `props`; you map them back:
-
-```dart
-KaiselRouterConfig<AppRoute>(
-  restoreRoute: (name, props) => switch (name) {
-    'ProductDetail' => ProductDetail(props[0] as String),
-    _               => const Home(),
-  },
-  builder: ...,
-);
-```
-
-It's deserialize-only (kaisel auto-serializes), and `props` must be JSON-encodable. Under `--obfuscate`, override `routeName` so the saved name matches your switch (a debug warning fires if it doesn't). Nested shell/module state still needs a codec.
-
 ## Why no equality codegen
 
 Routing libraries that bake in `freezed` force codegen on every consumer. `kaisel` provides default `props`-based equality on `KaiselRoute` itself, so the common case is a one-line override. Prefer `freezed sealed`? That still works. Prefer `Equatable`? Declare your routes with `extends KaiselRoute with EquatableMixin`. The library doesn't impose a choice — your override always wins.
@@ -680,7 +693,7 @@ Lints are always opt-in in Dart (a dependency can't enable them for you), so add
 ```yaml
 # pubspec.yaml
 dev_dependencies:
-  kaisel_lint: ^0.3.0
+  kaisel_lint: ^0.5.0
 ```
 
 ```yaml
@@ -694,7 +707,7 @@ That activates the plugin with its correctness baseline on — `require_route_pr
 # analysis_options.yaml
 plugins:
   kaisel_lint:
-    version: ^0.3.0
+    version: ^0.5.0
     diagnostics:
       require_route_props: true
       avoid_modal_route_on_main_stack: true
@@ -713,7 +726,11 @@ npx skills add Mastersam07/kaisel
 
 ## Status
 
-**v0.17, pre-1.0.** The core surface is in place: routes, guards, shells (homogeneous and per-branch typed), modal flows with typed results and nesting, URL-addressable shell and module state, composable modules with URL composition, adaptive layouts at every level, route-pair-aware transitions, `KaiselPageScope`, navigator observers, a DevTools extension, and state restoration. The public API is shaped for stability but not yet frozen — expect occasional breaking changes before 1.0, each with a migration note in the [changelog](CHANGELOG.md).
+**v0.20, pre-1.0.** The core surface is in place: routes, guards, shells (homogeneous and per-branch typed), typed main-stack results (`pushForResult<T>`), modal flows (rendered as routes on the main navigator, so dialogs and observers compose with them), URL-addressable shell and module state, composable modules with URL composition, adaptive layouts at every level, route-pair-aware transitions, and `KaiselPageScope`. The public API is shaped for stability but not yet frozen — expect occasional breaking changes before 1.0, each with a migration note in the [changelog](CHANGELOG.md).
+
+## Roadmap
+
+The DevTools extension shipped in 0.15–0.16 (see the [changelog](CHANGELOG.md)). The main open track is **state restoration** via `RestorationManager`: URL-addressable apps already restore through the codec, and `RestorationBucket` stack persistence for non-URL apps is the remaining gap.
 
 ## Example
 

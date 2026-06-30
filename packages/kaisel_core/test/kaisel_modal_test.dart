@@ -26,6 +26,12 @@ final class _BoolFlow extends _R implements KaiselModalRoute<bool> {
   const _BoolFlow();
 }
 
+// Extends KaiselModalRoute directly (the flows above implement it), exercising
+// its const constructor.
+final class _ExtModal extends KaiselModalRoute<void> {
+  _ExtModal();
+}
+
 void main() {
   group('KaiselRouter.run / completeFlow', () {
     test('starts with no active flow', () {
@@ -297,6 +303,10 @@ void main() {
       expect(await a, 'a-result');
       expect(r.hasActiveFlow, isFalse);
     });
+  });
+
+  test('KaiselModalRoute can be extended directly', () {
+    expect(_ExtModal(), isA<KaiselModalRoute<void>>());
   });
 }
 

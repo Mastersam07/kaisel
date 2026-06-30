@@ -26,15 +26,6 @@ final class _Named extends _R {
   String get routeName => 'custom-name';
 }
 
-final class _Restorable extends _R {
-  const _Restorable(this.id);
-  final String id;
-  @override
-  List<Object?> get props => [id];
-  @override
-  String get restorationId => 'restorable-$id';
-}
-
 void main() {
   group('KaiselRouter', () {
     test('starts with the initial route on top', () {
@@ -58,6 +49,57 @@ void main() {
       expect(r.depth, 3);
       expect(r.canPop, isTrue);
       expect(notifications, 2);
+    });
+
+    test(
+      'replacesHistoryEntry is true after replaceTop/set, false after push',
+      () async {
+        final r = KaiselRouter<_R>(initial: const _A());
+
+        await r.push(const _B('x'));
+        expect(r.replacesHistoryEntry, isFalse);
+
+        await r.replaceTop(const _C());
+        expect(r.replacesHistoryEntry, isTrue);
+
+        await r.set(const [_A()]);
+        expect(r.replacesHistoryEntry, isTrue);
+
+        await r.push(const _B('y'));
+        expect(r.replacesHistoryEntry, isFalse);
+      },
+    );
+
+    test('pushOrReplaceTop sets replacesHistoryEntry per branch', () async {
+      final r = KaiselRouter<_R>(initial: const _A());
+
+      // Top is _A, different type → pushes.
+      await r.pushOrReplaceTop(const _B('x'));
+      expect(r.replacesHistoryEntry, isFalse);
+
+      // Top is _B, same type → replaces.
+      await r.pushOrReplaceTop(const _B('y'));
+      expect(r.replacesHistoryEntry, isTrue);
+    });
+
+    test('pop and popUntil add a history entry, not replace', () async {
+      final r = KaiselRouter<_R>(initial: const _A());
+
+      await r.push(const _B('x'));
+      await r.replaceTop(const _C());
+      expect(r.replacesHistoryEntry, isTrue);
+
+      // pop reports a push (the ecosystem default); use the Flutter layer's
+      // history-aligned `back` for a true browser back.
+      await r.pop();
+      expect(r.replacesHistoryEntry, isFalse);
+
+      await r.push(const _B('y'));
+      await r.replaceTop(const _C());
+      expect(r.replacesHistoryEntry, isTrue);
+
+      await r.popUntil((route) => route is _A);
+      expect(r.replacesHistoryEntry, isFalse);
     });
 
     test('pop removes the top and notifies; returns false on root', () async {
@@ -329,18 +371,51 @@ void main() {
     test('routeName can be overridden', () {
       expect(const _Named().routeName, 'custom-name');
     });
+  });
 
-    test('restorationId defaults to routeName for parameterless routes', () {
-      expect(const _A().restorationId, '_A');
-      expect(const _Named().restorationId, 'custom-name');
+  group('transition origin', () {
+    test('a committed push records the caller as the origin', () async {
+      final r = KaiselRouter<_R>(initial: const _A());
+      expect(r.debugLastTransitionOrigin, isNull);
+
+      await r.push(const _C());
+
+      final origin = r.debugLastTransitionOrigin;
+      expect(origin, isNotNull);
+      expect('$origin', contains('kaisel_router_test.dart'));
     });
 
-    test('restorationId is null for routes with props', () {
-      expect(const _B('x').restorationId, isNull);
+    test('the origin stamp advances on each committed change', () async {
+      final r = KaiselRouter<_R>(initial: const _A());
+
+      await r.push(const _C());
+      final first = r.debugLastTransitionSeq;
+      expect(first, greaterThan(0));
+
+      await r.pop();
+      expect(r.debugLastTransitionSeq, greaterThan(first));
     });
 
-    test('restorationId can be overridden for a parameterized route', () {
-      expect(const _Restorable('x').restorationId, 'restorable-x');
+    test('a no-op navigation leaves the origin and stamp unchanged', () async {
+      final r = KaiselRouter<_R>(initial: const _A());
+      await r.push(const _B('x'));
+      final seq = r.debugLastTransitionSeq;
+      final origin = r.debugLastTransitionOrigin;
+
+      await r.replaceTop(const _B('x'));
+
+      expect(r.debugLastTransitionSeq, seq);
+      expect(r.debugLastTransitionOrigin, same(origin));
+    });
+
+    test('the stamp is shared, ordering routers by recency', () async {
+      final a = KaiselRouter<_R>(initial: const _A());
+      final b = KaiselRouter<_R>(initial: const _A());
+
+      await a.push(const _C());
+      await b.push(const _C());
+
+      expect(b.debugLastTransitionSeq, greaterThan(a.debugLastTransitionSeq));
     });
   });
 }

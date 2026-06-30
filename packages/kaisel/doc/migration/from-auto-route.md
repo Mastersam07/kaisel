@@ -35,9 +35,10 @@ part is testing that nothing regressed.
 | `@AutoRouterConfig` with `AutoRoute(...)`s  | A single `switch` expression in a page builder    |
 | `final _appRouter = AppRouter()` + `routerConfig:` | `final _config = KaiselRouterConfig<AppRoute>(...)` + `routerConfig:` |
 | `AutoRouteGuard.onNavigation()`             | Guard function `(current, proposed) → stack` in the pipeline |
-| `AutoTabsScaffold`                          | `KaiselBranchedShell.specs` with N branches       |
+| `AutoTabsScaffold`                          | `KaiselBranchedShell.specs` with N branches (`lazy: true` for lazy-loaded tabs; `KaiselBranchSpec.deferred` to code-split one) |
 | Parent route with `children: [...]`         | Stack entries; sub-routers if you need isolation  |
 | `context.router.push(HomeRoute())`          | `context.push(const Home())`                      |
+| `await context.router.push<T>(EditRoute())` (returns a value) | `await context.pushForResult<T>(const Edit())` — resolved with `context.pop(value)` |
 | `context.router.pop()`                      | `context.pop()`                                   |
 | `context.router.replaceAll([HomeRoute()])`  | `context.set([const Home()])`                     |
 | `defaultRouteParser()`                      | A `KaiselConfigCodec<AppRoute>` you write         |
@@ -59,7 +60,7 @@ In `pubspec.yaml`, swap auto_route for kaisel:
    flutter:
      sdk: flutter
 -  auto_route: ^9.0.0
-+  kaisel: ^0.13.0
++  kaisel: ^0.21.0
 
  dev_dependencies:
 -  auto_route_generator: ^9.0.0
@@ -284,6 +285,13 @@ every gated screen. Second, the guard returns a stack, not a
 can't, like injecting a step into a stack rather than replacing it
 wholesale.
 
+auto_route's `LoginRoute(onResult: ...)` — push a screen and await its result —
+maps to `await context.pushForResult<bool>(const Login())`, with the login screen
+calling `context.pop(true)`. And to **redirect to login and then continue** to the
+route the user was headed for, stash the `proposed` stack in the guard and replay
+it with `context.set(...)` after login — the intended destination is plain
+`List<AppRoute>` data (see `example/lib/main_auth_redirect.dart`).
+
 For multiple cross-cutting concerns (auth + feature flags + entitlement
 checks), compose them as a list of guards rather than nesting:
 
@@ -431,29 +439,23 @@ class AppCodec extends KaiselConfigCodec<AppRoute> {
 The codec is the only place strings live. Every other layer reasons
 about typed routes.
 
+## Already at parity — or better
+
+**DevTools.** kaisel ships its own zero-integration DevTools extension — a live
+inspector of the stack, shells, modules, flows, guard trace, and a transitions
+log showing the call site behind each navigation. Open DevTools in any debug run.
+
+**Route observation.** auto_route's `AutoRouteAware` mixin makes route observation
+declarative; kaisel uses standard Flutter `NavigatorObserver`s via the `observers:`
+builder — a `RouteObserver` / `RouteAware` works on the main stack, and since 0.20
+even sees a modal flow open and close.
+
 ## What kaisel doesn't yet do at parity
 
-Be honest with yourself about whether these matter for your app
-before migrating.
-
-**State restoration.** auto_route supports the Flutter
-`RestorationManager` integration that lets stacks survive Android's
-"kill background process" behavior. kaisel doesn't, yet — it's on the
-roadmap. If your app relies on this for production correctness, wait
-for that release.
-
-**DevTools extension.** auto_route has community route observers
-that integrate with DevTools. kaisel's devtools extension is on the
-roadmap. Until then, debugging is `print` statements or your own
-observer.
-
-**Route observers via mixin.** auto_route's `AutoRouteAware` mixin
-makes route observation declarative. kaisel doesn't have a built-in
-equivalent; you'd attach a listener to the router and pattern-match
-on stack changes.
-
-If any of these is on your daily-pain list, the migration isn't quite
-ready for you yet. Wait a release.
+**State restoration.** auto_route supports the Flutter `RestorationManager`
+integration that lets stacks survive Android's "kill background process" behavior.
+kaisel doesn't, yet — it's on the roadmap. If your app relies on this for
+production correctness, wait for that release.
 
 ## A worked example diff
 

@@ -1,28 +1,181 @@
 # Changelog
 
+## 0.21.0
+
+### Added
+
+- **`context.back()` / `context.historyGo(int delta)`** — history-aligned back
+  navigation so the browser's own Back/Forward buttons keep mirroring the app
+  stack, even across several pops in a row. On the web it moves the browser
+  history *pointer* (a true Back) and lets the inbound URL restore the stack
+  through your codec — so the screen you leave becomes a *forward* entry instead
+  of a lingering duplicate. Unlike `pop` (which adds a history entry, the
+  ecosystem default), `back` makes multi-level back navigation track the app
+  stack. It reads the engine's `serialCount` to avoid stepping out of the app on
+  a cold deep link, and **falls back to `pop`** off the web, without a codec, or
+  when there's no app history behind the current entry. Reach for it where you
+  want browser history to track multi-level back navigation; `pop` stays the
+  choice when a screen must return a `pushForResult` value. Adds a web-only
+  `package:web` dependency (via conditional import — `kaisel_core` and non-web
+  builds never reference it).
+- **Web-aware default page transition.** On the web the default page now uses a
+  quick fade instead of `MaterialPage`'s OS-derived slide, which feels out of
+  place in a browser; native transitions are unchanged off the web. Override with
+  `webTransition:` on `KaiselRouterConfig` / `KaiselRouterDelegate`
+  (`KaiselWebTransition.fade` default, `.none`, or `.platform` to keep the OS
+  transition). A custom `pageWrapper` is unaffected.
+- **Lazy shell branches** — `KaiselBranchedShell.specs(lazy: true)` builds each
+  branch on first activation instead of all up front, and keeps built branches
+  alive so per-tab state still survives switches. Backed by a new
+  `BranchedShellRouter.lazy` controller that materialises a branch (its router)
+  on demand through `current` / `switchTo` / `restoreFromConfig`. The eager
+  `IndexedStack` stays the default.
+- **Deferred (code-split) branches** — `KaiselBranchSpec.deferred` loads a
+  branch's code on first activation, behind a `deferred as` import. It shows a
+  `placeholder` while `loadLibrary` runs, swaps in the screens once it resolves,
+  and renders `errorBuilder` on failure — the `errorBuilder` is passed a `retry`
+  callback, since a kept-alive branch can't recover on its own. Route values and
+  `initial` stay non-deferred, so back handling, URL capture, and deep links
+  keep working while the code loads. Requires `lazy: true`.
+- **Custom lazy container** — `lazyBranchContentBuilder`
+  (`KaiselLazyBranchContentBuilder`) is the lazy counterpart to
+  `branchContentBuilder`: instead of a pre-built widget list it hands you a
+  `buildBranch(context, index)` callback that materialises a branch on demand,
+  so a custom container (e.g. a lazy `PageView`) can build and keep alive what
+  it chooses.
+- **DevTools shows lazy branch build-state** — the inspector snapshot reports
+  every branch by index with a `built` flag (read without materialising dormant
+  branches), so you can watch lazy tabs build as they're first visited, and the
+  branch/no-op panels stay index-accurate for a lazy shell.
+
+### Changed
+
+- **Replace-style navigation overwrites the browser history entry instead of
+  adding one.** On the web, `replaceTop` / `set` (and the replace half of
+  `pushOrReplaceTop`) now report a *replace*, so they overwrite the current
+  history entry rather than pushing a new one — matching go_router's `go` /
+  `replace`. `push` still adds an entry; inbound restore (browser back/forward,
+  deep links) is unchanged. Works for both `context.*` verbs and bare `router.*`
+  calls. ([#25]) `pop` deliberately stays a *push* (the ecosystem default) — see
+  `context.back()` above for history-aligned back navigation ([#27]).
+- **Replaces inside a shell branch or module are reported as replaces**
+  ([#28]). The route-information provider reads the delegate's disposition, which
+  tracks whichever router — the main router or the active nested handle —
+  committed last. A `replaceTop` inside a branch overwrites the entry; switching
+  branches still adds one.
+
+### Dependencies
+
+- Requires `kaisel_core: ^0.21.0` (for the `replacesHistoryEntry` hints and the
+  pop-is-a-push disposition).
+- Adds `web: ^1.1.0` — web-only, behind a conditional import.
+
+[#25]: https://github.com/Mastersam07/kaisel/issues/25
+[#27]: https://github.com/Mastersam07/kaisel/issues/27
+[#28]: https://github.com/Mastersam07/kaisel/issues/28
+
+## 0.20.0
+
+### Changed
+
+- **Modal flows now render as routes on the main navigator**, replacing the
+  experimental root overlay host from 0.19.0. A `run<T>` flow is a transparent
+  page on the same navigator as the main stack, so dialogs and bottom sheets
+  follow Flutter's normal single-overlay rules:
+  - `showDialog` / `showModalBottomSheet` render **above an active flow for both
+    `useRootNavigator` values** (0.19.0's overlay only handled the default
+    `true`), including a dialog shown from the `navigatorKey` context.
+  - The main navigator's `observers` now see a flow's open/close (`didPush` /
+    `didPop` on the flow's route), so a `RouteObserver` / `RouteAware` on the
+    main stack observes the flow boundary. Internal flow screens remain on the
+    flow's own inner navigator.
+  - System back unwinds dialog → flow inner screens → flow → main, in order.
+
+  `run<T>` / `KaiselModalRoute<T>` / `completeFlow` / `dismissFlow` /
+  `modalBuilder` are unchanged at the call site. Observable behavior does shift:
+  a flow now animates in/out, traps focus, emits modal semantics, allows
+  cross-boundary `Hero`s, and responds to a raw `Navigator.pop` (which dismisses
+  it with `null`). A flow page carries the flow route's `name` / `arguments` so
+  it is identifiable to observers.
+
+### Added
+
+- **`KaiselPageWrapperContext.isFlow`** — a `pageWrapper` can give a flow its own
+  entrance transition by branching on `isFlow` and returning a page (typically
+  non-opaque, so the main stack shows behind the scrim); the framework otherwise
+  uses an instant, transparent flow page. A custom flow page should forward
+  `name` / `arguments` from `ctx.route` to stay observable.
+
+## 0.19.0
+
+### Added
+
+- **`context.pushForResult<T>(route)` and `context.pop([result])`** — typed
+  results from a screen on the main stack, the Flutter-layer surface over
+  `KaiselRouter.pushForResult`. The screen stays a normal route in the same
+  navigator, so root-navigator dialogs, a shared observer, and ordinary
+  navigation all behave as usual. Reach for it instead of `run<T>` when a screen
+  needs to return a value without being lifted into a modal flow's separate
+  navigator.
+
+- **Root overlay host for dialogs over modal flows.** _[Experimental.]_ The
+  delegate wraps the app in a root `Navigator` above the main stack and all flow
+  layers, so `showDialog` / `showModalBottomSheet` (whose `useRootNavigator`
+  defaults to `true`) render above an active `run<T>` flow instead of behind it —
+  including a dialog shown from the `navigatorKey` context the app attaches to its
+  config. System back dismisses a hosted dialog before unwinding the flow. The
+  presentation model is still evolving; don't depend on the exact navigator
+  structure yet.
+
+### Changed
+
+- Requires `kaisel_core: ^0.18.0` (for `pushForResult` / `pop(result)`).
+
+## 0.18.0
+
+### Added
+
+- **"Who navigated" in DevTools** — every entry in the Transitions log now
+  carries the app call site that triggered it. In debug, each `push` / `pop` /
+  `set` / `replaceTop` and each shell `switchTo` records the caller's stack;
+  `debugSnapshot()` reports the app frames (kaisel, Flutter, and SDK frames
+  trimmed away) on `KaiselRootSnapshot.origin`, and the extension shows the
+  closest frame inline, expandable to the full trace. Turns "which tab am I on
+  and why" into one glance. Debug-only; compiled out of release.
+
+### Fixed
+
+- **`initial:` is now honored on a normal launch**, even with a `codec`. The
+  platform's default route (`/`) was always decoded and applied at startup, so a
+  router whose `initial` mapped elsewhere (e.g. a splash) would render that
+  screen and then flash straight to the decoded `/` route before its own onward
+  navigation could run. A bare launch (no path segments) now keeps `initial:`; a
+  real cold-start deep link still wins. No change for apps whose `initial`
+  already maps to `/`.
+
+- **A deep link to a shell branch the current build doesn't mount no longer
+  throws.** `BranchedShellRouter.restoreFromConfig` treated an out-of-range
+  branch index as a fatal `RangeError`, so a codec that addresses a branch
+  present only on some form factors (e.g. a desktop-only tab opened on a build
+  with fewer branches) would abort the restore and silently strand the user on
+  the default branch. The restore now skips an unknown branch — with a debug
+  warning explaining why — and applies the rest of the configuration.
+  Programmatic `shell.switchTo(badIndex)` still throws, since that index comes
+  from app code rather than an external URL.
+
+### Changed
+
+- Requires `kaisel_core: ^0.17.0` (for the navigation-origin APIs).
+
 ## 0.17.0
 
 ### Added
 
-- **State restoration** — survive an OS process-kill (iOS background-kill,
-  Android low-memory) and relaunch where the user left off. Opt in with
-  `restorationScopeId` on your `MaterialApp`.
-  - **Stack restoration (URL/codec apps)** rides Flutter's `Router` restoration
-    — no kaisel code needed beyond the app `restorationScopeId`.
-  - **`restorationScopeId`** on `KaiselRouterConfig` / `KaiselRouterDelegate`
-    gives the main stack a restoration scope; shell branches and modules each get
-    their own automatically, so a page's inner widget state (scroll offset, text
-    fields via `RestorationMixin`) survives the restart.
-  - **`KaiselRoute.restorationId`** (from `kaisel_core`) feeds each page's id —
-    defaults to the route's `routeName` for parameterless routes.
-  - **`restoreRoute` — codec-less stack restoration.** Apps with no URL codec can
-    restore the **main** stack with a small `(name, props) => route` rebuild
-    function; kaisel saves `routeName` + `props` to a restoration bucket and
-    replays it. (Nested shell/module state still needs a codec.)
-
-### Changed
-
-- Requires `kaisel_core: ^0.17.0` (for `KaiselRoute.restorationId`).
+- **`navigatorKey`** on `KaiselRouterConfig` / `KaiselRouterDelegate` — pass a
+  `GlobalKey<NavigatorState>` for the main navigator (e.g. to hand to a
+  third-party SDK), or read the auto-created one via `config.navigatorKey` /
+  `config.navigator` for raw `NavigatorState` access. For context-free
+  *navigation*, the typed `router` stays the idiomatic handle.
 
 ## 0.16.0
 

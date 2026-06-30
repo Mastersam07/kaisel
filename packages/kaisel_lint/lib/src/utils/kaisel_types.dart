@@ -93,8 +93,7 @@ Iterable<FieldElement> declaredInstanceFields(InterfaceElement element) =>
     element.fields.where(
       (f) =>
           !f.isStatic &&
-          // ignore: deprecated_member_use
-          !f.isSynthetic &&
+          f.isOriginDeclaration &&
           (!f.isPrivate || _hasMatchingGetter(element, f)),
     );
 

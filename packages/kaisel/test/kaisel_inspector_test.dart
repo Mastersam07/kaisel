@@ -93,6 +93,9 @@ class _FakeModuleHandle implements KaiselNestedHandle {
   Future<void> restoreFromConfig(KaiselNestedConfig config) async {}
 
   @override
+  bool get replacesHistoryEntry => false;
+
+  @override
   void addListener(void Function() listener) {}
 
   @override
@@ -130,6 +133,25 @@ void main() {
     router.dispose();
   });
 
+  test('debugSnapshot.replacesHistory tracks the last disposition', () async {
+    final router = KaiselRouter<_R>(initial: const _Home());
+    final delegate = _delegate(router);
+
+    expect(delegate.debugSnapshot().replacesHistory, isFalse);
+
+    await router.push(const _Detail('a'));
+    expect(delegate.debugSnapshot().replacesHistory, isFalse);
+
+    await router.replaceTop(const _Detail('b'));
+    expect(delegate.debugSnapshot().replacesHistory, isTrue);
+
+    await router.pop();
+    expect(delegate.debugSnapshot().replacesHistory, isFalse);
+
+    delegate.dispose();
+    router.dispose();
+  });
+
   test('debugSnapshot includes a registered branched shell', () {
     final router = KaiselRouter<_R>(initial: const _Home());
     final delegate = _delegate(router);
@@ -147,6 +169,7 @@ void main() {
     final shellSnap = snap.branches.single;
     expect(shellSnap.branchCount, 2);
     expect(shellSnap.activeBranch, 1);
+    expect(shellSnap.branches.every((b) => b.built), isTrue);
     expect(shellSnap.branches[1].stack.entries.single.label, '_Detail(x)');
 
     delegate.dispose();
@@ -155,6 +178,95 @@ void main() {
     homeBranch.dispose();
     detailBranch.dispose();
   });
+
+  test('debugSnapshot marks lazy branches built/not-built, without building '
+      'them', () {
+    final router = KaiselRouter<_R>(initial: const _Home());
+    final delegate = _delegate(router);
+
+    final built = <int>[];
+    final shell = BranchedShellRouter.lazy(
+      branchFactories: <KaiselNavigator Function()>[
+        for (var i = 0; i < 3; i++)
+          () {
+            built.add(i);
+            return KaiselRouter<_R>(initial: _Detail('b$i'));
+          },
+      ],
+      initialBranch: 0,
+    );
+    delegate.registerNested(shell);
+    shell.switchTo(2); // builds branch 2 (0 was the initial); 1 stays dormant
+
+    final shellSnap = delegate.debugSnapshot().branches.single;
+    expect(shellSnap.branchCount, 3);
+    expect(shellSnap.branches.map((b) => b.built).toList(), <bool>[
+      true,
+      false,
+      true,
+    ]);
+    expect(shellSnap.branches[1].stack.entries, isEmpty);
+    expect(shellSnap.branches[2].index, 2);
+    expect(shellSnap.branches[2].stack.entries.single.label, '_Detail(b2)');
+    // Building the snapshot did not materialise the dormant branch.
+    expect(built, <int>[0, 2]);
+
+    delegate.dispose();
+    shell.dispose();
+    router.dispose();
+  });
+
+  test(
+    'debugSnapshot.origin plumbs the main router transition origin',
+    () async {
+      final router = KaiselRouter<_R>(initial: const _Home());
+      final delegate = _delegate(router);
+
+      expect(delegate.debugSnapshot().origin, isEmpty);
+
+      await router.push(const _Detail('a'));
+
+      expect(router.debugLastTransitionOrigin, isNotNull);
+      expect(
+        delegate.debugSnapshot().origin,
+        kaiselOriginFrames(router.debugLastTransitionOrigin),
+      );
+
+      delegate.dispose();
+      router.dispose();
+    },
+  );
+
+  test(
+    'debugSnapshot.origin follows a shell switchTo over the main router',
+    () {
+      final router = KaiselRouter<_R>(initial: const _Home());
+      final delegate = _delegate(router);
+      final a = KaiselRouter<_R>(initial: const _Home());
+      final b = KaiselRouter<_R>(initial: const _Detail('x'));
+      final shell = BranchedShellRouter(
+        branches: <KaiselNavigator>[a, b],
+        initialBranch: 0,
+      );
+      delegate.registerNested(shell);
+
+      shell.switchTo(1);
+
+      // The switch is the most recent transition, so the snapshot's origin is
+      // the shell's switch origin, not a stale main-router one.
+      expect(shell.debugLastSwitchOrigin, isNotNull);
+      expect(
+        delegate.debugSnapshot().origin,
+        kaiselOriginFrames(shell.debugLastSwitchOrigin),
+      );
+
+      delegate.dispose();
+      shell.dispose();
+      router.dispose();
+      a.dispose();
+      b.dispose();
+    },
+  );
 
   test('debugSnapshot marks absorbed entries from the router', () {
     final router = KaiselRouter<_R>.fromStack(const <_R>[

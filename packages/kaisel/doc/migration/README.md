@@ -86,9 +86,6 @@ guide.
 - **State restoration.** Not shipped yet — on the roadmap. If your
   app relies on stack restoration after Android process death in
   production, wait.
-- **DevTools extension.** Not shipped yet — on the roadmap. Until
-  then, debugging is `print` statements or a listener you attach to
-  the router yourself.
 - **Browser back integration on the web.** Works via the codec, but
   less polished than go_router's native integration. Test carefully
   on a migration branch if web is your primary platform.
@@ -98,12 +95,12 @@ guide.
   [`main_transitions.dart`](../../example/lib/main_transitions.dart)
   example).
 
-See [`ROADMAP.md`](../../ROADMAP.md) for current status of each item.
+See each package's [`CHANGELOG.md`](../../CHANGELOG.md) for current status.
 
 ## Reference examples
 
 The
-[`example/`](../../example) folder contains six small apps that
+[`example/`](../../example) folder contains several small apps that
 demonstrate the patterns these guides describe in working form:
 
 - [`main.dart`](../../example/lib/main.dart) — minimal router setup with
@@ -118,6 +115,11 @@ demonstrate the patterns these guides describe in working form:
   add-card flow on top of itself).
 - [`main_shell_adaptive.dart`](../../example/lib/main_shell_adaptive.dart) —
   branched shell with adaptive layout inside one branch.
+- [`main_lazy_shell.dart`](../../example/lib/main_lazy_shell.dart) —
+  lazy + deferred (code-split) shell branches (the `StatefulShellRoute` /
+  `AutoTabsScaffold` lazy-loading target).
+- [`main_auth_redirect.dart`](../../example/lib/main_auth_redirect.dart) —
+  redirect to login from a guard, then continue to the intended destination.
 - [`main_media_cataloguer.dart`](../../example/lib/main_media_cataloguer.dart) —
   end-to-end desktop app combining auth state machine, branched
   shell, per-branch typing, nested stacks, and adaptive master-detail.

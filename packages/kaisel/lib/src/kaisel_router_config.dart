@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:kaisel_core/kaisel_core.dart';
 
 import 'kaisel_adaptive.dart';
+import 'kaisel_default_page.dart';
 import 'kaisel_page_wrapper.dart';
 import 'kaisel_route_information_parser.dart';
 import 'kaisel_router_delegate.dart';
@@ -58,11 +59,13 @@ class KaiselRouterConfig<R extends KaiselRoute>
     required KaiselPageBuilder<R> builder,
     List<KaiselGuard<R>> guards = const [],
     KaiselPageWrapper<R>? pageWrapper,
+    KaiselWebTransition webTransition = KaiselWebTransition.fade,
     KaiselModalBuilder? modalBuilder,
     KaiselObserversBuilder? observers,
-    KaiselConfigCodec<R>? codec,
+    GlobalKey<NavigatorState>? navigatorKey,
     String? restorationScopeId,
     KaiselRouteRestorer<R>? restoreRoute,
+    KaiselConfigCodec<R>? codec,
     List<R>? fallback,
   }) {
     final router = KaiselRouter<R>(initial: initial, guards: guards);
@@ -72,8 +75,10 @@ class KaiselRouterConfig<R extends KaiselRoute>
         router: router,
         builder: builder,
         pageWrapper: pageWrapper,
+        webTransition: webTransition,
         modalBuilder: modalBuilder,
         observers: observers,
+        navigatorKey: navigatorKey,
         restorationScopeId: restorationScopeId,
         restoreRoute: restoreRoute,
         codec: codec,
@@ -91,11 +96,13 @@ class KaiselRouterConfig<R extends KaiselRoute>
     required KaiselAdaptivePageBuilder<R> builder,
     List<KaiselGuard<R>> guards = const [],
     KaiselPageWrapper<R>? pageWrapper,
+    KaiselWebTransition webTransition = KaiselWebTransition.fade,
     KaiselModalBuilder? modalBuilder,
     KaiselObserversBuilder? observers,
-    KaiselConfigCodec<R>? codec,
+    GlobalKey<NavigatorState>? navigatorKey,
     String? restorationScopeId,
     KaiselRouteRestorer<R>? restoreRoute,
+    KaiselConfigCodec<R>? codec,
     List<R>? fallback,
   }) {
     final router = KaiselRouter<R>(initial: initial, guards: guards);
@@ -105,8 +112,10 @@ class KaiselRouterConfig<R extends KaiselRoute>
         router: router,
         builder: builder,
         pageWrapper: pageWrapper,
+        webTransition: webTransition,
         modalBuilder: modalBuilder,
         observers: observers,
+        navigatorKey: navigatorKey,
         restorationScopeId: restorationScopeId,
         restoreRoute: restoreRoute,
         codec: codec,
@@ -130,12 +139,15 @@ class KaiselRouterConfig<R extends KaiselRoute>
         codec: codec,
         fallback: fallback,
       );
-      provider = PlatformRouteInformationProvider(
-        initialRouteInformation: RouteInformation(
-          uri: Uri.parse(
-            WidgetsBinding.instance.platformDispatcher.defaultRouteName,
-          ),
-        ),
+      final platformUri = Uri.parse(
+        WidgetsBinding.instance.platformDispatcher.defaultRouteName,
+      );
+      final initialUri = platformUri.pathSegments.isEmpty
+          ? codec.encode(KaiselConfig<R>(mainStack: router.stack))
+          : platformUri;
+      provider = _KaiselRouteInformationProvider(
+        initialRouteInformation: RouteInformation(uri: initialUri),
+        replacesHistoryEntry: () => delegate.replacesHistoryEntry,
       );
     }
     return KaiselRouterConfig<R>._(
@@ -149,6 +161,14 @@ class KaiselRouterConfig<R extends KaiselRoute>
   /// The bundled router, for imperative navigation outside the widget tree.
   final KaiselRouter<R> router;
 
+  /// The main [Navigator]'s key, for raw [NavigatorState] access (e.g. handing
+  /// it to a third-party SDK). Pass one in via `navigatorKey:`, or read the
+  /// auto-created one here. For navigation, prefer [router].
+  GlobalKey<NavigatorState> get navigatorKey => _delegate.navigatorKey;
+
+  /// The main [Navigator]'s current state, once mounted, or null before it is.
+  NavigatorState? get navigator => _delegate.navigatorKey.currentState;
+
   final KaiselRouterDelegate<R> _delegate;
   final RouteInformationProvider? _provider;
 
@@ -159,5 +179,30 @@ class KaiselRouterConfig<R extends KaiselRoute>
     router.dispose();
     final provider = _provider;
     if (provider is PlatformRouteInformationProvider) provider.dispose();
+  }
+}
+
+/// A [PlatformRouteInformationProvider] that lets `replaceTop` / `set` overwrite
+/// the browser history entry instead of adding one. Read at report time because
+/// the router's mutation is async — a synchronous `Router.neglect` can't catch it.
+class _KaiselRouteInformationProvider extends PlatformRouteInformationProvider {
+  _KaiselRouteInformationProvider({
+    required super.initialRouteInformation,
+    required this.replacesHistoryEntry,
+  });
+
+  final bool Function() replacesHistoryEntry;
+
+  @override
+  void routerReportsNewRouteInformation(
+    RouteInformation routeInformation, {
+    RouteInformationReportingType type = RouteInformationReportingType.none,
+  }) {
+    super.routerReportsNewRouteInformation(
+      routeInformation,
+      type: replacesHistoryEntry()
+          ? RouteInformationReportingType.neglect
+          : type,
+    );
   }
 }

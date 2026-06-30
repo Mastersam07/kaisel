@@ -8,6 +8,30 @@ return a result, OAuth-style consent screens — anywhere "open this,
 do some stuff, return a value (or `null` if dismissed)" describes the
 interaction.
 
+## Flow or `pushForResult`?
+
+If you only need **one screen on the main stack to hand a value back**,
+you probably don't want a flow — use
+[`pushForResult<T>`](./NAVIGATION.md):
+
+```dart
+final picked = await context.pushForResult<String>(const ColorPicker());
+// inside ColorPicker: context.pop('teal');
+```
+
+Both return `Future<T?>`. The difference is *where the screen lives*:
+
+- **`pushForResult<T>`** — the screen is a **normal route on the main
+  stack**. A shared `RouteObserver` sees it, a root-navigator dialog
+  renders above it, and back works normally. Lighter; no `modalBuilder`.
+- **`run<T>`** — the flow runs in its **own sub-router**, rendered as an
+  overlay by `modalBuilder`. Reach for it when you genuinely need a
+  multi-step sub-stack, nesting, or a distinct modal presentation — not
+  merely to return a value.
+
+A good rule: single screen returning a value → `pushForResult`;
+multi-step sub-experience → `run<T>`.
+
 ## The model
 
 A modal flow is a sub-router that the main router runs on top of
@@ -29,7 +53,7 @@ itself. The flow has:
 |:-----|:--------|
 | `KaiselModalRoute<T>` | Abstract base for routes used as flow entry points. `T` is the typed completion value. |
 | `KaiselRouter.run<T>(flow)` | Opens the flow. Returns `Future<T?>` that completes when the flow completes or dismisses. |
-| `KaiselModalBuilder<R>` | Function passed via `modalBuilder:` (on `KaiselRouterConfig` or `KaiselRouterDelegate`) — required when the app uses flows. |
+| `KaiselModalBuilder` | Function passed via `modalBuilder:` (on `KaiselRouterConfig` or `KaiselRouterDelegate`) — required when the app uses flows. |
 | `KaiselActiveFlow<R>` | Represents one active flow at runtime (one per `run` call). The delegate iterates these to render flows on top of the main stack. |
 | `context.completeFlow<T>(value)` | From inside a flow screen: complete the flow with `value`. |
 | `context.dismissFlow()` | From inside a flow screen (or in response to a backdrop tap): dismiss with `null`. |
@@ -226,6 +250,31 @@ There are three ways a flow can end:
 
 All of these resolve the `Future<T?>`. The caller should always handle
 `null` as a first-class outcome.
+
+## Dialogs and observers over a flow
+
+A flow is a **route on the main navigator**, so dialogs and observers
+compose with it by Flutter's normal single-overlay rules:
+
+- **Showing a dialog/loader over a flow.** `showDialog(...)` /
+  `showModalBottomSheet(...)` render **above an active flow for both
+  `useRootNavigator` values** — the flow is a route in the same navigator,
+  so a later-pushed dialog stacks on top. The default
+  (`useRootNavigator: true`) resolves the root navigator and covers the
+  chrome; `false` targets the nearest navigator. A dialog shown from the
+  `navigatorKey` context you attach to your config also lands on top.
+- **The main navigator's observers see the flow boundary.** Because the
+  flow is a route there, that navigator's observers receive its `didPush`
+  / `didPop`, so a `RouteObserver` on the main stack reports when a flow
+  opens and closes, and a `RouteAware` screen beneath the flow reacts to
+  it. A flow's *internal* screens run on its own inner navigator, which
+  gets its own observer instances (a `NavigatorObserver` belongs to one
+  `Navigator`), so they are observed separately.
+- **Customising a flow's entrance.** A `pageWrapper` can give a flow its
+  own transition by branching on `KaiselPageWrapperContext.isFlow` and
+  returning a (typically non-opaque) page; otherwise the flow appears
+  instantly. Forward `name` / `arguments` from `ctx.route` on a custom
+  flow page so it stays identifiable to observers.
 
 ## Common mistakes
 

@@ -42,6 +42,9 @@ class _FakeShellHandle extends ChangeNotifier implements KaiselNestedHandle {
   Future<void> restoreFromConfig(KaiselNestedConfig config) async {
     lastRestored = config;
   }
+
+  @override
+  bool replacesHistoryEntry = false;
 }
 
 class _FakeModuleHandle extends ChangeNotifier implements KaiselNestedHandle {
@@ -60,6 +63,9 @@ class _FakeModuleHandle extends ChangeNotifier implements KaiselNestedHandle {
   Future<void> restoreFromConfig(KaiselNestedConfig config) async {
     lastRestored = config;
   }
+
+  @override
+  bool replacesHistoryEntry = false;
 }
 
 void main() {
@@ -247,6 +253,29 @@ void main() {
           delegate.currentConfiguration.nestedState,
           isA<KaiselShellConfig>(),
         );
+      },
+    );
+
+    test(
+      'replacesHistoryEntry tracks whichever router committed last',
+      () async {
+        final shell = _FakeShellHandle();
+        delegate.registerNested(shell);
+
+        // A replace inside the nested router surfaces through the delegate, so
+        // the report overwrites the entry — this is the #28 gap.
+        shell.replacesHistoryEntry = true;
+        shell.notifyListeners();
+        expect(delegate.replacesHistoryEntry, isTrue);
+
+        // A later main-router push resets the disposition to a push.
+        await router.push(const _OtherRoute());
+        expect(delegate.replacesHistoryEntry, isFalse);
+
+        // A nested push surfaces as a push too.
+        shell.replacesHistoryEntry = false;
+        shell.notifyListeners();
+        expect(delegate.replacesHistoryEntry, isFalse);
       },
     );
 

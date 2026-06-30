@@ -147,6 +147,9 @@ class _ModuleHandle<R extends KaiselRoute> implements KaiselNestedHandle {
     if (config is! KaiselModuleConfig) return Future<void>.value();
     return _router.restoreStack(config.stack);
   }
+
+  @override
+  bool get replacesHistoryEntry => _router.replacesHistoryEntry;
 }
 
 /// Mounts a [RouteModule] inside the host app.

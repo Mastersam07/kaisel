@@ -48,6 +48,7 @@ class KaiselPageWrapperContext<R extends KaiselRoute> {
     required this.position,
     required this.stackLength,
     this.previous,
+    this.isFlow = false,
   });
 
   /// The route this page represents.
@@ -79,6 +80,15 @@ class KaiselPageWrapperContext<R extends KaiselRoute> {
   /// page at rendered position 2 above it sees [previous] = B's
   /// route, not the absorbed entries.
   final R? previous;
+
+  /// Whether this page is the outer page of an active modal flow (the page
+  /// the `modalBuilder` presents over the main stack), rather than a normal
+  /// stack entry. A `pageWrapper` can branch on this to give a flow its own
+  /// entrance transition — typically returning a non-opaque page so the main
+  /// stack shows behind the flow's scrim. Defaults to false; the framework
+  /// falls back to an instant, transparent flow page when a wrapper doesn't
+  /// customise it.
+  final bool isFlow;
 
   /// Whether this is the topmost page in the rendered stack.
   bool get isTop => position == stackLength - 1;

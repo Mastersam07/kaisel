@@ -253,6 +253,43 @@ uses.
 > `KeepAlivePageView`-style wrappers). Keep `switchTo`/`activeBranch` and your
 > container in sync so back-button routing still targets the visible branch.
 
+## Lazy and deferred branches (`lazy: true`, `KaiselBranchSpec.deferred`)
+
+By default `.specs` builds every branch up front. Pass `lazy: true` to build
+each branch the first time it becomes active and keep it alive afterwards — the
+eager `IndexedStack` stays the default, so this is opt-in:
+
+```dart
+KaiselBranchedShell.specs(
+  lazy: true, // build tabs on first visit; kept alive after
+  branches: [
+    KaiselBranchSpec<HomeRoute>(initial: const HomeRoot(), builder: ...),
+    KaiselBranchSpec<ReportsRoute>.deferred(
+      initial: const ReportsRoot(),
+      loadLibrary: reports.loadLibrary,        // a `deferred as` import's tear-off
+      placeholder: const Center(child: CircularProgressIndicator()),
+      errorBuilder: (context, error, retry) => RetryTile(error, retry),
+      builder: (context, route) => reports.ReportsScreen(),
+    ),
+  ],
+  chromeBuilder: (context, active, branchContent, switchBranch) => /* ... */,
+)
+```
+
+`KaiselBranchSpec.deferred` loads a branch's **code** on first activation, behind
+a `deferred as` import: it shows `placeholder` while `loadLibrary` runs, swaps in
+the screens once it resolves, and renders `errorBuilder` on failure — the
+`errorBuilder` is passed a `retry` callback (a kept-alive branch can't recover on
+its own). Keep the branch's route values and `initial` in a non-deferred library
+and put only the screens behind the deferred import, so back handling, URL
+capture, and deep links keep working while the code loads. `deferred` requires
+`lazy: true`.
+
+For a custom lazy container, pass `lazyBranchContentBuilder` (the lazy
+counterpart to `branchContentBuilder`): instead of a pre-built widget list it
+hands you a `buildBranch(context, index)` callback that materialises a branch on
+demand, so you decide which branches to build and keep alive.
+
 ## Resolving the right router from context
 
 Inside a branch's screens, `context.router<R>()` resolves to that

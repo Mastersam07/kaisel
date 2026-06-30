@@ -12,7 +12,7 @@ description: >
   KaiselAbsorbingPage, KaiselStandalonePage, KaiselMasterDetailScaffold,
   KaiselPageWrapper, KaiselPageWrapperContext, KaiselStackContext,
   BranchedShellRouter, ShellRouter, RouteModule, ModuleStackCodec,
-  package:kaisel, push, pop, pushOrReplaceTop, replaceTop, set, run,
+  package:kaisel, push, pushForResult, pop, back, historyGo, pushOrReplaceTop, replaceTop, set, run,
   pageWrapper, modalBuilder, chromeBuilder, sealed route, codec,
   route guard, modal flow, branched shell, adaptive layout,
   master-detail, route transition, deep link.
@@ -57,7 +57,7 @@ Read these only when the topic at hand demands the depth.
 
 | File | When to read |
 |:-----|:-------------|
-| [NAVIGATION.md](./NAVIGATION.md) | Choosing between `push`, `pop`, `set`, `replaceTop`, `pushOrReplaceTop`, `run` |
+| [NAVIGATION.md](./NAVIGATION.md) | Choosing between `push`, `pushForResult`, `pop`, `back` / `historyGo`, `set`, `replaceTop`, `pushOrReplaceTop`, `run` |
 | [SHELLS.md](./SHELLS.md) | Branched shells with per-branch typing; single-branch shells; chrome builders |
 | [ADAPTIVE.md](./ADAPTIVE.md) | Adaptive page builders, absorbing pages, master-detail layouts |
 | [MODAL_FLOWS.md](./MODAL_FLOWS.md) | Typed modal flows via `router.run<T>(...)`, nested flows, dismissal |
@@ -72,15 +72,16 @@ Read these only when the topic at hand demands the depth.
 |:-----|:--------|
 | `KaiselRoute` | Base class for every route. Subclasses are sealed data carriers. |
 | `KaiselRouterConfig<R>` | A `RouterConfig` bundling router + delegate (+ URL parser/provider when given a `codec`) for `MaterialApp.router(routerConfig:)`. Hold as a top-level `final`; `.router` exposes the bundled `KaiselRouter<R>`. |
-| `KaiselRouter<R>` | Holds the stack of routes for type `R`. Mutated via `push`, `pop`, `set`, `replaceTop`, `pushOrReplaceTop`, `run<T>`. |
+| `KaiselRouter<R>` | Holds the stack of routes for type `R`. Mutated via `push`, `pushForResult<T>`, `pop`, `set`, `replaceTop`, `pushOrReplaceTop`, `run<T>`. |
 | `KaiselRouterDelegate<R>` | `RouterDelegate` that drives Flutter's `Router` from a `KaiselRouter`. Takes a `builder`, optional `pageWrapper`, optional `modalBuilder`. |
 | `KaiselPageBuilder<R>` | `Widget Function(BuildContext, R)`. Pattern-match on the route to produce the screen. |
 | `KaiselPageWrapper<R>` | `Page<Object?> Function(KaiselPageWrapperContext<R>)`. Wrap the widget in a `Page` subclass to pick a transition. |
-| `KaiselModalBuilder<R>` | Required when using `run<T>`. Describes how a modal flow's UI overlays the main stack. |
+| `KaiselModalBuilder` | Required when using `run<T>`. Describes how a modal flow's UI overlays the main stack. |
 | `KaiselGuard<R>` | `FutureOr<List<R>> Function(List<R> current, List<R> proposed)`. Filters every stack mutation. |
 | `KaiselConfigCodec<R>` | URL ↔ `KaiselConfig<R>` mapping. The single place strings live. |
 | `KaiselBranchedShell` | A shell with N branches, each with its own typed `KaiselRouter`. Per-branch state preserved by default. |
 | `KaiselBranch<R>` | One branch inside a `KaiselBranchedShell`. Pass `KaiselBranch.adaptive` for absorbing pages. |
+| `KaiselBranchSpec<R>` | Declarative branch for `KaiselBranchedShell.specs`. `lazy: true` builds branches on first visit (kept alive); `KaiselBranchSpec.deferred(loadLibrary:, placeholder:, errorBuilder:)` code-splits a branch behind a `deferred as` import. |
 | `KaiselModalRoute<T>` | Abstract base for routes used with `run<T>`. Carries the typed completion contract. |
 
 ## 1. Defining routes
@@ -155,6 +156,11 @@ for you — the app is URL-addressable. The bundled router is reachable as
 `_config.router` (a `KaiselRouter<AppRoute>`) for imperative navigation
 outside the widget tree. Call `_config.dispose()` only when a `State`
 owns its lifecycle; a top-level `final` lives for the whole app.
+
+For a raw `GlobalKey<NavigatorState>` (a third-party SDK, or `Navigator.of`
+overlays without a `BuildContext`), pass `navigatorKey:` to the config or read
+`_config.navigatorKey` / `_config.navigator`. For navigation, prefer
+`_config.router` — the key is for raw navigator access only.
 
 **Navigator observers.** Pass `observers: () => [MyAnalyticsObserver()]` to
 attach `NavigatorObserver`s (analytics, Sentry, `RouteObserver`). It's a
@@ -263,18 +269,16 @@ the terseness clearly earns that trade (a single-router screen, say).
 Be honest about gaps before assuming kaisel can drop into any existing
 codebase as a one-for-one replacement.
 
-- **State restoration.** Set `restorationScopeId` on
-  `MaterialApp`; codec apps restore the stack for free, `restorationScopeId`
-  on the config restores within-page state, and `restoreRoute` covers
-  codec-less apps. See README §12.
-- **DevTools extension.** A live navigation inspector —
-  depend on kaisel and open DevTools.
+- **State restoration.** Not shipped yet — on the roadmap. If the
+  app relies on stack restoration after Android process death, wait.
 - **Browser back integration on the web.** Works via the codec, but less
   polished than go_router's native integration. Test on a migration
   branch if web is the primary target.
 - **Pre-built page transitions.** No library of named transitions. Wire
   them via the `pageWrapper` mechanism — see
   [TRANSITIONS.md](./TRANSITIONS.md).
+
+See each package's `CHANGELOG.md` for current status.
 
 ## 5. Adding a new screen — checklist
 

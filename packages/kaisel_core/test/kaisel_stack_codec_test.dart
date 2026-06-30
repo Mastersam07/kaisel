@@ -111,4 +111,21 @@ void main() {
       expect(decoded, const [_Detail('rt')]);
     });
   });
+
+  test('KaiselStackCodec can be extended, not just implemented', () {
+    final codec = _ExtStackCodec();
+    expect(codec.encode(const [_Home()]).path, '/x');
+    expect(codec.decode(Uri(path: '/y')), isNull);
+  });
+}
+
+// Extends (not implements) KaiselStackCodec, exercising its const constructor.
+class _ExtStackCodec extends KaiselStackCodec<_R> {
+  _ExtStackCodec();
+
+  @override
+  Uri encode(List<_R> stack) => Uri(path: '/x');
+
+  @override
+  List<_R>? decode(Uri uri) => null;
 }
