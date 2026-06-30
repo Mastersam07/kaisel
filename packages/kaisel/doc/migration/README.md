@@ -16,7 +16,7 @@ your migration branch will actually look like.
 | ------------------------------------------- | ----------------------------------------------------- | ----------------------- |
 | [`from-go-router.md`](from-go-router.md)    | Apps using `GoRouter` with string paths               | ~3–4 days, 30 screens   |
 | [`from-auto-route.md`](from-auto-route.md)  | Apps using `@AutoRouterConfig` with `build_runner`    | ~2 days, 30 screens     |
-| [`from-navigator.md`](from-navigator.md)    | Apps on Flutter's `Navigator` — imperative `push` or named routes | ~2–4 days, 30 screens (named routes: less) |
+| [`from-navigator.md`](from-navigator.md)    | Apps on Flutter's `Navigator` — imperative `push`, named routes, or the Router/Pages API (2.0) | ~2–4 days, 30 screens (less from named/2.0) |
 
 ## Which guide is for you
 
@@ -43,7 +43,10 @@ are the gentler on-ramp — you already have a centralized table to
 transcribe into a sealed type — while scattered imperative `push` calls
 need discovering first. The headline win either way is typed arguments
 and an exhaustive `switch` replacing `Object?` casts and stringly-typed
-names. A codec is only needed if those routes doubled as web URLs.
+names. A codec is only needed if those routes doubled as web URLs. And if
+you hand-rolled **Navigator 2.0** (your own `RouterDelegate` + `Pages` list),
+you've already made the declarative shift — that migration is mostly deleting
+the boilerplate kaisel provides.
 
 If you're on both (different parts of the same codebase, or a
 half-finished migration between them already), pick the one with

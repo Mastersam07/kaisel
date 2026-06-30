@@ -1,10 +1,11 @@
 # Migrating from Navigator to kaisel
 
 If you're on Flutter's built-in `Navigator` — imperative `Navigator.push`
-with `MaterialPageRoute`, or named routes via `MaterialApp(routes:)` /
-`onGenerateRoute` — this guide is the practical work of moving to kaisel.
-It isn't a sales pitch (that's the [Routes as Values][article] article);
-it's what translates, what doesn't, and what your diff will look like.
+with `MaterialPageRoute`, named routes via `MaterialApp(routes:)` /
+`onGenerateRoute`, or the declarative Router/Pages API (Navigator 2.0) — this
+guide is the practical work of moving to kaisel. It isn't a sales pitch
+(that's the [Routes as Values][article] article); it's what translates, what
+doesn't, and what your diff will look like.
 
 [article]: https://medium.com/@codefarmer/flutter-routes-as-values-089476ad4d5b
 
@@ -22,9 +23,14 @@ constructing `MaterialPageRoute`s and start pushing typed values
 The whole migration is that one shift. Everything else — the call sites, the
 arguments, the route table — falls out of it mechanically.
 
+(If you hand-rolled **Navigator 2.0** — a `RouterDelegate` plus a `Pages`
+list — you've *already* made that shift. Your migration is mostly deletion;
+jump to
+[Coming from Navigator 2.0](#coming-from-navigator-20-the-routerpages-api).)
+
 ## Which Navigator are you using?
 
-There are two on-ramps, and they're not the same effort:
+There are three on-ramps, and they're not the same effort:
 
 - **Named routes** (`MaterialApp(routes: {...})`, `Navigator.pushNamed`,
   `onGenerateRoute`). You already have a *centralized route table* — the
@@ -34,9 +40,15 @@ There are two on-ramps, and they're not the same effort:
   scattered through the app). No central table exists, so the first job is
   *discovering* every screen and lifting it into the sealed type. A bigger
   conceptual leap, more grep-and-replace.
+- **Navigator 2.0** (a hand-rolled `RouterDelegate` + `RouteInformationParser`
+  + `Pages` list). You already think declaratively, so the migration is mostly
+  *deleting* boilerplate kaisel provides — see
+  [Coming from Navigator 2.0](#coming-from-navigator-20-the-routerpages-api).
 
-Both end at the same place. The sections below call out where the two
-diverge.
+All three end at the same place — a sealed type, a builder, and a
+`KaiselRouterConfig`. The sections below (steps 1–5) are written for the
+imperative/named tracks; the Navigator 2.0 section maps the same end state
+onto what you'd delete.
 
 ## Concept mapping
 
@@ -187,6 +199,93 @@ this is the reason to migrate, not just the cost:
 
 You also lose code: the `routes:` map, `onGenerateRoute`/`onUnknownRoute`
 plumbing, and every `arguments as X` cast.
+
+## Coming from Navigator 2.0 (the Router/Pages API)
+
+If you hand-rolled a `RouterDelegate` + `RouteInformationParser` + a `Pages`
+list, you're already where kaisel wants you: declarative, pages-as-state.
+kaisel *is* a typed Navigator 2.0 that owns the machinery you wrote by hand,
+so your migration is mostly **deletion**. Steps 1–5 above still land you at
+the same place (a sealed type + a builder + a `KaiselRouterConfig`) — but
+instead of rewriting call sites, you're throwing boilerplate away.
+
+| Navigator 2.0 (hand-rolled)                                            | kaisel                                          |
+| ---------------------------------------------------------------------- | ----------------------------------------------- |
+| Custom `RouterDelegate<T>` + `build()` returning `Navigator(pages:)`   | **deleted** — `KaiselRouterDelegate` + your builder `switch` |
+| Your nav-state type `T` (the page-list model)                          | a `sealed AppRoute` + the typed stack           |
+| `Navigator(pages: [MaterialPage(...), ...])`                           | the stack drives pages; one builder arm per route |
+| `onPopPage` / `onDidRemovePage` + the sync dance                       | internal to kaisel                              |
+| `ChangeNotifier` + `notifyListeners()` on nav changes                  | `KaiselRouter` *is* the stack-as-state notifier |
+| `RouteInformationParser.parseRouteInformation` (URL → `T`)             | `KaiselConfigCodec.decode`                       |
+| `restoreRouteInformation` / `currentConfiguration` (`T` → URL)         | `KaiselConfigCodec.encode`                       |
+| `setNewRoutePath` / `setInitialRoutePath`                              | `initial:` + codec `decode`                      |
+| nested `Navigator`s built in the delegate                              | `KaiselBranchedShell` / modules                 |
+| custom `Page` subclasses / bespoke transitions                         | `pageWrapper`                                    |
+
+The win beyond less code: the `onPopPage`/`onDidRemovePage` sync — the part of
+Navigator 2.0 everyone gets wrong — disappears, because the stack is the
+single source of truth. Your `T` becomes a sealed, exhaustive type, and you
+inherit guards, shells, modal flows, and DevTools instead of hand-building
+them on your delegate.
+
+**Before** — a hand-rolled delegate (abridged):
+
+```dart
+class AppRouterDelegate extends RouterDelegate<AppState>
+    with ChangeNotifier, PopNavigatorRouterDelegateMixin<AppState> {
+  AppState state = AppState.initial();
+
+  @override
+  Widget build(BuildContext context) => Navigator(
+    key: navigatorKey,
+    pages: [
+      const MaterialPage(child: HomeScreen()),
+      if (state.productId case final id?)
+        MaterialPage(child: ProductDetailScreen(id: id)),
+    ],
+    onPopPage: (route, result) {
+      if (!route.didPop(result)) return false;
+      state = state.copyWith(productId: null); // keep this in sync by hand…
+      notifyListeners();
+      return true;
+    },
+  );
+
+  @override
+  Future<void> setNewRoutePath(AppState configuration) async {
+    state = configuration;
+  }
+  // … plus an AppRouteInformationParser turning the URL into AppState.
+}
+```
+
+**After** — the delegate, parser, and pop-sync are gone:
+
+```dart
+sealed class AppRoute extends KaiselRoute { const AppRoute(); }
+final class Home extends AppRoute { const Home(); }
+final class ProductDetail extends AppRoute {
+  const ProductDetail(this.id);
+  final String id;
+  @override
+  List<Object?> get props => [id];
+}
+
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
+  builder: (context, route) => switch (route) {
+    Home() => const HomeScreen(),
+    ProductDetail(:final id) => ProductDetailScreen(id: id),
+  },
+  // codec: AppCodec(),  // only if those routes were URLs
+);
+```
+
+Your `AppState` becomes the sealed stack; your parser becomes the codec's
+`decode`; your `build` / `onPopPage` / `notifyListeners` become nothing you
+maintain. If you were on a Navigator 2.0 *wrapper* (Beamer, Routemaster,
+VRouter), you're deleting *their* delegate abstraction instead of your own —
+the location/state model still maps onto the codec + stack the same way.
 
 ## The one decision that sets the effort
 
