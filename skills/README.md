@@ -27,4 +27,5 @@ the agent). It's picked up on the next session; the skill triggers when you work
   [CODEC](kaisel/CODEC.md) ·
   [GUARDS](kaisel/GUARDS.md) ·
   [ADAPTIVE](kaisel/ADAPTIVE.md) ·
-  [TRANSITIONS](kaisel/TRANSITIONS.md).
+  [TRANSITIONS](kaisel/TRANSITIONS.md) ·
+  [MIGRATION](kaisel/MIGRATION.md).

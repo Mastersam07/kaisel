@@ -4,8 +4,9 @@ description: >
   Implement and reason about Flutter routing using the kaisel library — a
   Dart 3-native router built on sealed routes, pattern matching, and a
   stack-as-state model. Use this skill when the user is using or
-  considering kaisel, migrating to it from go_router or auto_route, or
-  when their code shows kaisel imports.
+  considering kaisel, migrating to it from go_router, auto_route, or
+  Flutter's Navigator (named, imperative, or 2.0), or when their code
+  shows kaisel imports.
   Triggers on: kaisel, KaiselRoute, KaiselRouter, KaiselRouterDelegate,
   KaiselBranchedShell, KaiselBranch, KaiselShell, KaiselPageScope,
   KaiselModalRoute, KaiselConfigCodec, KaiselStackCodec, KaiselGuard,
@@ -65,6 +66,7 @@ Read these only when the topic at hand demands the depth.
 | [CODEC.md](./CODEC.md) | URL ↔ stack roundtripping; deep linking; browser back |
 | [GUARDS.md](./GUARDS.md) | The guard pipeline; auth, feature flags, entitlement gating |
 | [MODULES.md](./MODULES.md) | Feature modules, `RouteModule`, modular codec composition |
+| [MIGRATION.md](./MIGRATION.md) | Converting an app from go_router, auto_route, or Flutter's Navigator (1.0 / 2.0) |
 
 ## Key types
 
