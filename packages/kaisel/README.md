@@ -727,6 +727,7 @@ Coming from another router? See the migration guides in [`doc/migration/`](doc/m
 
 - [From go_router](doc/migration/from-go-router.md)
 - [From auto_route](doc/migration/from-auto-route.md)
+- [From Navigator (imperative or named routes)](doc/migration/from-navigator.md)
 
 ## Lints
 

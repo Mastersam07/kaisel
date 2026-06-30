@@ -32,6 +32,7 @@ Coming from another router? The [migration guides](packages/kaisel/doc/migration
 
 - [From go_router](packages/kaisel/doc/migration/from-go-router.md)
 - [From auto_route](packages/kaisel/doc/migration/from-auto-route.md)
+- [From Navigator (imperative or named routes)](packages/kaisel/doc/migration/from-navigator.md)
 
 ## Editor / AI assistance
 

@@ -16,12 +16,7 @@ your migration branch will actually look like.
 | ------------------------------------------- | ----------------------------------------------------- | ----------------------- |
 | [`from-go-router.md`](from-go-router.md)    | Apps using `GoRouter` with string paths               | ~3–4 days, 30 screens   |
 | [`from-auto-route.md`](from-auto-route.md)  | Apps using `@AutoRouterConfig` with `build_runner`    | ~2 days, 30 screens     |
-
-A guide for Navigator 1.0 / 2.0 isn't here yet. If you'd find one
-useful, file an issue describing the patterns you'd want covered —
-the worked-example shape of these guides means each one needs to be
-written against a real migration target rather than generated
-abstractly.
+| [`from-navigator.md`](from-navigator.md)    | Apps on Flutter's `Navigator` — imperative `push` or named routes | ~2–4 days, 30 screens (named routes: less) |
 
 ## Which guide is for you
 
@@ -40,6 +35,15 @@ mostly mechanical — sealed types and a switch take the place of the
 annotations and the generated table. The largest material win is
 that `build_runner` leaves the project. Plan around two days for a
 medium-sized app.
+
+You're on **Navigator** if you call `Navigator.push` with
+`MaterialPageRoute` directly, or use named routes
+(`MaterialApp(routes:)`, `pushNamed`, `onGenerateRoute`). Named routes
+are the gentler on-ramp — you already have a centralized table to
+transcribe into a sealed type — while scattered imperative `push` calls
+need discovering first. The headline win either way is typed arguments
+and an exhaustive `switch` replacing `Object?` casts and stringly-typed
+names. A codec is only needed if those routes doubled as web URLs.
 
 If you're on both (different parts of the same codebase, or a
 half-finished migration between them already), pick the one with
