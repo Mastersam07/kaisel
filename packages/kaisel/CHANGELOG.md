@@ -24,6 +24,17 @@
 
 - Requires `kaisel_core: ^0.22.0` (for `KaiselRoute.restorationId`).
 
+### Fixed
+
+- **The web default page now rebuilds its child on an in-place page update.**
+  On the web the fade/none default page rendered through a `PageRouteBuilder`,
+  which captured its child — so a same-key update (an adaptive master-detail
+  swap keeps the page key stable by design) kept showing the old content and the
+  detail pane never built. It now reads its child from the current page like
+  `MaterialPage`, so adaptive master-detail (and any same-key swap) renders
+  correctly on the web. Regression from the 0.21 web-transition default;
+  `KaiselWebTransition.platform` was the workaround.
+
 ## 0.21.0
 
 ### Added
