@@ -70,19 +70,54 @@ class _WebTransitionPage<T> extends Page<T> {
   final bool fade;
 
   @override
-  Route<T> createRoute(BuildContext context) {
-    final duration = fade ? const Duration(milliseconds: 150) : Duration.zero;
-    return PageRouteBuilder<T>(
-      settings: this,
-      transitionDuration: duration,
-      reverseTransitionDuration: duration,
-      pageBuilder: (_, _, _) => child,
-      transitionsBuilder: fade
-          ? (_, animation, _, child) =>
-                FadeTransition(opacity: animation, child: child)
-          : (_, _, _, child) => child,
-    );
-  }
+  Route<T> createRoute(BuildContext context) => _WebTransitionRoute<T>(this);
+}
+
+// A [PageRoute], not a [PageRouteBuilder]: the builder captures its child, so a
+// same-key page update (an adaptive master-detail swap keeps the key stable)
+// would keep the stale child. Reading from `settings` rebuilds it, like
+// [MaterialPage].
+class _WebTransitionRoute<T> extends PageRoute<T> {
+  _WebTransitionRoute(_WebTransitionPage<T> page) : super(settings: page);
+
+  _WebTransitionPage<T> get _page => settings as _WebTransitionPage<T>;
+
+  @override
+  Duration get transitionDuration =>
+      _page.fade ? const Duration(milliseconds: 150) : Duration.zero;
+
+  @override
+  Duration get reverseTransitionDuration => transitionDuration;
+
+  @override
+  bool get opaque => true;
+
+  @override
+  bool get barrierDismissible => false;
+
+  @override
+  Color? get barrierColor => null;
+
+  @override
+  String? get barrierLabel => null;
+
+  @override
+  bool get maintainState => true;
+
+  @override
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) => _page.child;
+
+  @override
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) => _page.fade ? FadeTransition(opacity: animation, child: child) : child;
 }
 
 /// Carries the app's [KaiselWebTransition] down the tree so nested navigators
