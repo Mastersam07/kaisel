@@ -450,12 +450,10 @@ declarative; kaisel uses standard Flutter `NavigatorObserver`s via the `observer
 builder — a `RouteObserver` / `RouteAware` works on the main stack, and since 0.20
 even sees a modal flow open and close.
 
-## What kaisel doesn't yet do at parity
-
-**State restoration.** auto_route supports the Flutter `RestorationManager`
-integration that lets stacks survive Android's "kill background process" behavior.
-kaisel doesn't, yet — it's on the roadmap. If your app relies on this for
-production correctness, wait for that release.
+**State restoration.** Like auto_route, kaisel supports Flutter's
+`RestorationManager` integration so stacks survive Android's "kill background
+process" behavior — opt in with `restorationScopeId` on your `MaterialApp` (added
+in 0.22).
 
 ## A worked example diff
 
