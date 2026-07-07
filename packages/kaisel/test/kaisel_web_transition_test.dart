@@ -192,6 +192,48 @@ void main() {
     });
   });
 
+  group('default non-web page transition', () {
+    testWidgets(
+      'renders and animates on Android and other platforms',
+      (tester) async {
+        final pages = <Page<Object?>>[
+          const MaterialPage<Object?>(child: SizedBox.shrink()),
+        ];
+        late StateSetter setPages;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: StatefulBuilder(
+              builder: (context, setState) {
+                setPages = setState;
+                return Navigator(
+                  pages: List.of(pages),
+                  onDidRemovePage: (_) {},
+                );
+              },
+            ),
+          ),
+        );
+        setPages(
+          () => pages.add(
+            kaiselDefaultPage(
+              _ctx(const Text('native', textDirection: TextDirection.ltr)),
+              transition: KaiselWebTransition.platform,
+              isWeb: false,
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 80));
+        await tester.pumpAndSettle();
+        expect(find.text('native'), findsOneWidget);
+      },
+      variant: const TargetPlatformVariant(<TargetPlatform>{
+        TargetPlatform.android,
+        TargetPlatform.iOS,
+      }),
+    );
+  });
+
   testWidgets('KaiselRouterConfig threads webTransition into the scope', (
     tester,
   ) async {

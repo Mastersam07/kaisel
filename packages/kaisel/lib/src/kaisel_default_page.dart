@@ -10,8 +10,9 @@ import 'kaisel_page_wrapper.dart';
 /// (a Cupertino slide on Apple platforms, a zoom/fade elsewhere), which often
 /// feels out of place in a browser. kaisel defaults to a quick [fade] instead;
 /// pass another value to [KaiselRouterConfig] / [KaiselRouterDelegate] to opt
-/// out. On non-web platforms this is ignored — routes always use the native
-/// [MaterialPage] transition.
+/// out. On non-web platforms this is ignored — routes use the native
+/// [MaterialPage] transition, driven through Flutter's predictive-back builder
+/// on Android so a nested-navigator route follows the OS back gesture.
 ///
 /// Only the *default* wrapper honours this; a custom `pageWrapper` controls its
 /// own transitions.
@@ -36,23 +37,93 @@ Page<Object?> kaiselDefaultPage<R extends KaiselRoute>(
   required KaiselWebTransition transition,
   bool isWeb = kIsWeb,
 }) {
-  if (!isWeb || transition == KaiselWebTransition.platform) {
-    return MaterialPage<Object?>(
+  if (isWeb) {
+    if (transition == KaiselWebTransition.platform) {
+      return MaterialPage<Object?>(
+        key: ctx.key,
+        name: ctx.route.routeName,
+        arguments: ctx.route,
+        restorationId: ctx.route.restorationId,
+        child: ctx.child,
+      );
+    }
+    return _WebTransitionPage<Object?>(
       key: ctx.key,
       name: ctx.route.routeName,
       arguments: ctx.route,
       restorationId: ctx.route.restorationId,
+      fade: transition == KaiselWebTransition.fade,
       child: ctx.child,
     );
   }
-  return _WebTransitionPage<Object?>(
+  return _KaiselMaterialPage<Object?>(
     key: ctx.key,
     name: ctx.route.routeName,
     arguments: ctx.route,
     restorationId: ctx.route.restorationId,
-    fade: transition == KaiselWebTransition.fade,
     child: ctx.child,
   );
+}
+
+class _KaiselMaterialPage<T> extends MaterialPage<T> {
+  const _KaiselMaterialPage({
+    required super.child,
+    super.key,
+    super.name,
+    super.arguments,
+    super.restorationId,
+  });
+
+  @override
+  Route<T> createRoute(BuildContext context) => _KaiselPageRoute<T>(page: this);
+}
+
+class _KaiselPageRoute<T> extends PageRoute<T>
+    with MaterialRouteTransitionMixin<T> {
+  _KaiselPageRoute({required MaterialPage<T> page}) : super(settings: page);
+
+  MaterialPage<T> get _page => settings as MaterialPage<T>;
+
+  @override
+  Widget buildContent(BuildContext context) => _page.child;
+
+  @override
+  bool get maintainState => _page.maintainState;
+
+  @override
+  bool get fullscreenDialog => _page.fullscreenDialog;
+
+  @override
+  String get debugLabel => '${super.debugLabel}(${_page.name})';
+
+  static const _predictive = PredictiveBackPageTransitionsBuilder();
+
+  // Android predictive-back transition. On a nested navigator the enclosing
+  // route's PopScope makes it decline the gesture (popGestureEnabled is false
+  // when it would not pop), so only this innermost route animates — not twice.
+  @override
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (Theme.of(context).platform == TargetPlatform.android) {
+      return _predictive.buildTransitions<T>(
+        this,
+        context,
+        animation,
+        secondaryAnimation,
+        child,
+      );
+    }
+    return super.buildTransitions(
+      context,
+      animation,
+      secondaryAnimation,
+      child,
+    );
+  }
 }
 
 class _WebTransitionPage<T> extends Page<T> {
