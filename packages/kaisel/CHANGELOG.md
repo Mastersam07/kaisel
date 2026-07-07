@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.0-dev.1
+
+### Fixed
+
+- **Android predictive back inside a shell branch no longer double-animates.**
+  Pushing a detail in a `KaiselBranchedShell` branch and pressing the Android
+  device back button now animates the pop once, not twice. Each branch drives
+  its own back handling off its nested navigator (`NavigatorPopHandler`), and the
+  default non-web page routes its Android transition through Flutter's
+  `PredictiveBackPageTransitionsBuilder` — so a nested route follows the OS back
+  gesture itself while the enclosing shell route declines it (its `PopScope`
+  makes `popGestureEnabled` false), leaving a single animation. On Android the
+  default page now uses the predictive-back transition in place of the zoom
+  transition; apps with a custom `pageWrapper` control their own transitions and
+  are unaffected.
+
 ## 0.22.0
 
 ### Added

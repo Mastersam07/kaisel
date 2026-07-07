@@ -726,73 +726,81 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
     super.dispose();
   }
 
-  Widget _buildLazyBranch(BuildContext context, int index) =>
-      KaiselRestorationScope(
-        restorationId: 'kaisel-branch-$index',
-        child: _lazySpecs[index].buildBranch(_shell.branchAt(index)),
+  Widget _buildLazyBranch(BuildContext context, int index) => _wrapBranchBack(
+    index,
+    KaiselRestorationScope(
+      restorationId: 'kaisel-branch-$index',
+      child: _lazySpecs[index].buildBranch(_shell.branchAt(index)),
+    ),
+  );
+
+  // Drive back off each branch's nested-navigator NavigationNotification — the
+  // signal Android predictive back syncs its OS preview against — so a branch
+  // pop animates once, not twice. Only the active branch intercepts; the guard
+  // keeps other mounted branches' PopScopes from also popping it.
+  Widget _wrapBranchBack(int index, Widget branch) =>
+      NavigatorPopHandler<Object?>(
+        enabled: index == _shell.activeBranch,
+        onPopWithResult: (_) {
+          if (index == _shell.activeBranch && _shell.currentCanPop) {
+            _shell.popCurrent();
+          }
+        },
+        child: branch,
       );
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      // canPop = true when the active branch is at root — let the
-      // parent router pop the shell itself. canPop = false otherwise
-      // — we handle the back by popping within the branch.
-      canPop: !_shell.currentCanPop,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        if (_shell.currentCanPop) {
-          _shell.popCurrent();
-        }
-      },
-      child: KaiselShellScope(
-        controller: _shell,
-        child: ShellChromeScope(
-          child: Builder(
-            builder: (context) {
-              final restorableBranches = <Widget>[
-                for (var i = 0; i < _branches.length; i++)
+    return KaiselShellScope(
+      controller: _shell,
+      child: ShellChromeScope(
+        child: Builder(
+          builder: (context) {
+            final restorableBranches = <Widget>[
+              for (var i = 0; i < _branches.length; i++)
+                _wrapBranchBack(
+                  i,
                   KaiselRestorationScope(
                     restorationId: 'kaisel-branch-$i',
                     child: _branches[i],
                   ),
-              ];
-              final branchContent = switch ((
-                widget.branchContentBuilder,
-                widget.lazyBranchContentBuilder,
-                _lazy,
-              )) {
-                (final build?, _, _) => build(
-                  context,
-                  _shell.activeBranch,
-                  restorableBranches,
-                  _shell.switchTo,
                 ),
-                (_, final build?, _) => build(
-                  context,
-                  _shell.activeBranch,
-                  _shell.branchCount,
-                  _buildLazyBranch,
-                  _shell.switchTo,
-                ),
-                (_, _, true) => _LazyKeepAliveStack(
-                  index: _shell.activeBranch,
-                  itemCount: _shell.branchCount,
-                  itemBuilder: _buildLazyBranch,
-                ),
-                (_, _, false) => IndexedStack(
-                  index: _shell.activeBranch,
-                  children: restorableBranches,
-                ),
-              };
-              return widget.chromeBuilder(
+            ];
+            final branchContent = switch ((
+              widget.branchContentBuilder,
+              widget.lazyBranchContentBuilder,
+              _lazy,
+            )) {
+              (final build?, _, _) => build(
                 context,
                 _shell.activeBranch,
-                branchContent,
+                restorableBranches,
                 _shell.switchTo,
-              );
-            },
-          ),
+              ),
+              (_, final build?, _) => build(
+                context,
+                _shell.activeBranch,
+                _shell.branchCount,
+                _buildLazyBranch,
+                _shell.switchTo,
+              ),
+              (_, _, true) => _LazyKeepAliveStack(
+                index: _shell.activeBranch,
+                itemCount: _shell.branchCount,
+                itemBuilder: _buildLazyBranch,
+              ),
+              (_, _, false) => IndexedStack(
+                index: _shell.activeBranch,
+                children: restorableBranches,
+              ),
+            };
+            return widget.chromeBuilder(
+              context,
+              _shell.activeBranch,
+              branchContent,
+              _shell.switchTo,
+            );
+          },
         ),
       ),
     );
