@@ -1,12 +1,3 @@
-// SHELL predictive-back double repro (customer's actual case).
-//
-// You're already running this file — just HOT RESTART.
-//
-// Bottom nav, 2 tabs. On the Home tab, tap an item to push a detail (orange),
-// then press the ANDROID DEVICE back button. On a real device/emulator with
-// predictive back, the branch (nested-navigator) pop can animate twice — the OS
-// preview plus the app's own transition.
-//
 // A plain main-stack push does NOT reproduce this, because predictive back is
 // wired for the ROOT navigator; the shell puts the detail on a nested navigator,
 // which is the gap.
