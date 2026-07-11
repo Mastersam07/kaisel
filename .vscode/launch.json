@@ -5,6 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Double pop example",
+            "cwd": "packages/kaisel/example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_double_pop.dart"
+            ],
+        },
+        {
             "name": "[MOBILE] example",
             "cwd": "packages/kaisel/example",
             "request": "launch",
@@ -31,6 +40,68 @@
             "args": [
                 "--target=lib/main_adaptive.dart",
                 "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+            ],
+        },
+        {
+            "name": "[WEB SUPPORTING PANE] example",
+            "cwd": "packages/kaisel/example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_supporting_pane.dart",
+                "--device-id=chrome"
+            ],
+        },
+        {
+            "name": "[SUPPORTING PANE] example",
+            "cwd": "packages/kaisel/example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_supporting_pane.dart",
+                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+            ],
+        },
+        {
+            "name": "[WEB ADAPTIVE STEPPER] example",
+            "cwd": "packages/kaisel/example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_adaptive_stepper.dart",
+                "--device-id=chrome"
+            ],
+        },
+        {
+            "name": "[ADAPTIVE STEPPER] example",
+            "cwd": "packages/kaisel/example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_adaptive_stepper.dart",
+                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+            ],
+        },
+        {
+            // Foldable adaptive demo. Best on a foldable emulator (Pixel Fold /
+            // Surface Duo) to see the real hinge; a wide flat screen shows the
+            // two-pane split without a gap.
+            "name": "[FOLDABLE] example",
+            "cwd": "packages/kaisel/example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_foldable.dart"
+            ],
+        },
+        {
+            "name": "[WEB FOLDABLE] example",
+            "cwd": "packages/kaisel/example",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--target=lib/main_foldable.dart",
+                "--device-id=chrome"
             ],
         },
         {

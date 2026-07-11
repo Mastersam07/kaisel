@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.0-dev.2
+
+### Added
+
+- **`KaiselSupportingPaneScaffold`** — a convenience widget for a supporting-pane
+  layout (a primary content pane plus a smaller secondary panel), the
+  inverse-emphasis sibling of `KaiselMasterDetailScaffold`. Both are thin
+  conveniences over the same `KaiselAbsorbingPage` primitive, which is
+  layout-agnostic: new examples demonstrate a three-pane layout (`absorbing: 2`),
+  a scaffold-free wizard that collapses into a horizontal stepper, and a foldable
+  layout keyed on `MediaQuery.displayFeatures`.
+
 ## 1.0.0-dev.1
 
 ### Fixed
