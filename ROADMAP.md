@@ -27,7 +27,7 @@ Directions we're weighing, roughly by interest:
 
 - **Codec ergonomics.** URLs are produced by a hand-written `encode`/`decode`. We're exploring helpers that shrink that boilerplate without reintroducing code generation — the most common piece of feedback we receive.
 - **Context-aware guards.** Guards are pure `(current, proposed)` transforms today, testable without a widget tree. An optional Flutter-layer guard that receives a `BuildContext` — for idiomatic `context.read<T>()` state access — could sit alongside the pure default, trading dry-run testability for convenience. It would be additive, never the default.
-- **Custom predictive-back transitions.** A seam to supply your own predictive-back animation, matching what auto_route offers. Planned if there's demand.
+- **Custom predictive-back animations.** kaisel's opt-in predictive back uses Flutter's built-in animation (the standard Android shrink-and-peek). There's no hook to supply your *own* animation driven by the back gesture — auto_route offers this by vendoring Flutter's private gesture detector, and kaisel could do the same. Niche and maintenance-heavy, so gated on real demand.
 - **DevTools polish.** Transitions-log replay on reconnect, guard dry-run against a hypothetical stack, and the remaining write commands.
 - **Primary constructors.** No library change required — route classes get shorter for free once you're on Dart 3.13. We'll adopt them in docs and examples when that SDK is widely available, without raising kaisel's minimum SDK.
 

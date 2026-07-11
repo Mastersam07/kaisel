@@ -21,9 +21,13 @@ class ConvertPushToPushOrReplaceTopAssist extends ResolvedCorrectionProducer {
     "Convert push() to pushOrReplaceTop()",
   );
 
+  // Required framework override returning a constant; the analyzer reads it
+  // only in the `dart fix` bulk path, which the plugin-protocol tests don't run.
+  // coverage:ignore-start
   @override
   CorrectionApplicability get applicability =>
       CorrectionApplicability.singleLocation;
+  // coverage:ignore-end
 
   @override
   AssistKind get assistKind => _kind;
