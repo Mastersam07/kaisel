@@ -16,7 +16,8 @@ export 'src/kaisel_adaptive.dart'
         KaiselMasterDetailScaffold,
         KaiselPageResult,
         KaiselStackContext,
-        KaiselStandalonePage;
+        KaiselStandalonePage,
+        KaiselSupportingPaneScaffold;
 export 'src/kaisel_branched_shell.dart'
     show
         BranchedShellRouter,

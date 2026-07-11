@@ -174,6 +174,60 @@ class KaiselMasterDetailScaffold extends StatelessWidget {
   }
 }
 
+/// Convenience widget for a supporting-pane layout.
+///
+/// The inverse emphasis of [KaiselMasterDetailScaffold]: [primary] is the main
+/// content (the absorbed entry, the larger pane) and [supporting] is a
+/// secondary panel (the absorbing entry on top — comments, up-next, properties),
+/// smaller and on the end by default. Use inside a [KaiselAbsorbingPage].
+///
+/// Purely a convenience; replace with your own layout if you need different
+/// breakpoints, ratios, or chrome.
+class KaiselSupportingPaneScaffold extends StatelessWidget {
+  /// Lay [primary] and [supporting] side by side, supporting on the end.
+  const KaiselSupportingPaneScaffold({
+    super.key,
+    required this.primary,
+    required this.supporting,
+    this.supportingFraction = 0.33,
+    this.supportingOnEnd = true,
+    this.divider,
+  }) : assert(
+         supportingFraction > 0 && supportingFraction < 1,
+         'supportingFraction must be between 0 and 1 exclusive',
+       );
+
+  /// The primary content pane (the absorbed entry below).
+  final Widget primary;
+
+  /// The supporting pane (the absorbing entry on top).
+  final Widget supporting;
+
+  /// Fraction of horizontal space given to [supporting]. Defaults to 1/3.
+  final double supportingFraction;
+
+  /// Whether [supporting] sits at the end (right in LTR). Defaults to true.
+  final bool supportingOnEnd;
+
+  /// Optional divider between the two panes. Defaults to a [VerticalDivider]
+  /// with width 1.
+  final Widget? divider;
+
+  @override
+  Widget build(BuildContext context) {
+    final supportingFlex = (supportingFraction * 1000).round();
+    final primaryFlex = 1000 - supportingFlex;
+    final children = <Widget>[
+      Expanded(flex: primaryFlex, child: primary),
+      divider ?? const VerticalDivider(width: 1),
+      Expanded(flex: supportingFlex, child: supporting),
+    ];
+    return Row(
+      children: supportingOnEnd ? children : children.reversed.toList(),
+    );
+  }
+}
+
 /// Internal page key used by the adaptive pipeline. Carries two
 /// integer ids: [stableId] (used for [Navigator] page identity) and
 /// [popId] (used by host code that turns a removed page back into a

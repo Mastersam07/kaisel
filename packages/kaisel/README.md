@@ -506,7 +506,7 @@ A deep link to `/checkout/confirm` restores the full module stack `[Cart, Shippi
 
 Adaptive layouts let one route render a widget that subsumes one or more entries below it on the stack. The canonical use is master-detail at wide breakpoints: the detail route absorbs the master into a single rendered page. The stack stays the same; only the rendering changes.
 
-The builder returns a `KaiselPageResult`: either `KaiselStandalonePage(widget)` (default 1:1) or `KaiselAbsorbingPage(widget, absorbing: n)`, which subsumes `n` entries below it. Adaptive builders run at three levels — the main delegate, shell branches, and modules — all sharing the same `KaiselPageResult` API and page-identity semantics. Pick the level where the master-detail lives.
+The builder returns a `KaiselPageResult`: either `KaiselStandalonePage(widget)` (default 1:1) or `KaiselAbsorbingPage(widget, absorbing: n)`, which subsumes `n` entries below it. The widget is yours, so absorption isn't limited to master-detail — `KaiselMasterDetailScaffold` and `KaiselSupportingPaneScaffold` are optional conveniences, and the example app also shows a three-pane layout (`absorbing: 2`), a scaffold-free wizard that collapses into a stepper, and a foldable layout keyed on `MediaQuery.displayFeatures`. Adaptive builders run at three levels — the main delegate, shell branches, and modules — all sharing the same `KaiselPageResult` API and page-identity semantics. Pick the level where the absorbing layout lives.
 
 **At the main delegate:**
 
@@ -771,7 +771,7 @@ npx skills add Mastersam07/kaisel
 
 ## Status
 
-**v1.0.0-dev.1, the first 1.0 pre-release.** The core surface is in place: routes, guards, shells (homogeneous and per-branch typed), typed main-stack results (`pushForResult<T>`), modal flows (rendered as routes on the main navigator, so dialogs and observers compose with them), URL-addressable shell and module state, composable modules with URL composition, adaptive layouts at every level, route-pair-aware transitions, `KaiselPageScope`, navigator observers, a DevTools extension, state restoration, and Android predictive-back-aware transitions. The public API is shaped for stability but not yet frozen — expect occasional breaking changes before 1.0, each with a migration note in the [changelog](CHANGELOG.md).
+**v1.0.0-dev.2, a 1.0 pre-release.** The core surface is in place: routes, guards, shells (homogeneous and per-branch typed), typed main-stack results (`pushForResult<T>`), modal flows (rendered as routes on the main navigator, so dialogs and observers compose with them), URL-addressable shell and module state, composable modules with URL composition, adaptive layouts at every level, route-pair-aware transitions, `KaiselPageScope`, navigator observers, a DevTools extension, state restoration, and Android predictive-back-aware transitions. The public API is shaped for stability but not yet frozen — expect occasional breaking changes before 1.0, each with a migration note in the [changelog](CHANGELOG.md).
 
 ## Example
 

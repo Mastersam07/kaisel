@@ -2,10 +2,11 @@
 
 Reference for `KaiselBranch.adaptive`, `KaiselAdaptivePageBuilder`,
 `KaiselAbsorbingPage`, `KaiselStandalonePage`, `KaiselStackContext`,
-and `KaiselMasterDetailScaffold`. Use these when the same logical
-stack should render differently at different widths — typically a
-master-detail layout that's side-by-side on desktop and stacked on
-mobile, all driven by the same router state.
+`KaiselMasterDetailScaffold`, and `KaiselSupportingPaneScaffold`. Use
+these when the same logical stack should render differently at different
+widths or postures. Master-detail is the common case, but the primitive
+(absorption) is layout-agnostic — supporting panes, three-pane, and
+foldables are the same mechanism, all driven by the same router state.
 
 ## The model
 
@@ -31,7 +32,22 @@ identical; only the rendering layer differs.
 | `KaiselStandalonePage` | A normal one-route-one-page entry. |
 | `KaiselAbsorbingPage` | One page that absorbs `absorbing` entries from below it. |
 | `KaiselStackContext<R>` | Context passed to the adaptive builder: `stack`, `position`, plus `previous`, `next`, `isTop`, `isBottom`. |
-| `KaiselMasterDetailScaffold` | Convenience side-by-side scaffold for master/detail. |
+| `KaiselMasterDetailScaffold` | Convenience side-by-side scaffold for master/detail (small master, large detail). |
+| `KaiselSupportingPaneScaffold` | Convenience scaffold for a supporting pane (large primary, small secondary panel on the end). |
+
+## Beyond master-detail
+
+Absorption is layout-agnostic: the widget a `KaiselAbsorbingPage` renders is
+yours, and `absorbing: n` can consume more than one entry. The scaffolds are
+optional conveniences. The example app shows the range on one primitive:
+
+- **Supporting pane** — `main_supporting_pane.dart` (`KaiselSupportingPaneScaffold`).
+- **Three-pane** — same file, `absorbing: 2` with a hand-rolled `Row`.
+- **No scaffold at all** — `main_adaptive_stepper.dart`, a wizard that collapses a
+  linear stack into a horizontal stepper.
+- **Foldables** — `main_foldable.dart`, keyed on `MediaQuery.displayFeatures`
+  (fold/hinge) instead of raw width; kaisel collapses the stack, the widget places
+  the panes around the hinge.
 
 ## The canonical pattern
 
