@@ -650,4 +650,64 @@ void main() {
       expect(kaiselOriginFrames(trace, limit: 2), hasLength(2));
     });
   });
+
+  test('snapshot data classes construct and serialise', () {
+    T rt<T>(T v) => v; // passthrough: forces a runtime (non-const) build
+
+    final entry = KaiselEntrySnapshot(
+      id: rt(1),
+      type: 'Home',
+      props: const ['a'],
+      label: 'Home()',
+    );
+    final stack = KaiselStackSnapshot(
+      depth: rt(1),
+      canPop: false,
+      entries: [entry],
+    );
+    final branch = KaiselBranchSnapshot(
+      index: rt(0),
+      built: true,
+      routeType: 'R',
+      stack: stack,
+    );
+    final shell = KaiselShellSnapshot(
+      type: rt('Shell'),
+      activeBranch: 0,
+      branchCount: 1,
+      branches: [branch],
+    );
+    final module = KaiselModuleSnapshot(
+      prefix: rt('/m'),
+      routeType: 'R',
+      stack: stack,
+    );
+    final flow = KaiselFlowSnapshot(depth: rt(0), type: 'Flow', stack: stack);
+    final problem = KaiselProblemSnapshot(
+      kind: rt('noOp'),
+      router: 'main',
+      detail: 'd',
+    );
+    final step = KaiselGuardStepSnapshot(
+      guard: rt('g0'),
+      input: const ['A'],
+      output: const ['B'],
+      changed: true,
+    );
+    final trace = KaiselGuardTraceSnapshot(
+      input: rt(const ['A']),
+      steps: [step],
+      output: const ['B'],
+    );
+
+    expect(entry.toJson()['absorbed'], false);
+    expect(stack.toJson()['depth'], 1);
+    expect(branch.toJson()['built'], true);
+    expect(shell.toJson()['branches'], hasLength(1));
+    expect(module.toJson()['prefix'], '/m');
+    expect(flow.toJson()['type'], 'Flow');
+    expect(problem.toJson()['kind'], 'noOp');
+    expect(step.toJson()['changed'], true);
+    expect(trace.toJson()['steps'], hasLength(1));
+  });
 }

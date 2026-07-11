@@ -110,12 +110,24 @@ void main() {
       // Adapter collapses to depth-1, keeping the top route.
       expect(decoded, const [_Detail('rt')]);
     });
+
+    test('constructs at runtime (exercises the const constructor)', () {
+      T rt<T>(T v) => v; // passthrough: forces a runtime (non-const) build
+
+      final runtime = KaiselSingleStackCodec<_R>(rt(const _SingleCodec()));
+      expect(runtime.decode(Uri(path: '/')), const [_Home()]);
+    });
   });
 
   test('KaiselStackCodec can be extended, not just implemented', () {
     final codec = _ExtStackCodec();
     expect(codec.encode(const [_Home()]).path, '/x');
     expect(codec.decode(Uri(path: '/y')), isNull);
+  });
+
+  test('StackToConfigCodec wraps a stack codec at runtime', () {
+    final codec = StackToConfigCodec<_R>(_ExtStackCodec());
+    expect(codec.stackCodec, isA<KaiselStackCodec<_R>>());
   });
 }
 

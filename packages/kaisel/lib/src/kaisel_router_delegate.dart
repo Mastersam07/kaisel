@@ -118,6 +118,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.restorationScopeId,
     this.restoreRoute,
     this.webTransition = KaiselWebTransition.fade,
+    this.androidPredictiveBack = false,
     GlobalKey<NavigatorState>? navigatorKey,
     KaiselConfigCodec<R>? codec,
   }) : _builder = builder,
@@ -172,6 +173,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.restorationScopeId,
     this.restoreRoute,
     this.webTransition = KaiselWebTransition.fade,
+    this.androidPredictiveBack = false,
     GlobalKey<NavigatorState>? navigatorKey,
     KaiselConfigCodec<R>? codec,
   }) : _builder = null,
@@ -206,6 +208,12 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   /// Defaults to [KaiselWebTransition.fade]; ignored off the web and when a
   /// [pageWrapper] is set.
   final KaiselWebTransition webTransition;
+
+  /// Opt-in: drive the default page's Android transition through Flutter's
+  /// predictive-back builder, so a nested-navigator route follows the OS back
+  /// gesture (fixing the shell double-animation). Off by default — the app's
+  /// theme transition is used. Ignored on the web and when a [pageWrapper] is set.
+  final bool androidPredictiveBack;
 
   /// Optional builder that renders an active modal flow over the main
   /// UI. Required if your app uses `router.run<T>(...)`.
@@ -436,6 +444,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   Widget build(BuildContext context) {
     Widget content = KaiselWebTransitionScope(
       transition: webTransition,
+      androidPredictiveBack: androidPredictiveBack,
       child: KaiselObserverScope(
         observers: observers,
         child: KaiselNestedHostScope(
@@ -636,13 +645,21 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   Page<Object?> _wrapSimple(KaiselPageWrapperContext<R> ctx) {
     final wrapper = pageWrapper;
     if (wrapper != null) return wrapper(ctx);
-    return kaiselDefaultPage(ctx, transition: webTransition);
+    return kaiselDefaultPage(
+      ctx,
+      transition: webTransition,
+      androidPredictiveBack: androidPredictiveBack,
+    );
   }
 
   Page<Object?> _wrapAdaptive(KaiselPageWrapperContext<R> ctx) {
     final wrapper = pageWrapper;
     if (wrapper != null) return wrapper(ctx);
-    return kaiselDefaultPage(ctx, transition: webTransition);
+    return kaiselDefaultPage(
+      ctx,
+      transition: webTransition,
+      androidPredictiveBack: androidPredictiveBack,
+    );
   }
 
   void _onDidRemovePage(Page<Object?> page) {

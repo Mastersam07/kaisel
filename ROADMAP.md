@@ -13,14 +13,13 @@ The core surface is complete and in production use. Grouped by capability:
 - **Adaptive layouts** — one stack, many renderings via the absorption primitive: master-detail, supporting pane, three-pane, and foldable layouts, all driven by the same router state.
 - **State restoration** — survive OS process-death through Flutter's `RestorationManager`, with a codec-less path for apps that don't use URLs.
 - **DevTools extension** — a zero-integration inspector of the stack, shells, modules, flows, guard trace, and codec/URL, with time-travel and a Problems panel.
-- **Android predictive back** (preview) — shell branches follow the OS back gesture. Being validated on-device ahead of 1.0 (see below).
+- **Android predictive back** (opt-in, preview) — shell branches follow the OS back gesture when enabled via `androidPredictiveBack`. Being validated on-device ahead of 1.0 (see below).
 
 ## Toward 1.0
 
-1.0 marks an **API freeze** — a commitment to the current surface — rather than a feature milestone. The functional surface is in place, and production use plus community feedback have exercised it without surfacing shape problems. Two items remain before the freeze:
+1.0 marks an **API freeze** — a commitment to the current surface — rather than a feature milestone. The functional surface is in place, and production use plus community feedback have exercised it without surfacing shape problems. One item remains before the freeze:
 
-- **Validate Android predictive back on-device.** The fix is covered by widget tests, but the behaviour it targets — the OS back-gesture preview — is compositor-level and can only be confirmed on a real Android 13+ device. We're doing that before committing.
-- **Settle the Android predictive-transition default.** The default page currently applies Flutter's predictive-back transition to every Android route. We're deciding whether that stays on by default or becomes opt-in (as auto_route's equivalent is) before the behaviour is frozen.
+- **Validate Android predictive back on-device.** The behaviour behind the opt-in `androidPredictiveBack` flag is covered by widget tests, but what it targets — the OS back-gesture preview — is compositor-level and can only be confirmed on a real Android 13+ device. We're doing that before committing. (The default was settled in dev.3: opt-in, off by default.)
 
 ## Under consideration
 
@@ -28,7 +27,7 @@ Directions we're weighing, roughly by interest:
 
 - **Codec ergonomics.** URLs are produced by a hand-written `encode`/`decode`. We're exploring helpers that shrink that boilerplate without reintroducing code generation — the most common piece of feedback we receive.
 - **Context-aware guards.** Guards are pure `(current, proposed)` transforms today, testable without a widget tree. An optional Flutter-layer guard that receives a `BuildContext` — for idiomatic `context.read<T>()` state access — could sit alongside the pure default, trading dry-run testability for convenience. It would be additive, never the default.
-- **Custom predictive-back transitions.** A seam to supply your own predictive-back animation, matching what auto_route offers. Planned if there's demand.
+- **Custom predictive-back animations.** kaisel's opt-in predictive back uses Flutter's built-in animation (the standard Android shrink-and-peek). There's no hook to supply your *own* animation driven by the back gesture — auto_route offers this by vendoring Flutter's private gesture detector, and kaisel could do the same. Niche and maintenance-heavy, so gated on real demand.
 - **DevTools polish.** Transitions-log replay on reconnect, guard dry-run against a hypothetical stack, and the remaining write commands.
 - **Primary constructors.** No library change required — route classes get shorter for free once you're on Dart 3.13. We'll adopt them in docs and examples when that SDK is widely available, without raising kaisel's minimum SDK.
 

@@ -9,8 +9,9 @@ sheets, cross-fade between sibling details, etc.
 ## The model
 
 By default, `KaiselRouterDelegate` wraps every route in a `MaterialPage`
-off the web (the native transition — on Android driven through Flutter's
-predictive-back builder, so a route follows the OS back gesture), and a quick
+off the web (the native transition; opt into Android's predictive-back
+transition — so a route follows the OS back gesture — with `androidPredictiveBack`
+on the config/delegate), and a quick
 **fade** on the web — where `MaterialPage`'s OS-derived slide feels out of
 place. Set `webTransition:`
 on the config/delegate to change the web default: `KaiselWebTransition.fade`

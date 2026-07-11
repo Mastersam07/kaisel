@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.0-dev.3
+
+### Changed
+
+- **The Android predictive-back transition is now opt-in.** In 1.0.0-dev.1 the
+  default page routed *every* non-web Android route through Flutter's
+  `PredictiveBackPageTransitionsBuilder`, which also replaced the platform's Zoom
+  transition app-wide. That is now gated behind a new **`androidPredictiveBack`**
+  flag on `KaiselRouterConfig` / `KaiselRouterDelegate`, **off by default** — so
+  the app's theme transition is used unless you opt in. The per-branch back
+  handling (`NavigatorPopHandler`) is unchanged and stays on; the flag only
+  controls the nested-route predictive *transition* (and the single-animation
+  shell fix). If you relied on the dev.1/dev.2 behaviour, pass
+  `androidPredictiveBack: true`.
+
 ## 1.0.0-dev.2
 
 ### Added
