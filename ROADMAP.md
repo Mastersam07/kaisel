@@ -13,14 +13,13 @@ The core surface is complete and in production use. Grouped by capability:
 - **Adaptive layouts** — one stack, many renderings via the absorption primitive: master-detail, supporting pane, three-pane, and foldable layouts, all driven by the same router state.
 - **State restoration** — survive OS process-death through Flutter's `RestorationManager`, with a codec-less path for apps that don't use URLs.
 - **DevTools extension** — a zero-integration inspector of the stack, shells, modules, flows, guard trace, and codec/URL, with time-travel and a Problems panel.
-- **Android predictive back** (preview) — shell branches follow the OS back gesture. Being validated on-device ahead of 1.0 (see below).
+- **Android predictive back** (opt-in, preview) — shell branches follow the OS back gesture when enabled via `androidPredictiveBack`. Being validated on-device ahead of 1.0 (see below).
 
 ## Toward 1.0
 
-1.0 marks an **API freeze** — a commitment to the current surface — rather than a feature milestone. The functional surface is in place, and production use plus community feedback have exercised it without surfacing shape problems. Two items remain before the freeze:
+1.0 marks an **API freeze** — a commitment to the current surface — rather than a feature milestone. The functional surface is in place, and production use plus community feedback have exercised it without surfacing shape problems. One item remains before the freeze:
 
-- **Validate Android predictive back on-device.** The fix is covered by widget tests, but the behaviour it targets — the OS back-gesture preview — is compositor-level and can only be confirmed on a real Android 13+ device. We're doing that before committing.
-- **Settle the Android predictive-transition default.** The default page currently applies Flutter's predictive-back transition to every Android route. We're deciding whether that stays on by default or becomes opt-in (as auto_route's equivalent is) before the behaviour is frozen.
+- **Validate Android predictive back on-device.** The behaviour behind the opt-in `androidPredictiveBack` flag is covered by widget tests, but what it targets — the OS back-gesture preview — is compositor-level and can only be confirmed on a real Android 13+ device. We're doing that before committing. (The default was settled in dev.3: opt-in, off by default.)
 
 ## Under consideration
 

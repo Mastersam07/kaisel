@@ -11,8 +11,9 @@ import 'kaisel_page_wrapper.dart';
 /// feels out of place in a browser. kaisel defaults to a quick [fade] instead;
 /// pass another value to [KaiselRouterConfig] / [KaiselRouterDelegate] to opt
 /// out. On non-web platforms this is ignored — routes use the native
-/// [MaterialPage] transition, driven through Flutter's predictive-back builder
-/// on Android so a nested-navigator route follows the OS back gesture.
+/// [MaterialPage] transition. Opt into the Android predictive-back transition
+/// (so a nested-navigator route follows the OS back gesture) with
+/// `androidPredictiveBack` on [KaiselRouterConfig] / [KaiselRouterDelegate].
 ///
 /// Only the *default* wrapper honours this; a custom `pageWrapper` controls its
 /// own transitions.
@@ -36,6 +37,7 @@ Page<Object?> kaiselDefaultPage<R extends KaiselRoute>(
   KaiselPageWrapperContext<R> ctx, {
   required KaiselWebTransition transition,
   bool isWeb = kIsWeb,
+  bool androidPredictiveBack = false,
 }) {
   if (isWeb) {
     if (transition == KaiselWebTransition.platform) {
@@ -61,6 +63,7 @@ Page<Object?> kaiselDefaultPage<R extends KaiselRoute>(
     name: ctx.route.routeName,
     arguments: ctx.route,
     restorationId: ctx.route.restorationId,
+    androidPredictiveBack: androidPredictiveBack,
     child: ctx.child,
   );
 }
@@ -68,19 +71,30 @@ Page<Object?> kaiselDefaultPage<R extends KaiselRoute>(
 class _KaiselMaterialPage<T> extends MaterialPage<T> {
   const _KaiselMaterialPage({
     required super.child,
+    required this.androidPredictiveBack,
     super.key,
     super.name,
     super.arguments,
     super.restorationId,
   });
 
+  final bool androidPredictiveBack;
+
   @override
-  Route<T> createRoute(BuildContext context) => _KaiselPageRoute<T>(page: this);
+  Route<T> createRoute(BuildContext context) => _KaiselPageRoute<T>(
+    page: this,
+    androidPredictiveBack: androidPredictiveBack,
+  );
 }
 
 class _KaiselPageRoute<T> extends PageRoute<T>
     with MaterialRouteTransitionMixin<T> {
-  _KaiselPageRoute({required MaterialPage<T> page}) : super(settings: page);
+  _KaiselPageRoute({
+    required MaterialPage<T> page,
+    required this.androidPredictiveBack,
+  }) : super(settings: page);
+
+  final bool androidPredictiveBack;
 
   MaterialPage<T> get _page => settings as MaterialPage<T>;
 
@@ -98,9 +112,10 @@ class _KaiselPageRoute<T> extends PageRoute<T>
 
   static const _predictive = PredictiveBackPageTransitionsBuilder();
 
-  // Android predictive-back transition. On a nested navigator the enclosing
-  // route's PopScope makes it decline the gesture (popGestureEnabled is false
-  // when it would not pop), so only this innermost route animates — not twice.
+  // Opt-in (androidPredictiveBack) Android predictive-back transition. On a
+  // nested navigator the enclosing route's PopScope makes it decline the gesture
+  // (popGestureEnabled is false when it would not pop), so only this innermost
+  // route animates — not twice. Off by default: the theme transition is used.
   @override
   Widget buildTransitions(
     BuildContext context,
@@ -108,7 +123,8 @@ class _KaiselPageRoute<T> extends PageRoute<T>
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    if (Theme.of(context).platform == TargetPlatform.android) {
+    if (androidPredictiveBack &&
+        Theme.of(context).platform == TargetPlatform.android) {
       return _predictive.buildTransitions<T>(
         this,
         context,
@@ -191,19 +207,25 @@ class _WebTransitionRoute<T> extends PageRoute<T> {
   ) => _page.fade ? FadeTransition(opacity: animation, child: child) : child;
 }
 
-/// Carries the app's [KaiselWebTransition] down the tree so nested navigators
-/// (shell branches, modules) apply the same default as the main stack. Installed
-/// by [KaiselRouterDelegate]; you don't use it directly.
+/// Carries the app's default-page settings ([KaiselWebTransition] and the
+/// opt-in [androidPredictiveBack] flag) down the tree so nested navigators
+/// (shell branches, modules) apply the same defaults as the main stack.
+/// Installed by [KaiselRouterDelegate]; you don't use it directly.
 class KaiselWebTransitionScope extends InheritedWidget {
-  /// Create the scope with the active [transition].
+  /// Create the scope with the active [transition] and [androidPredictiveBack].
   const KaiselWebTransitionScope({
     super.key,
     required this.transition,
+    this.androidPredictiveBack = false,
     required super.child,
   });
 
   /// The default web transition in effect below this scope.
   final KaiselWebTransition transition;
+
+  /// Whether the default page drives its Android transition through Flutter's
+  /// predictive-back builder (opt-in; off by default).
+  final bool androidPredictiveBack;
 
   /// The nearest transition, or [KaiselWebTransition.fade] if none is installed.
   static KaiselWebTransition of(BuildContext context) =>
@@ -212,7 +234,15 @@ class KaiselWebTransitionScope extends InheritedWidget {
           ?.transition ??
       KaiselWebTransition.fade;
 
+  /// The nearest [androidPredictiveBack], or `false` if none is installed.
+  static bool androidPredictiveBackOf(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<KaiselWebTransitionScope>()
+          ?.androidPredictiveBack ??
+      false;
+
   @override
   bool updateShouldNotify(KaiselWebTransitionScope oldWidget) =>
-      oldWidget.transition != transition;
+      oldWidget.transition != transition ||
+      oldWidget.androidPredictiveBack != androidPredictiveBack;
 }

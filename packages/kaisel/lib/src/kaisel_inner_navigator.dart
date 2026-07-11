@@ -91,11 +91,15 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
   }
 
   KaiselWebTransition _webTransition = KaiselWebTransition.fade;
+  bool _androidPredictiveBack = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _webTransition = KaiselWebTransitionScope.of(context);
+    _androidPredictiveBack = KaiselWebTransitionScope.androidPredictiveBackOf(
+      context,
+    );
     final builder = KaiselObserverScope.of(context);
     if (!identical(builder, _observersBuilder)) {
       _observersBuilder = builder;
@@ -130,14 +134,22 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
 
   Page<Object?> _wrapSimple(KaiselPageWrapperContext<R> ctx) {
     final wrapper = widget.pageWrapper;
-    if (wrapper != null) return wrapper(ctx);
-    return kaiselDefaultPage(ctx, transition: _webTransition);
+    if (wrapper case final wrapper?) return wrapper(ctx);
+    return kaiselDefaultPage(
+      ctx,
+      transition: _webTransition,
+      androidPredictiveBack: _androidPredictiveBack,
+    );
   }
 
   Page<Object?> _wrapAdaptive(KaiselPageWrapperContext<R> ctx) {
     final wrapper = widget.pageWrapper;
-    if (wrapper != null) return wrapper(ctx);
-    return kaiselDefaultPage(ctx, transition: _webTransition);
+    if (wrapper case final wrapper?) return wrapper(ctx);
+    return kaiselDefaultPage(
+      ctx,
+      transition: _webTransition,
+      androidPredictiveBack: _androidPredictiveBack,
+    );
   }
 
   @override
