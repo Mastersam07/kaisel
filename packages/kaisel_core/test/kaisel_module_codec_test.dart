@@ -210,6 +210,21 @@ void main() {
     expect(codec.encodeAny(const [_Home()]), isEmpty);
     expect(codec.decodeAny(const ['x']), isNull);
   });
+
+  test('ModuleMount / ConfigCodecWithModules construct at runtime', () {
+    final codec = _RtCheckoutCodec();
+    final mount = ModuleMount<_AppRoute>(
+      mountRoute: const _CheckoutMount(),
+      prefix: '/checkout',
+      codec: codec,
+    );
+    final composer = ConfigCodecWithModules<_AppRoute>(
+      baseCodec: const _MainCodec(),
+      modules: [mount],
+    );
+    expect(mount.prefix, '/checkout');
+    expect(composer.modules, hasLength(1));
+  });
 }
 
 // Extends (not implements) UntypedModuleStackCodec, exercising its const ctor.
@@ -221,4 +236,15 @@ class _ExtModuleCodec extends UntypedModuleStackCodec {
 
   @override
   List<KaiselRoute>? decodeAny(List<String> segments) => null;
+}
+
+// Extends (not implements) ModuleStackCodec, exercising its const constructor.
+class _RtCheckoutCodec extends ModuleStackCodec<_CheckoutRoute> {
+  _RtCheckoutCodec();
+
+  @override
+  List<String> encode(List<_CheckoutRoute> stack) => const [];
+
+  @override
+  List<_CheckoutRoute>? decode(List<String> segments) => null;
 }
