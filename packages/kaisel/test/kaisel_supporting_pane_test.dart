@@ -140,6 +140,28 @@ void main() {
     expect(find.text('THREAD 7'), findsOneWidget);
   });
 
+  testWidgets('KaiselSupportingPaneScaffold honours side and custom divider', (
+    tester,
+  ) async {
+    // Runtime (non-const) build so the const constructor and its assert execute.
+    Widget label(String t) => Text(t, textDirection: TextDirection.ltr);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: KaiselSupportingPaneScaffold(
+            primary: label('P'),
+            supporting: label('S'),
+            supportingFraction: 0.25,
+            supportingOnEnd: false,
+            divider: const SizedBox(width: 2),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('P'), findsOneWidget);
+    expect(find.text('S'), findsOneWidget);
+  });
+
   group('pane URL codec', () {
     const codec = _PaneCodec();
 
