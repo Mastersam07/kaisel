@@ -6,9 +6,17 @@
 
 - **`onTransition` on `KaiselRouterConfig` / `.adaptive`** — forwarded to the
   router's new callback (see `kaisel_core` 0.23.0): observe every committed
-  stack change as values, at any width. The reliable hook for screen analytics
-  and reacting to master-detail swaps, which `NavigatorObserver`s cannot see at
-  wide widths (the absorbing page updates in place; no route event).
+  stack change as values, at any width — the hook for reacting to
+  master-detail swaps (and anything else) with the old and new stacks in hand.
+
+- **Observer-based screen analytics now see absorbed navigations.** Push, swap,
+  and pop within an absorbed master-detail group update one page in place, so
+  the `Navigator` emits no route events for them. Observers registered via
+  `observers:` (e.g. `FirebaseAnalyticsObserver`) now receive those changes as a
+  `didReplace` carrying the route's `routeName`/`arguments` — uniform logging at
+  every width, no double events at narrow widths, and no events on a resize
+  across the breakpoint (not a navigation). Flutter-internal observers (heroes,
+  `RouteAware`) are unaffected.
 
 ### Changed
 

@@ -92,6 +92,7 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
 
   KaiselWebTransition _webTransition = KaiselWebTransition.fade;
   bool _androidPredictiveBack = false;
+  final _absorbedChangeReporter = KaiselAbsorbedChangeReporter();
 
   @override
   void didChangeDependencies() {
@@ -164,6 +165,11 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
         reportAbsorption: kDebugMode
             ? widget.router.debugSetAbsorbedPositions
             : null,
+        reportRenderedRoutes: (rendered) => _absorbedChangeReporter.report(
+          stack: widget.router.stack,
+          rendered: rendered,
+          observers: _observers,
+        ),
       ),
       _ => [
         for (var i = 0; i < entries.length; i++)

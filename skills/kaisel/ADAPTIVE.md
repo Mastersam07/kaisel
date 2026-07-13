@@ -186,10 +186,11 @@ updates in place. Two consequences:
 - **`PopScope` never fires for swaps.** It participates only in pop
   flows (system back / `maybePop`). By design — `canPop: false`
   blocking list selection would break every master-detail.
-- **`NavigatorObserver`s never see wide-width swaps.** There is no
-  route event, so observer-based screen analytics (e.g.
-  `FirebaseAnalyticsObserver`) log detail browsing on phones but not
-  desktops.
+- **The `Navigator` emits no route events for absorbed changes** —
+  push, swap, and pop within the absorbed group all update one page in
+  place. kaisel bridges this for the observers registered via
+  `observers:` (see below), so screen analytics stay uniform across
+  widths.
 
 **Observing changes — `onTransition`.** The router-level callback sees
 every committed change as values, at any width:
@@ -208,6 +209,14 @@ KaiselRouterConfig<AppRoute>(
 It fires for push, pop, `replaceTop`, `set`, and system back; not for
 no-ops or vetoed navigations. `KaiselRouter` takes the same parameter
 directly for routers you construct yourself (shell branches).
+
+**Screen analytics just work.** Observers registered via `observers:`
+(e.g. `FirebaseAnalyticsObserver`) receive absorbed in-place changes as
+a `didReplace` whose routes carry the usual `routeName` and route-value
+`arguments` — so push, swap, and pop log uniformly at every width, with
+no double events at narrow widths. Resizing across the breakpoint is
+not a navigation and reports nothing. Reach for `onTransition` instead
+when you want the old and new *stacks* rather than route events.
 
 **Reacting locally.** When DetailA and DetailB render the same screen
 widget (the usual `DetailScreen(id:)` shape), the swap is a plain

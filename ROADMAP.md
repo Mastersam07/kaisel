@@ -37,7 +37,7 @@ Deliberate non-goals, with the reasoning — so it's clear what kaisel won't bec
 
 - **Code generation.** kaisel is codegen-free by design; routes stay hand-written sealed classes. Reach for `freezed` per route if you want it — kaisel never forces a build step.
 - **A bundled transition library.** The `pageWrapper` API lets you write any transition; a "common transitions" pack doesn't earn its way into the core.
-- **A dedicated analytics API.** Standard `NavigatorObserver`s, the `observers:` builder, and `routeName` cover screen tracking.
+- **A dedicated analytics API.** Observers registered via `observers:` see every navigation — including adaptive in-place changes, which kaisel reports to them — and `onTransition` exposes each change as values. Together with `routeName`, screen tracking is covered without a dedicated layer.
 - **Persistence beyond restoration.** Offline mode, sync, and background fetch are app concerns, not router concerns.
 - **Automatic adaptive replace-top.** Whether a same-type push means "swap this pane" (master-detail) or "drill deeper" (a comment thread) is app intent the router can't infer, so it stays an explicit choice between `push` and `pushOrReplaceTop`.
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:kaisel_core/framework.dart';
 
@@ -297,6 +298,7 @@ List<Page<Object?>> buildAdaptivePages<R extends KaiselRoute>({
   required KaiselAdaptivePageBuilder<R> builder,
   required Page<Object?> Function(KaiselPageWrapperContext<R> ctx) wrap,
   void Function(Set<int> absorbedPositions)? reportAbsorption,
+  void Function(Map<Object, KaiselRoute> renderedRoutes)? reportRenderedRoutes,
 }) {
   final stack = [for (final e in entries) e.route];
 
@@ -350,6 +352,9 @@ List<Page<Object?>> buildAdaptivePages<R extends KaiselRoute>({
   }
 
   reportAbsorption?.call(absorbed);
+  reportRenderedRoutes?.call({
+    for (final tuple in tuples) tuple.key: tuple.route,
+  });
 
   // Second pass: wrap each tuple with full rendered-stack context.
   // `previous` is the route of the rendered page below this one
@@ -408,4 +413,64 @@ int? adaptiveEntryIdFromPageKey(LocalKey? key) {
   if (key is KaiselAdaptiveKey) return key.popId;
   if (key is ValueKey<int>) return key.value;
   return null;
+}
+
+/// Reports navigations that change a rendered page's route *in place* to the
+/// app-registered [NavigatorObserver]s as a [NavigatorObserver.didReplace].
+///
+/// An absorbed page keeps its Navigator identity across pushes, swaps, and
+/// pops within the absorbed group, so the [Navigator] emits no observer events
+/// for them — screen analytics would log those navigations at narrow widths
+/// but not wide ones. Only the `observers:` list gets the synthetic event;
+/// Flutter's own observers attach through other channels. Gated on the
+/// router's stack actually changing, so a resize crossing the breakpoint
+/// (which changes a page's rendered route without a navigation) never fires.
+/// Internal; not exported from `kaisel.dart`.
+class KaiselAbsorbedChangeReporter {
+  List<KaiselRoute>? _lastStack;
+  Map<Object, KaiselRoute> _lastRendered = const {};
+
+  /// Called once per build with the rendered page-key → route map.
+  void report({
+    required List<KaiselRoute> stack,
+    required Map<Object, KaiselRoute> rendered,
+    required List<NavigatorObserver> observers,
+  }) {
+    final previousStack = _lastStack;
+    final previousRendered = _lastRendered;
+    _lastStack = stack;
+    _lastRendered = rendered;
+    if (previousStack == null) return;
+    if (listEquals(previousStack, stack)) return;
+    if (observers.isEmpty) return;
+
+    final changes = <(KaiselRoute, KaiselRoute)>[];
+    rendered.forEach((key, route) {
+      final previous = previousRendered[key];
+      if (previous != null && previous != route) changes.add((previous, route));
+    });
+    if (changes.isEmpty) return;
+
+    // Post-frame: observers may log, navigate, or setState — none of which
+    // belong in the middle of this build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final (from, to) in changes) {
+        for (final observer in observers) {
+          observer.didReplace(
+            newRoute: _ObserverEventRoute(to),
+            oldRoute: _ObserverEventRoute(from),
+          );
+        }
+      }
+    });
+  }
+}
+
+/// Carries a route's [RouteSettings] into an observer callback for an
+/// absorbed in-place change. Never installed on a [Navigator].
+class _ObserverEventRoute extends Route<void> {
+  _ObserverEventRoute(KaiselRoute route)
+    : super(
+        settings: RouteSettings(name: route.routeName, arguments: route),
+      );
 }
