@@ -449,21 +449,31 @@ class KaiselAbsorbedChangeReporter {
       final previous = previousRendered[key];
       if (previous != null && previous != route) changes.add((previous, route));
     });
-    if (changes.isEmpty) return;
-
-    // Post-frame: observers may log, navigate, or setState — none of which
-    // belong in the middle of this build.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      for (final (from, to) in changes) {
-        for (final observer in observers) {
-          observer.didReplace(
-            newRoute: _ObserverEventRoute(to),
-            oldRoute: _ObserverEventRoute(from),
-          );
-        }
-      }
-    });
+    kaiselReportSyntheticReplace(changes: changes, observers: observers);
   }
+}
+
+/// Dispatches one [NavigatorObserver.didReplace] per (old, new) pair in
+/// [changes] to [observers], for navigations the [Navigator] itself can't
+/// see (absorbed in-place changes, shell tab switches). Internal.
+void kaiselReportSyntheticReplace({
+  required List<(KaiselRoute, KaiselRoute)> changes,
+  required List<NavigatorObserver> observers,
+}) {
+  if (changes.isEmpty || observers.isEmpty) return;
+
+  // Post-frame: observers may log, navigate, or setState — none of which
+  // belong in the middle of a build or notification.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    for (final (from, to) in changes) {
+      for (final observer in observers) {
+        observer.didReplace(
+          newRoute: _ObserverEventRoute(to),
+          oldRoute: _ObserverEventRoute(from),
+        );
+      }
+    }
+  });
 }
 
 /// Carries a route's [RouteSettings] into an observer callback for an

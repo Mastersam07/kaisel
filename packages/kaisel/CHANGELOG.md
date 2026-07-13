@@ -15,8 +15,14 @@
   `observers:` (e.g. `FirebaseAnalyticsObserver`) now receive those changes as a
   `didReplace` carrying the route's `routeName`/`arguments` — uniform logging at
   every width, no double events at narrow widths, and no events on a resize
-  across the breakpoint (not a navigation). Flutter-internal observers (heroes,
-  `RouteAware`) are unaffected.
+  across the breakpoint (not a navigation). **Shell tab switches are reported
+  the same way** — the visible screen changes with no route event (only the
+  branch container's index moves), so `KaiselShell` / `KaiselBranchedShell`
+  report the old and new visible tops to your observers on every switch.
+  Heroes never see the synthetic events (the `HeroController` attaches outside
+  `observers:`), and `RouteObserver`/`RouteAware` safely ignore them
+  (subscriptions key on real route identity; an in-place change neither covers
+  nor uncovers a route).
 
 ### Changed
 
