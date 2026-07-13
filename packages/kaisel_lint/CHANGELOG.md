@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.5.1
+
+### Fixed
+
+- **Lints now actually load in IDEs and `dart analyze` on current stable SDKs.**
+  `analysis_server_plugin` 0.3.16 dropped the legacy `analysis.setContextRoots`
+  handler that current stable SDK analysis servers still send, so a plugin built
+  against 0.3.16+ would load, pass the version check, then reject the request and
+  sit idle — zero diagnostics, no visible error. The dependency is now capped to
+  `>=0.3.15 <0.3.16`, the last version speaking the server's dialect. The cap
+  lifts when the SDK server moves to `analysis.setAnalysisRoots` (expected
+  around Dart 3.13, alongside the `dart analyze` plugin fixes tracked in
+  [dart-lang/sdk#38407](https://github.com/dart-lang/sdk/issues/38407)).
+
+### Note
+
+- Gate lints in CI with `dart analyze`, not `flutter analyze` — flutter_tools'
+  analysis client exits before plugin diagnostics arrive ([flutter/flutter#28327](https://github.com/flutter/flutter/issues/28327)
+  reproduces on current stable despite being closed).
+
 ## 0.5.0
 
 ### Dependencies

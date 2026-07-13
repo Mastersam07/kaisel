@@ -1,6 +1,6 @@
 name: kaisel_lint
 description: Lint rules, quick fixes, and assists for the kaisel Flutter router, built on the first-party analysis_server_plugin API.
-version: 0.5.0
+version: 0.5.1
 repository: https://github.com/Mastersam07/kaisel/tree/dev/packages/kaisel_lint
 homepage: https://github.com/Mastersam07/kaisel/tree/dev/packages/kaisel_lint
 issue_tracker: https://github.com/Mastersam07/kaisel/issues
