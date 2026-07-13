@@ -153,14 +153,14 @@ packages:
       path: "../../kaisel"
       relative: true
     source: path
-    version: "0.20.0"
+    version: "1.0.0-dev.3"
   kaisel_core:
     dependency: "direct overridden"
     description:
       path: "../../kaisel_core"
       relative: true
     source: path
-    version: "0.18.0"
+    version: "0.22.0"
   kaisel_lint:
     dependency: "direct dev"
     description:
@@ -217,13 +217,13 @@ packages:
     source: hosted
     version: "0.13.0"
   meta:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: meta
-      sha256: "1741988757a65eb6b36abe716829688cf01910bbf91c34354ff7ec1c3de2b349"
+      sha256: "307249ce4ff29d58a18e97f6345f539382eb9c9c29ecda628900f31de0443dd9"
       url: "https://pub.dev"
     source: hosted
-    version: "1.18.0"
+    version: "1.19.0"
   package_config:
     dependency: transitive
     description:
@@ -333,6 +333,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.2.1"
+  web:
+    dependency: transitive
+    description:
+      name: web
+      sha256: "868d88a33d8a87b18ffc05f9f030ba328ffefba92d6c127917a2ba740f9cfe4a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.1"
   yaml:
     dependency: transitive
     description:

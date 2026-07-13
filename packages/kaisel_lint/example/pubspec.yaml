@@ -24,5 +24,6 @@ dev_dependencies:
     path: ../
 
 dependency_overrides:
+  meta: ^1.18.3
   kaisel_core:
     path: ../../kaisel_core
