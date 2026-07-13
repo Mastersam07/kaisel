@@ -52,6 +52,7 @@ KaiselPageResult _builder(
       (wide && ctx.previous is _List)
           ? KaiselAbsorbingPage(widget: Center(child: Text('PANES $id')))
           : KaiselStandalonePage(Center(child: Text('DETAIL $id'))),
+    _Thread(:final id) => KaiselStandalonePage(Center(child: Text('T $id'))),
   };
 }
 
@@ -135,5 +136,74 @@ void main() {
 
     expect(config.router.stack, [const _List()]);
     expect(recorder.replaces, [(const _Detail('a'), const _List())]);
+  });
+
+  threePaneTests();
+}
+
+final class _Thread extends _R {
+  const _Thread(this.id);
+
+  final int id;
+
+  @override
+  List<Object?> get props => [id];
+}
+
+KaiselPageResult _threePaneBuilder(
+  BuildContext context,
+  _R route,
+  KaiselStackContext<_R> ctx,
+) {
+  final wide = MediaQuery.sizeOf(context).width >= 700;
+  return switch (route) {
+    _List() => const KaiselStandalonePage(Center(child: Text('LIST'))),
+    _Detail(:final id) =>
+      (wide && ctx.previous is _List)
+          ? KaiselAbsorbingPage(widget: Center(child: Text('TWO $id')))
+          : KaiselStandalonePage(Center(child: Text('DETAIL $id'))),
+    _Thread(:final id) =>
+      (wide && ctx.position >= 2)
+          ? KaiselAbsorbingPage(
+              absorbing: 2,
+              widget: Center(child: Text('THREE $id')),
+            )
+          : KaiselStandalonePage(Center(child: Text('THREAD $id'))),
+  };
+}
+
+void threePaneTests() {
+  testWidgets('bare absorbing page with absorbing: 2 reports growth and swap', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1000, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final recorder = _Recorder();
+    final replaces = recorder.replaces;
+    final config = KaiselRouterConfig<_R>.adaptive(
+      initial: const _List(),
+      builder: _threePaneBuilder,
+      observers: () => [recorder],
+    );
+    addTearDown(config.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: config));
+    await tester.pumpAndSettle();
+
+    await config.router.push(const _Detail('a'));
+    await tester.pumpAndSettle();
+    replaces.clear();
+
+    // Absorption grows (two-pane → three-pane): same page key, new top.
+    await config.router.push(const _Thread(1));
+    await tester.pumpAndSettle();
+    expect(replaces, [(const _Detail('a'), const _Thread(1))]);
+
+    // Swap within absorbing: 2.
+    replaces.clear();
+    await config.router.replaceTop(const _Thread(2));
+    await tester.pumpAndSettle();
+    expect(replaces, [(const _Thread(1), const _Thread(2))]);
   });
 }
