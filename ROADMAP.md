@@ -12,6 +12,7 @@ The core surface is complete and in production use. Grouped by capability:
 - **Shells and modules** — per-tab typed shells (`KaiselBranchedShell`), lazy and code-split branches, and composable, URL-addressable modules.
 - **Adaptive layouts** — one stack, many renderings via the absorption primitive: master-detail, supporting pane, three-pane, and foldable layouts, all driven by the same router state.
 - **State restoration** — survive OS process-death through Flutter's `RestorationManager`, with a codec-less path for apps that don't use URLs.
+- **Screen analytics** — register a standard observer (e.g. `FirebaseAnalyticsObserver`) once via `observers:`; it sees every navigation, including tab switches and adaptive in-place changes that produce no Navigator route event. `onTransition` exposes each change as values for custom tracking.
 - **DevTools extension** — a zero-integration inspector of the stack, shells, modules, flows, guard trace, and codec/URL, with time-travel and a Problems panel.
 - **Android predictive back** (opt-in, preview) — shell branches follow the OS back gesture when enabled via `androidPredictiveBack`. Being validated on-device ahead of 1.0 (see below).
 
@@ -37,7 +38,6 @@ Deliberate non-goals, with the reasoning — so it's clear what kaisel won't bec
 
 - **Code generation.** kaisel is codegen-free by design; routes stay hand-written sealed classes. Reach for `freezed` per route if you want it — kaisel never forces a build step.
 - **A bundled transition library.** The `pageWrapper` API lets you write any transition; a "common transitions" pack doesn't earn its way into the core.
-- **A dedicated analytics API.** Observers registered via `observers:` see every navigation — including adaptive in-place changes, which kaisel reports to them — and `onTransition` exposes each change as values. Together with `routeName`, screen tracking is covered without a dedicated layer.
 - **Persistence beyond restoration.** Offline mode, sync, and background fetch are app concerns, not router concerns.
 - **Automatic adaptive replace-top.** Whether a same-type push means "swap this pane" (master-detail) or "drill deeper" (a comment thread) is app intent the router can't infer, so it stays an explicit choice between `push` and `pushOrReplaceTop`.
 
