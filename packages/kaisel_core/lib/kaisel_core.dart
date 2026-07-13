@@ -24,5 +24,9 @@ export 'src/kaisel_module_codec.dart'
         UntypedModuleStackCodec;
 export 'src/kaisel_route.dart';
 export 'src/kaisel_router.dart'
-    show KaiselActiveFlow, KaiselNavigator, KaiselRouter;
+    show
+        KaiselActiveFlow,
+        KaiselNavigator,
+        KaiselRouter,
+        KaiselTransitionCallback;
 export 'src/kaisel_stack_codec.dart';

@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.0-dev.4
+
+### Added
+
+- **`onTransition` on `KaiselRouterConfig` / `.adaptive`** — forwarded to the
+  router's new callback (see `kaisel_core` 0.23.0): observe every committed
+  stack change as values, at any width. The reliable hook for screen analytics
+  and reacting to master-detail swaps, which `NavigatorObserver`s cannot see at
+  wide widths (the absorbing page updates in place; no route event).
+
+### Changed
+
+- Requires `kaisel_core: ^0.23.0`.
+
 ## 1.0.0-dev.3
 
 ### Changed

@@ -135,6 +135,11 @@ class KaiselStackEntry<R extends KaiselRoute> {
   String toString() => 'KaiselStackEntry#$id($route)';
 }
 
+/// Signature for [KaiselRouter.onTransition]: called with the old and new
+/// stacks (as route values) after a stack change commits.
+typedef KaiselTransitionCallback<R extends KaiselRoute> =
+    void Function(List<R> from, List<R> to);
+
 /// The navigation stack as observable state.
 ///
 /// `KaiselRouter` is the single source of truth for navigation. The
@@ -162,11 +167,14 @@ class KaiselStackEntry<R extends KaiselRoute> {
 /// previous one's guards to settle before running.
 class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     implements KaiselNavigator {
-  /// Create a router with a single initial route and an optional guard
-  /// pipeline.
-  KaiselRouter({required R initial, List<KaiselGuard<R>> guards = const []})
-    : _entries = [KaiselStackEntry<R>(initial)],
-      _guards = List<KaiselGuard<R>>.unmodifiable(guards) {
+  /// Create a router with a single initial route, an optional guard
+  /// pipeline, and an optional [onTransition] callback.
+  KaiselRouter({
+    required R initial,
+    List<KaiselGuard<R>> guards = const [],
+    this.onTransition,
+  }) : _entries = [KaiselStackEntry<R>(initial)],
+       _guards = List<KaiselGuard<R>>.unmodifiable(guards) {
     _recordHistory();
   }
 
@@ -174,11 +182,15 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   factory KaiselRouter.fromStack(
     List<R> stack, {
     List<KaiselGuard<R>> guards = const [],
+    KaiselTransitionCallback<R>? onTransition,
   }) {
     if (stack.isEmpty) {
       throw ArgumentError('Initial stack must contain at least one route.');
     }
-    final router = KaiselRouter<R>._empty(guards: guards);
+    final router = KaiselRouter<R>._empty(
+      guards: guards,
+      onTransition: onTransition,
+    );
     for (final r in stack) {
       router._entries.add(KaiselStackEntry<R>(r));
     }
@@ -186,9 +198,24 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     return router;
   }
 
-  KaiselRouter._empty({required List<KaiselGuard<R>> guards})
+  KaiselRouter._empty({required List<KaiselGuard<R>> guards, this.onTransition})
     : _entries = [],
       _guards = List<KaiselGuard<R>>.unmodifiable(guards);
+
+  /// Called after the stack changes, with the old and new stacks as
+  /// route values.
+  ///
+  /// Fires for every committed change — push, pop, `replaceTop`, `set`,
+  /// and Navigator-driven removals (system back) — after guards have run
+  /// and listeners have been notified. It does not fire for no-op
+  /// navigations (a proposed stack equal to the current one), on
+  /// construction, or for a modal flow's own sub-stack.
+  ///
+  /// The value model makes transitions directly comparable: a
+  /// master-detail swap is `from.length == to.length && from.last !=
+  /// to.last`. Navigating from inside the callback is safe — the new
+  /// navigation is queued like any other.
+  final KaiselTransitionCallback<R>? onTransition;
 
   final List<KaiselStackEntry<R>> _entries;
   final List<KaiselGuard<R>> _guards;
@@ -459,6 +486,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     final i = _entries.indexWhere((e) => e.id == id);
     if (i == -1) return; // already removed
     if (_entries.length == 1) return; // refuse to pop to empty
+    final from = onTransition == null ? null : stack;
     _entries.removeAt(i);
     _resolveResult(id);
     assert(() {
@@ -467,6 +495,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       return true;
     }());
     notifyListeners();
+    if (from case final from?) onTransition?.call(from, stack);
   }
 
   /// Called by the delegate on incoming deep links / route information.
@@ -695,6 +724,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
       return;
     }
 
+    final from = onTransition == null ? null : stack;
     final oldIds = <int>{for (final e in _entries) e.id};
 
     final newEntries = <KaiselStackEntry<R>>[];
@@ -724,6 +754,7 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     _replacesHistoryEntry = replacesHistory;
     _recordHistory();
     notifyListeners();
+    if (from != null) onTransition?.call(from, stack);
   }
 
   bool _routesEqual(List<KaiselStackEntry<R>> entries, List<R> next) {

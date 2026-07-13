@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.23.0
+
+### Added
+
+- **`KaiselRouter.onTransition`** — an optional callback invoked with the old
+  and new stacks (as route values) after every committed change: push, pop,
+  `replaceTop`, `set`, and Navigator-driven removals (system back). It does not
+  fire for no-op or guard-vetoed navigations. Because the stacks are values, a
+  master-detail detail swap is directly detectable
+  (`from.length == to.length && from.last != to.last`) — including at wide
+  widths, where no Navigator route event exists for observers to see.
+  Also available on `KaiselRouter.fromStack`.
+
 ## 0.22.0
 
 ### Added

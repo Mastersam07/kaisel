@@ -424,4 +424,81 @@ void main() {
       expect(b.debugLastTransitionSeq, greaterThan(a.debugLastTransitionSeq));
     });
   });
+
+  group('onTransition', () {
+    late List<(List<_R>, List<_R>)> calls;
+
+    KaiselRouter<_R> router({List<KaiselGuard<_R>> guards = const []}) {
+      calls = [];
+      return KaiselRouter<_R>(
+        initial: const _A(),
+        guards: guards,
+        onTransition: (from, to) => calls.add((from, to)),
+      );
+    }
+
+    test('fires on push with the old and new stacks', () async {
+      final r = router();
+      await r.push(const _B('a'));
+
+      expect(calls, hasLength(1));
+      expect(calls.single.$1, [const _A()]);
+      expect(calls.single.$2, [const _A(), const _B('a')]);
+    });
+
+    test('fires on a replaceTop swap with both values', () async {
+      final r = router();
+      await r.push(const _B('a'));
+      await r.replaceTop(const _B('b'));
+
+      final (from, to) = calls.last;
+      expect(from.length, to.length);
+      expect(from.last, const _B('a'));
+      expect(to.last, const _B('b'));
+    });
+
+    test('fires on pop and on set', () async {
+      final r = router();
+      await r.push(const _B('a'));
+      await r.pop();
+      expect(calls.last.$2, [const _A()]);
+
+      await r.set([const _A(), const _C()]);
+      expect(calls.last.$2, [const _A(), const _C()]);
+    });
+
+    test('does not fire on a no-op navigation', () async {
+      final r = router();
+      await r.replaceTop(const _A());
+      expect(calls, isEmpty);
+    });
+
+    test('does not fire when a guard vetoes the change', () async {
+      final r = router(guards: [(current, proposed) => current]);
+      await r.push(const _B('a'));
+      expect(calls, isEmpty);
+    });
+
+    test('fires on a Navigator-driven removal (system back)', () async {
+      final r = router();
+      await r.push(const _B('a'));
+      calls.clear();
+
+      r.onPageRemoved(r.entries.last.id);
+
+      expect(calls, hasLength(1));
+      expect(calls.single.$1, [const _A(), const _B('a')]);
+      expect(calls.single.$2, [const _A()]);
+    });
+
+    test('fromStack forwards the callback', () async {
+      final seen = <List<_R>>[];
+      final r = KaiselRouter<_R>.fromStack([
+        const _A(),
+        const _C(),
+      ], onTransition: (from, to) => seen.add(to));
+      await r.pop();
+      expect(seen.single, [const _A()]);
+    });
+  });
 }

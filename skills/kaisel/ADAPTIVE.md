@@ -176,6 +176,51 @@ convention, not a library constraint. Pick what suits the design.
 The breakpoint applies to the *content area*, not the screen — if
 there's a sidebar taking 100px, account for it.
 
+## Reacting to and guarding detail swaps
+
+A detail swap (`[List, DetailA]` → `[List, DetailB]` via
+`pushOrReplaceTop`) is not a pop — and at wide widths it isn't even a
+route change: the absorbing page keeps the same Navigator identity and
+updates in place. Two consequences:
+
+- **`PopScope` never fires for swaps.** It participates only in pop
+  flows (system back / `maybePop`). By design — `canPop: false`
+  blocking list selection would break every master-detail.
+- **`NavigatorObserver`s never see wide-width swaps.** There is no
+  route event, so observer-based screen analytics (e.g.
+  `FirebaseAnalyticsObserver`) log detail browsing on phones but not
+  desktops.
+
+**Observing changes — `onTransition`.** The router-level callback sees
+every committed change as values, at any width:
+
+```dart
+KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
+  builder: ...,
+  onTransition: (from, to) {
+    // A swap is: same depth, different top.
+    ...perform actions
+  },
+)
+```
+
+It fires for push, pop, `replaceTop`, `set`, and system back; not for
+no-ops or vetoed navigations. `KaiselRouter` takes the same parameter
+directly for routers you construct yourself (shell branches).
+
+**Reacting locally.** When DetailA and DetailB render the same screen
+widget (the usual `DetailScreen(id:)` shape), the swap is a plain
+`didUpdateWidget` — compare `oldWidget.id` to `widget.id`.
+
+**Vetoing a swap (unsaved changes).** Navigation policy belongs in a
+guard, which sees every proposed stack including `replaceTop`:
+
+```dart
+(current, proposed) =>
+    draftService.isDirty ? current : proposed,   // veto while dirty
+```
+
 ## Shell + adaptive (the combination)
 
 Most apps want adaptive *inside* a branch, not at the top level. The
