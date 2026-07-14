@@ -430,6 +430,11 @@ class KaiselAbsorbedChangeReporter {
   List<KaiselRoute>? _lastStack;
   Map<Object, KaiselRoute> _lastRendered = const {};
 
+  // Live synthetic route per page key, so an absorbed pop reports the same
+  // Route instance its push reported — observers that pair push/pop by
+  // identity stay balanced.
+  final Map<Object, _ObserverEventRoute> _liveRoutes = {};
+
   /// Called once per build with the rendered page-key → route map.
   void report({
     required List<KaiselRoute> stack,
@@ -440,22 +445,43 @@ class KaiselAbsorbedChangeReporter {
     final previousRendered = _lastRendered;
     _lastStack = stack;
     _lastRendered = rendered;
+    _liveRoutes.removeWhere((key, _) => !rendered.containsKey(key));
     if (previousStack == null) return;
     if (listEquals(previousStack, stack)) return;
     if (observers.isEmpty) return;
 
-    final changes = <(KaiselRoute, KaiselRoute)>[];
+    final delta = stack.length - previousStack.length;
+    final events = <void Function(NavigatorObserver)>[];
     rendered.forEach((key, route) {
       final previous = previousRendered[key];
-      if (previous != null && previous != route) changes.add((previous, route));
+      if (previous == null || previous == route) return;
+      final oldRoute = _liveRoutes[key] ?? _ObserverEventRoute(previous);
+      final newRoute = _ObserverEventRoute(route);
+      _liveRoutes[key] = newRoute;
+      events.add(switch (delta) {
+        > 0 => (o) => o.didPush(newRoute, oldRoute),
+        < 0 => (o) => o.didPop(oldRoute, newRoute),
+        _ => (o) => o.didReplace(newRoute: newRoute, oldRoute: oldRoute),
+      });
     });
-    kaiselReportSyntheticReplace(changes: changes, observers: observers);
+    if (events.isEmpty) return;
+
+    // Post-frame: observers may log, navigate, or setState — none of which
+    // belong in the middle of a build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final event in events) {
+        for (final observer in observers) {
+          event(observer);
+        }
+      }
+    });
   }
 }
 
 /// Dispatches one [NavigatorObserver.didReplace] per (old, new) pair in
-/// [changes] to [observers], for navigations the [Navigator] itself can't
-/// see (absorbed in-place changes, shell tab switches). Internal.
+/// [changes] to [observers]. Used for shell tab switches, which have no
+/// push/pop shape; absorbed in-place changes are reported kind-matched by
+/// [KaiselAbsorbedChangeReporter]. Internal.
 void kaiselReportSyntheticReplace({
   required List<(KaiselRoute, KaiselRoute)> changes,
   required List<NavigatorObserver> observers,

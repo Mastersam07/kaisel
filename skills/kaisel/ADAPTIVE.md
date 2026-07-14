@@ -211,10 +211,11 @@ no-ops or vetoed navigations. `KaiselRouter` takes the same parameter
 directly for routers you construct yourself (shell branches).
 
 **Screen analytics just work.** Observers registered via `observers:`
-(e.g. `FirebaseAnalyticsObserver`) receive absorbed in-place changes as
-a `didReplace` whose routes carry the usual `routeName` and route-value
-`arguments` — so push, swap, and pop log uniformly at every width, with
-no double events at narrow widths. Resizing across the breakpoint is
+(e.g. `FirebaseAnalyticsObserver`) receive absorbed in-place changes
+kind-matched — growth as `didPush`, shrink as `didPop`, swaps as
+`didReplace` — with routes carrying the usual `routeName` and
+route-value `arguments`, so everything logs uniformly at every width
+with no double events at narrow widths. Resizing across the breakpoint is
 not a navigation and reports nothing. Reach for `onTransition` instead
 when you want the old and new *stacks* rather than route events.
 

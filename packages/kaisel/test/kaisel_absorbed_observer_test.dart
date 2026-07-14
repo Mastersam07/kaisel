@@ -3,10 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kaisel/kaisel.dart';
 
 // Observer-based analytics (observers: () => [MyAnalyticsObserver()]) must see
-// navigations that update an absorbed page in place — push/swap/pop within the
-// absorbed group emit no Navigator route events, so kaisel reports them to the
-// registered observers as didReplace. Resizing across the breakpoint changes a
-// page's rendered route without a navigation and must NOT report.
+// navigations that update an absorbed page in place — the Navigator emits no
+// route events for them, so kaisel reports them kind-matched: absorbed growth
+// as didPush, absorbed shrink as didPop, swaps as didReplace. Resizing across
+// the breakpoint changes a page's rendered route without a navigation and must
+// report nothing. Synthetic routes are never installed on a Navigator, so
+// `route.navigator == null` identifies them here.
 
 sealed class _R extends KaiselRoute {
   const _R();
@@ -25,19 +27,42 @@ final class _Detail extends _R {
   List<Object?> get props => [id];
 }
 
+final class _Thread extends _R {
+  const _Thread(this.id);
+
+  final int id;
+
+  @override
+  List<Object?> get props => [id];
+}
+
+typedef _Event = (String kind, Object? args, Object? otherArgs);
+
 class _Recorder extends NavigatorObserver {
-  final replaces = <(Object?, Object?)>[]; // (old arguments, new arguments)
-  int pushes = 0;
+  final synthetic = <_Event>[];
+  final syntheticRoutes = <Route<dynamic>>[];
 
-  @override
-  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
-    replaces.add((oldRoute?.settings.arguments, newRoute?.settings.arguments));
+  void _record(String kind, Route<dynamic>? primary, Route<dynamic>? other) {
+    if (primary == null || primary.navigator != null) return; // real event
+    synthetic.add((
+      kind,
+      primary.settings.arguments,
+      other?.settings.arguments,
+    ));
+    syntheticRoutes.add(primary);
   }
 
   @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    pushes++;
-  }
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _record('push', route, previousRoute);
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _record('pop', route, previousRoute);
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) =>
+      _record('replace', newRoute, oldRoute);
 }
 
 KaiselPageResult _builder(
@@ -52,7 +77,13 @@ KaiselPageResult _builder(
       (wide && ctx.previous is _List)
           ? KaiselAbsorbingPage(widget: Center(child: Text('PANES $id')))
           : KaiselStandalonePage(Center(child: Text('DETAIL $id'))),
-    _Thread(:final id) => KaiselStandalonePage(Center(child: Text('T $id'))),
+    _Thread(:final id) =>
+      (wide && ctx.position >= 2)
+          ? KaiselAbsorbingPage(
+              absorbing: 2,
+              widget: Center(child: Text('THREE $id')),
+            )
+          : KaiselStandalonePage(Center(child: Text('THREAD $id'))),
   };
 }
 
@@ -77,33 +108,52 @@ Future<(KaiselRouterConfig<_R>, _Recorder)> _pump(
 }
 
 void main() {
-  testWidgets('wide: absorbed push and swap report didReplace with values', (
+  testWidgets('wide: absorbed growth is a didPush, a swap is a didReplace', (
     tester,
   ) async {
     final (config, recorder) = await _pump(tester, const Size(1000, 800));
 
     await config.router.push(const _Detail('a'));
     await tester.pumpAndSettle();
-    expect(recorder.replaces, [(const _List(), const _Detail('a'))]);
+    expect(recorder.synthetic, [('push', const _Detail('a'), const _List())]);
 
-    recorder.replaces.clear();
+    recorder.synthetic.clear();
     await config.router.replaceTop(const _Detail('b'));
     await tester.pumpAndSettle();
-    expect(recorder.replaces, [(const _Detail('a'), const _Detail('b'))]);
+    expect(recorder.synthetic, [
+      ('replace', const _Detail('b'), const _Detail('a')),
+    ]);
+  });
+
+  testWidgets('wide: system back is a didPop pairing the pushed instance', (
+    tester,
+  ) async {
+    final (config, recorder) = await _pump(tester, const Size(1000, 800));
+    await config.router.push(const _Detail('a'));
+    await tester.pumpAndSettle();
+    final pushed = recorder.syntheticRoutes.single;
+    recorder.synthetic.clear();
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(config.router.stack, [const _List()]);
+    expect(recorder.synthetic, [('pop', const _Detail('a'), const _List())]);
+    expect(identical(recorder.syntheticRoutes.last, pushed), isTrue);
   });
 
   testWidgets('resize across the breakpoint reports nothing', (tester) async {
     final (config, recorder) = await _pump(tester, const Size(500, 800));
     await config.router.push(const _Detail('a'));
     await tester.pumpAndSettle();
-    recorder.replaces.clear();
+    recorder.synthetic.clear();
 
     tester.view.physicalSize = const Size(1000, 800);
     await tester.pumpAndSettle();
     tester.view.physicalSize = const Size(500, 800);
     await tester.pumpAndSettle();
 
-    expect(recorder.replaces, isEmpty);
+    expect(recorder.synthetic, isEmpty);
   });
 
   testWidgets('narrow swap gets no synthetic event (no double-logging)', (
@@ -112,98 +162,33 @@ void main() {
     final (config, recorder) = await _pump(tester, const Size(500, 800));
     await config.router.push(const _Detail('a'));
     await tester.pumpAndSettle();
-    recorder.replaces.clear();
-    final pushesBefore = recorder.pushes;
+    recorder.synthetic.clear();
 
     await config.router.replaceTop(const _Detail('b'));
     await tester.pumpAndSettle();
 
-    // The Navigator's own real event covers narrow widths; kaisel adds nothing.
-    expect(recorder.replaces, isEmpty);
-    expect(recorder.pushes, greaterThan(pushesBefore));
+    expect(recorder.synthetic, isEmpty);
   });
 
-  testWidgets('wide: system back within the absorbed group reports the pop', (
+  testWidgets('bare absorbing: 2 — growth is a push, swap is a replace', (
     tester,
   ) async {
     final (config, recorder) = await _pump(tester, const Size(1000, 800));
     await config.router.push(const _Detail('a'));
     await tester.pumpAndSettle();
-    recorder.replaces.clear();
+    recorder.synthetic.clear();
 
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-
-    expect(config.router.stack, [const _List()]);
-    expect(recorder.replaces, [(const _Detail('a'), const _List())]);
-  });
-
-  threePaneTests();
-}
-
-final class _Thread extends _R {
-  const _Thread(this.id);
-
-  final int id;
-
-  @override
-  List<Object?> get props => [id];
-}
-
-KaiselPageResult _threePaneBuilder(
-  BuildContext context,
-  _R route,
-  KaiselStackContext<_R> ctx,
-) {
-  final wide = MediaQuery.sizeOf(context).width >= 700;
-  return switch (route) {
-    _List() => const KaiselStandalonePage(Center(child: Text('LIST'))),
-    _Detail(:final id) =>
-      (wide && ctx.previous is _List)
-          ? KaiselAbsorbingPage(widget: Center(child: Text('TWO $id')))
-          : KaiselStandalonePage(Center(child: Text('DETAIL $id'))),
-    _Thread(:final id) =>
-      (wide && ctx.position >= 2)
-          ? KaiselAbsorbingPage(
-              absorbing: 2,
-              widget: Center(child: Text('THREE $id')),
-            )
-          : KaiselStandalonePage(Center(child: Text('THREAD $id'))),
-  };
-}
-
-void threePaneTests() {
-  testWidgets('bare absorbing page with absorbing: 2 reports growth and swap', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1000, 800);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
-    final recorder = _Recorder();
-    final replaces = recorder.replaces;
-    final config = KaiselRouterConfig<_R>.adaptive(
-      initial: const _List(),
-      builder: _threePaneBuilder,
-      observers: () => [recorder],
-    );
-    addTearDown(config.dispose);
-    await tester.pumpWidget(MaterialApp.router(routerConfig: config));
-    await tester.pumpAndSettle();
-
-    await config.router.push(const _Detail('a'));
-    await tester.pumpAndSettle();
-    replaces.clear();
-
-    // Absorption grows (two-pane → three-pane): same page key, new top.
     await config.router.push(const _Thread(1));
     await tester.pumpAndSettle();
-    expect(replaces, [(const _Detail('a'), const _Thread(1))]);
+    expect(recorder.synthetic, [
+      ('push', const _Thread(1), const _Detail('a')),
+    ]);
 
-    // Swap within absorbing: 2.
-    replaces.clear();
+    recorder.synthetic.clear();
     await config.router.replaceTop(const _Thread(2));
     await tester.pumpAndSettle();
-    expect(replaces, [(const _Thread(1), const _Thread(2))]);
+    expect(recorder.synthetic, [
+      ('replace', const _Thread(2), const _Thread(1)),
+    ]);
   });
 }

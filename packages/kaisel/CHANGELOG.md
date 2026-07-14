@@ -12,8 +12,10 @@
 - **Observer-based screen analytics now see absorbed navigations.** Push, swap,
   and pop within an absorbed master-detail group update one page in place, so
   the `Navigator` emits no route events for them. Observers registered via
-  `observers:` (e.g. `FirebaseAnalyticsObserver`) now receive those changes as a
-  `didReplace` carrying the route's `routeName`/`arguments` — uniform logging at
+  `observers:` (e.g. `FirebaseAnalyticsObserver`) now receive those changes
+  kind-matched — absorbed growth as `didPush`, shrink as `didPop`, swaps as
+  `didReplace`, with push/pop pairing the same route instance — carrying the
+  route's `routeName`/`arguments` — uniform logging at
   every width, no double events at narrow widths, and no events on a resize
   across the breakpoint (not a navigation). **Shell tab switches are reported
   the same way** — the visible screen changes with no route event (only the
