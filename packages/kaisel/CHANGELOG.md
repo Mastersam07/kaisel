@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.0.0-dev.4
+
+### Added
+
+- **`onTransition` on `KaiselRouterConfig` / `.adaptive`** — forwarded to the
+  router's new callback (see `kaisel_core` 0.23.0): observe every committed
+  stack change as values, at any width — the hook for reacting to
+  master-detail swaps (and anything else) with the old and new stacks in hand.
+
+- **Observer-based screen analytics now see absorbed navigations.** Push, swap,
+  and pop within an absorbed master-detail group update one page in place, so
+  the `Navigator` emits no route events for them. Observers registered via
+  `observers:` (e.g. `FirebaseAnalyticsObserver`) now receive those changes
+  kind-matched — absorbed growth as `didPush`, shrink as `didPop`, swaps as
+  `didReplace`, with push/pop pairing the same route instance — carrying the
+  route's `routeName`/`arguments` — uniform logging at
+  every width, no double events at narrow widths, and no events on a resize
+  across the breakpoint (not a navigation). **Shell tab switches are reported
+  the same way** — the visible screen changes with no route event (only the
+  branch container's index moves), so `KaiselShell` / `KaiselBranchedShell`
+  report the old and new visible tops to your observers on every switch.
+  Heroes never see the synthetic events (the `HeroController` attaches outside
+  `observers:`), and `RouteObserver`/`RouteAware` safely ignore them
+  (subscriptions key on real route identity; an in-place change neither covers
+  nor uncovers a route).
+
+### Changed
+
+- Requires `kaisel_core: ^0.23.0`.
+
 ## 1.0.0-dev.3
 
 ### Changed

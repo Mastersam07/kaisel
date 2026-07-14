@@ -54,7 +54,7 @@ Dart 3 has had the type machinery to do better since 2023: sealed classes, exhau
 - **Typed results, two ways** — `await context.pushForResult<T>(SomeScreen())` keeps the screen on the **main stack** (a normal route — observed, with root dialogs above it) and resolves when it pops with `context.pop(result)`. `await router.run<T>(SomeFlow())` lifts a multi-screen **modal flow** into its own sub-router; flows can nest, unwinding LIFO.
 - **Adaptive layouts** — at the main delegate, inside shell branches, and inside modules. A detail route can absorb its master into one rendered page (master-detail without changing the stack model).
 - **Direction-aware transitions** — pattern-match on the `(previous, current)` route pair to pick a `Page` subclass per transition. Web-friendly fade by default. Shared elements via Flutter's `Hero`.
-- **Navigator observers** — attach `NavigatorObserver`s (analytics, Sentry, `RouteObserver`) with an `observers: () => [...]` builder. It's called once per navigator — the main stack and each shell branch, module, and flow — so every navigator gets its own fresh instance.
+- **Navigator observers** — attach `NavigatorObserver`s (analytics, Sentry, `RouteObserver`) with an `observers: () => [...]` builder. It's called once per navigator — the main stack and each shell branch, module, and flow — so every navigator gets its own fresh instance. Every navigation reaches them, including tab switches and adaptive in-place changes, which produce no Navigator route event of their own.
 - **`KaiselPageScope` for descendants** — deeply-nested widgets read the page's position in the rendered stack (`isTop`, `isBottom`, `previous`, …) without prop-drilling.
 - **Identity-preserving stack diff** — pushing one route doesn't rebuild the others.
 - **Pure-Dart unit tests** for navigation state — no widget tree needed.
@@ -652,12 +652,18 @@ KaiselRouterConfig<AppRoute>(
 
 You pass it **once**, on the config — kaisel then attaches observers to **every** navigator it manages: the main stack *and* each shell branch, module, and active flow. You don't wire shells (or modules or flows) separately, and you don't miss their events.
 
+**Every navigation. One observer. Zero wiring.** That includes the navigations the `Navigator` itself never reports: a shell **tab switch** (only the branch container's index moves) and **adaptive in-place changes** (a wide-width master-detail push, swap, or pop updates one absorbed page). kaisel reports them to your observers **kind-matched** — absorbed growth as a `didPush`, absorbed shrink as a `didPop`, swaps and tab switches as a `didReplace` — carrying the usual `routeName` / `arguments`, with push/pop pairing the same route instance. A stock `FirebaseAnalyticsObserver` logs uniformly at every width, with no double events at narrow widths and nothing on a resize.
+
 It's a builder (`List<NavigatorObserver> Function()`), not a list, on purpose: a `NavigatorObserver` instance belongs to a **single** `Navigator`, and kaisel has many — exactly those listed above. kaisel calls the builder **once per navigator**, so each gets its **own fresh instance** (cached, so it isn't rebuilt every frame). Return new instances each call; don't hand back a shared one — that's the only catch.
 
-Because each navigator has its own observer, a bottom-nav app gets one observer per tab — each logging that tab's routes. If instead you want a single, unified "where is the user now" stream (e.g. to label events by tab), listen to the routers directly — the stack is observable state:
+Because each navigator has its own observer, a bottom-nav app gets one observer per tab — each logging that tab's routes, plus the switches between them. If you'd rather react to changes with the old and new stacks as **values**, use `onTransition` — on the config for the main stack, or on any `KaiselRouter` you construct yourself (e.g. shell branches):
 
 ```dart
-router.addListener(() => analytics.logScreenView(screenName: '${router.stack.last}'));
+onTransition: (from, to) {
+  if (to.last != from.last) {
+    analytics.logScreenView(screenName: to.last.routeName);
+  }
+},
 ```
 
 **Route names.** Off-the-shelf observers (e.g. `FirebaseAnalyticsObserver`) read `route.settings.name`. kaisel sets it from each route's `routeName` getter — which defaults to the route's runtime type (`'ProductDetail'`) — and puts the route itself in `settings.arguments`. Override `routeName` for a custom screen name (it's `routeName`, not `name`, so it never clashes with a domain field your route carries):

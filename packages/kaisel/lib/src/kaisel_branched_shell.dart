@@ -678,9 +678,34 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
       'but ${_branches.length} branch widgets were provided.',
     );
     _shell.addListener(_onChange);
+    _lastBranch = _shell.activeBranch;
+    _lastActiveTop = _activeTop();
+  }
+
+  late int _lastBranch;
+  KaiselRoute? _lastActiveTop;
+  KaiselObserversBuilder? _switchObserversBuilder;
+  List<NavigatorObserver> _switchObservers = const [];
+
+  KaiselRoute? _activeTop() {
+    final stack = _shell.current.stack;
+    return stack.isEmpty ? null : stack.last;
   }
 
   void _onChange() {
+    final branch = _shell.activeBranch;
+    final top = _activeTop();
+    if (branch != _lastBranch) {
+      final from = _lastActiveTop;
+      if (from != null && top != null && from != top) {
+        kaiselReportSyntheticReplace(
+          changes: [(from, top)],
+          observers: _switchObservers,
+        );
+      }
+    }
+    _lastBranch = branch;
+    _lastActiveTop = top;
     if (mounted) setState(() {});
   }
 
@@ -692,6 +717,11 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
       _host?.unregisterNested(_shell);
       _host = host;
       _host?.registerNested(_shell);
+    }
+    final builder = KaiselObserverScope.of(context);
+    if (!identical(builder, _switchObserversBuilder)) {
+      _switchObserversBuilder = builder;
+      _switchObservers = builder?.call() ?? const <NavigatorObserver>[];
     }
   }
 

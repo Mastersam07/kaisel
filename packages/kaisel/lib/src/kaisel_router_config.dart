@@ -58,6 +58,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
     required R initial,
     required KaiselPageBuilder<R> builder,
     List<KaiselGuard<R>> guards = const [],
+    KaiselTransitionCallback<R>? onTransition,
     KaiselPageWrapper<R>? pageWrapper,
     KaiselWebTransition webTransition = KaiselWebTransition.fade,
     bool androidPredictiveBack = false,
@@ -69,7 +70,11 @@ class KaiselRouterConfig<R extends KaiselRoute>
     KaiselConfigCodec<R>? codec,
     List<R>? fallback,
   }) {
-    final router = KaiselRouter<R>(initial: initial, guards: guards);
+    final router = KaiselRouter<R>(
+      initial: initial,
+      guards: guards,
+      onTransition: onTransition,
+    );
     return _assemble<R>(
       router: router,
       delegate: KaiselRouterDelegate<R>(
@@ -97,6 +102,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
     required R initial,
     required KaiselAdaptivePageBuilder<R> builder,
     List<KaiselGuard<R>> guards = const [],
+    KaiselTransitionCallback<R>? onTransition,
     KaiselPageWrapper<R>? pageWrapper,
     KaiselWebTransition webTransition = KaiselWebTransition.fade,
     bool androidPredictiveBack = false,
@@ -108,7 +114,11 @@ class KaiselRouterConfig<R extends KaiselRoute>
     KaiselConfigCodec<R>? codec,
     List<R>? fallback,
   }) {
-    final router = KaiselRouter<R>(initial: initial, guards: guards);
+    final router = KaiselRouter<R>(
+      initial: initial,
+      guards: guards,
+      onTransition: onTransition,
+    );
     return _assemble<R>(
       router: router,
       delegate: KaiselRouterDelegate<R>.adaptive(

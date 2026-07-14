@@ -379,6 +379,17 @@ route into the "home" tab. When tabs need **different** route types (and
 that compile-time guard), use `KaiselBranchedShell` with per-branch
 sealed types.
 
+## Observers and tab switches
+
+The app-level `observers:` builder is invoked fresh for every navigator,
+so pushes and pops inside any branch already reach your observers (e.g.
+`FirebaseAnalyticsObserver`) with no per-branch wiring. A tab switch
+changes the visible screen without any Navigator route event — only the
+branch container's index moves — so both shells report it to your
+observers as a `didReplace` from the old branch's visible top to the new
+one's. Equal tops don't report, and in-branch navigation is never
+double-reported.
+
 ## Common mistakes
 
 | Mistake | Fix |

@@ -625,7 +625,14 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     builder: builder,
     wrap: _wrapAdaptive,
     reportAbsorption: kDebugMode ? router.debugSetAbsorbedPositions : null,
+    reportRenderedRoutes: (rendered) => _absorbedChangeReporter.report(
+      stack: router.stack,
+      rendered: rendered,
+      observers: _mainObservers,
+    ),
   );
+
+  final _absorbedChangeReporter = KaiselAbsorbedChangeReporter();
 
   /// The simple builder used by the modal-flow inner navigator. When
   /// the delegate was constructed with an adaptive builder, synthesise

@@ -176,6 +176,61 @@ convention, not a library constraint. Pick what suits the design.
 The breakpoint applies to the *content area*, not the screen — if
 there's a sidebar taking 100px, account for it.
 
+## Reacting to and guarding detail swaps
+
+A detail swap (`[List, DetailA]` → `[List, DetailB]` via
+`pushOrReplaceTop`) is not a pop — and at wide widths it isn't even a
+route change: the absorbing page keeps the same Navigator identity and
+updates in place. Two consequences:
+
+- **`PopScope` never fires for swaps.** It participates only in pop
+  flows (system back / `maybePop`). By design — `canPop: false`
+  blocking list selection would break every master-detail.
+- **The `Navigator` emits no route events for absorbed changes** —
+  push, swap, and pop within the absorbed group all update one page in
+  place. kaisel bridges this for the observers registered via
+  `observers:` (see below), so screen analytics stay uniform across
+  widths.
+
+**Observing changes — `onTransition`.** The router-level callback sees
+every committed change as values, at any width:
+
+```dart
+KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
+  builder: ...,
+  onTransition: (from, to) {
+    // A swap is: same depth, different top.
+    ...perform actions
+  },
+)
+```
+
+It fires for push, pop, `replaceTop`, `set`, and system back; not for
+no-ops or vetoed navigations. `KaiselRouter` takes the same parameter
+directly for routers you construct yourself (shell branches).
+
+**Screen analytics just work.** Observers registered via `observers:`
+(e.g. `FirebaseAnalyticsObserver`) receive absorbed in-place changes
+kind-matched — growth as `didPush`, shrink as `didPop`, swaps as
+`didReplace` — with routes carrying the usual `routeName` and
+route-value `arguments`, so everything logs uniformly at every width
+with no double events at narrow widths. Resizing across the breakpoint is
+not a navigation and reports nothing. Reach for `onTransition` instead
+when you want the old and new *stacks* rather than route events.
+
+**Reacting locally.** When DetailA and DetailB render the same screen
+widget (the usual `DetailScreen(id:)` shape), the swap is a plain
+`didUpdateWidget` — compare `oldWidget.id` to `widget.id`.
+
+**Vetoing a swap (unsaved changes).** Navigation policy belongs in a
+guard, which sees every proposed stack including `replaceTop`:
+
+```dart
+(current, proposed) =>
+    draftService.isDirty ? current : proposed,   // veto while dirty
+```
+
 ## Shell + adaptive (the combination)
 
 Most apps want adaptive *inside* a branch, not at the top level. The

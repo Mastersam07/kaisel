@@ -185,10 +185,45 @@ class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
         GlobalKey<NavigatorState>(debugLabel: 'kaisel-branch-$i'),
     ];
     _shell.addListener(_onShellChange);
+    _lastBranch = _shell.activeBranch;
+    _lastActiveTop = _activeTop();
+  }
+
+  late int _lastBranch;
+  KaiselRoute? _lastActiveTop;
+  KaiselObserversBuilder? _switchObserversBuilder;
+  List<NavigatorObserver> _switchObservers = const [];
+
+  KaiselRoute? _activeTop() {
+    final stack = _shell.current.stack;
+    return stack.isEmpty ? null : stack.last;
   }
 
   void _onShellChange() {
+    final branch = _shell.activeBranch;
+    final top = _activeTop();
+    if (branch != _lastBranch) {
+      final from = _lastActiveTop;
+      if (from != null && top != null && from != top) {
+        kaiselReportSyntheticReplace(
+          changes: [(from, top)],
+          observers: _switchObservers,
+        );
+      }
+    }
+    _lastBranch = branch;
+    _lastActiveTop = top;
     if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final builder = KaiselObserverScope.of(context);
+    if (!identical(builder, _switchObserversBuilder)) {
+      _switchObserversBuilder = builder;
+      _switchObservers = builder?.call() ?? const <NavigatorObserver>[];
+    }
   }
 
   @override
