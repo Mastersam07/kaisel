@@ -14,13 +14,15 @@ The core surface is complete and in production use. Grouped by capability:
 - **State restoration** — survive OS process-death through Flutter's `RestorationManager`, with a codec-less path for apps that don't use URLs.
 - **Screen analytics** — register a standard observer (e.g. `FirebaseAnalyticsObserver`) once via `observers:`; it sees every navigation, including tab switches and adaptive in-place changes that produce no Navigator route event. `onTransition` exposes each change as values for custom tracking.
 - **DevTools extension** — a zero-integration inspector of the stack, shells, modules, flows, guard trace, and codec/URL, with time-travel and a Problems panel.
-- **Android predictive back** (opt-in, preview) — shell branches follow the OS back gesture when enabled via `androidPredictiveBack`. Being validated on-device ahead of 1.0 (see below).
+- **Android predictive back** (opt-in, preview) — shell branches follow the OS back gesture when enabled via `androidPredictiveBack`. The flag's API is stable; the visual behaviour ships as a preview while on-device validation continues (see below).
 
-## Toward 1.0
+## 1.0 — shipped
 
-1.0 marks an **API freeze** — a commitment to the current surface — rather than a feature milestone. The functional surface is in place, and production use plus community feedback have exercised it without surfacing shape problems. One item remains before the freeze:
+kaisel 1.0.0 is stable: the API surface is frozen under semantic versioning, and breaking changes now require a major version with migration notes. Production use plus community feedback exercised the surface through the `1.0.0-dev` line without surfacing shape problems.
 
-- **Validate Android predictive back on-device.** The behaviour behind the opt-in `androidPredictiveBack` flag is covered by widget tests, but what it targets — the OS back-gesture preview — is compositor-level and can only be confirmed on a real Android 13+ device. We're doing that before committing. (The default was settled in dev.3: opt-in, off by default.)
+One item carries over from the pre-release line:
+
+- **Validate Android predictive back on-device.** The opt-in `androidPredictiveBack` flag's API is frozen, but what it targets — the OS back-gesture preview — is compositor-level and can only be confirmed on a real Android 13+ device. It ships as a documented preview (off by default) until that validation lands; graduating it out of preview is additive.
 
 ## Under consideration
 

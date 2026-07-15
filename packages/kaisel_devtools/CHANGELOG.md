@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.0
+
+Stable release, alongside kaisel 1.0.0.
+
+### Changed
+
+- The build pipeline now tree-shakes icons (MaterialIcons 1.6 MB → 9 KB,
+  verified at compile time) and no longer ships the CanvasKit engine variants
+  and debug symbols the extension never loads (it fetches CanvasKit from
+  Google's CDN, as before). The extension's share of kaisel's published
+  archive drops from ~15 MB to ~1 MB.
+
 ## 0.4.0
 
 ### Added

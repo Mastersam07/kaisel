@@ -775,9 +775,9 @@ An [agent skill](https://github.com/Mastersam07/kaisel/tree/main/skills/kaisel) 
 npx skills add Mastersam07/kaisel
 ```
 
-## Status
+## Stability
 
-**v1.0.0-dev.5, a 1.0 pre-release.** The core surface is in place: routes, guards, shells (homogeneous and per-branch typed), typed main-stack results (`pushForResult<T>`), modal flows (rendered as routes on the main navigator, so dialogs and observers compose with them), URL-addressable shell and module state, composable modules with URL composition, adaptive layouts at every level, route-pair-aware transitions, `KaiselPageScope`, navigator observers, a DevTools extension, state restoration, and opt-in Android predictive-back transitions. The public API is shaped for stability but not yet frozen — expect occasional breaking changes before 1.0, each with a migration note in the [changelog](CHANGELOG.md).
+Stable under semantic versioning: breaking changes require a major version, each with a migration note in the [changelog](CHANGELOG.md). One feature is flagged as a preview: Android predictive-back transitions (opt-in via `androidPredictiveBack`).
 
 ## Example
 

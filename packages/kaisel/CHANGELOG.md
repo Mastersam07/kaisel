@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.0.0
+
+First stable release. The API surface is frozen under semantic versioning:
+breaking changes now require a major version and will ship with migration
+notes.
+
+Everything from the `1.0.0-dev` line is included — highlights since 0.22.0:
+
+- **Android predictive back** (opt-in via `androidPredictiveBack`, off by
+  default): shell branches follow the OS back gesture; nested-navigator pops
+  animate once. Ships as a preview — the API is frozen, and on-device
+  validation of the visual behaviour continues.
+- **`KaiselSupportingPaneScaffold`** and non-master-detail adaptive examples
+  (three-pane, scaffold-free stepper, foldables) on the same absorption
+  primitive.
+- **`onTransition`** on `KaiselRouterConfig` / `KaiselRouter` — every committed
+  stack change as values.
+- **Complete observer coverage**: navigations the `Navigator` can't see —
+  absorbed in-place changes (kind-matched `didPush`/`didPop`/`didReplace`,
+  with push/pop pairing the same route instance) and shell tab switches — are
+  reported to the observers registered via `observers:`. One line of setup
+  covers screen analytics at every width.
+- **Published archive slimmed from 15 MB to 1 MB** (tree-shaken icons, pruned
+  engine files the DevTools extension never loads).
+
+### Changed
+
+- Requires `kaisel_core: ^1.0.0`.
+
 ## 1.0.0-dev.5
 
 ### Changed
