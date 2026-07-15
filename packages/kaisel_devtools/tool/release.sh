@@ -14,8 +14,9 @@
 #   e.g. packages/kaisel_devtools/tool/release.sh 0.3.0
 #
 # Afterwards: update packages/kaisel_devtools/CHANGELOG.md and commit the
-# pubspec and config.yaml. The build/ output is gitignored — it is regenerated
-# here and ships when the kaisel package is published.
+# pubspec and config.yaml. The build/ output stays gitignored; kaisel's
+# .pubignore re-includes it at publish time (and keeps the pruned artifacts
+# excluded as a backstop).
 set -euo pipefail
 
 version="${1:-}"
@@ -41,13 +42,28 @@ echo "Setting kaisel_devtools and the extension config to ${version}..."
 set_version "$pubspec"
 set_version "$config"
 
-echo "Building and copying the DevTools extension…"
-( cd "$root" && dart run devtools_extensions build_and_copy \
-    --source=packages/kaisel_devtools \
-    --dest=packages/kaisel/extension/devtools )
+echo "Building the DevTools extension…"
+# Same flags devtools_extensions' build_and_copy uses, minus
+# --no-tree-shake-icons: the extension only uses const icons, so tree-shaking
+# is verified safe at compile time and cuts MaterialIcons from 1.6 MB to 9 KB.
+( cd "$root/packages/kaisel_devtools" && flutter build web \
+    --pwa-strategy=offline-first --release )
+
+echo "Copying into packages/kaisel/extension/devtools/build…"
+rm -rf "$root/packages/kaisel/extension/devtools/build"
+cp -R "$root/packages/kaisel_devtools/build/web" \
+      "$root/packages/kaisel/extension/devtools/build"
+
+# Prune artifacts the extension never loads at runtime: CanvasKit comes from
+# Google's CDN (flutter_bootstrap.js), so the local engine variants and debug
+# symbols are dead weight (~29 MB), and NOTICES is only fetched by a
+# LicensePage the extension doesn't have.
+echo "Pruning unused build artifacts…"
+rm -rf "$root/packages/kaisel/extension/devtools/build/canvaskit"
+rm -f "$root/packages/kaisel/extension/devtools/build/assets/NOTICES"
 
 echo
 echo "Done. Remaining manual steps:"
 echo "  - add a $version entry to packages/kaisel_devtools/CHANGELOG.md"
-echo "  - commit pubspec.yaml and config.yaml (build/ is gitignored; it is"
-echo "    regenerated here and ships when the kaisel package is published)"
+echo "  - commit pubspec.yaml and config.yaml (build/ stays gitignored; it"
+echo "    ships via kaisel's .pubignore negation when kaisel is published)"

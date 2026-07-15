@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0-dev.5
+
+### Changed
+
+- **Published archive slimmed from 15 MB to 1 MB.** The bundled DevTools
+  extension build now tree-shakes icons (MaterialIcons 1.6 MB → 9 KB, verified
+  safe at compile time) and no longer ships the CanvasKit engine variants and
+  debug symbols it never loads — the extension fetches CanvasKit from Google's
+  CDN, as it already did. No runtime behaviour change.
+
 ## 1.0.0-dev.4
 
 ### Added

@@ -1,16 +1,13 @@
-# Controls which files `dart pub publish` includes. Pub honours .gitignore;
-# entries here adjust that for publishing (excludes, and `!` re-includes).
-
-# Dev-only test optimizer (see tool/test_optimizer.dart).
-tool/
-ROADMAP.md
-
-# The built DevTools extension is gitignored (**/build/) so the generated assets
-# stay out of git history — but it must ship inside the published package or
-# DevTools has no panel to load. Re-include it for publish only; run
-# `dart run devtools_extensions build_and_copy
-# --source=packages/kaisel_devtools --dest=packages/kaisel/extension/devtools`
-# before `pub publish` so the build is present and current.
+# Ship the DevTools extension build (gitignored by the repo-wide **/build/
+# rule) — pub publishes only unignored files, so without these negations the
+# extension would be missing from the archive.
 !extension/devtools/build/
 !extension/devtools/build/**
 doc/design/
+# Never ship artifacts the extension doesn't load at runtime: CanvasKit comes
+# from Google's CDN (see flutter_bootstrap.js), so the local engine variants
+# and debug symbols are dead weight; NOTICES is only fetched by a LicensePage
+# the extension doesn't have. release.sh also prunes these after
+# build_and_copy — this is the backstop for manual rebuilds.
+extension/devtools/build/canvaskit/
+extension/devtools/build/assets/NOTICES
