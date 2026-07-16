@@ -10,8 +10,11 @@ Everything from the `1.0.0-dev` line is included — highlights since 0.22.0:
 
 - **Android predictive back** (opt-in via `androidPredictiveBack`, off by
   default): shell branches follow the OS back gesture; nested-navigator pops
-  animate once. Ships as a preview — the API is frozen, and on-device
-  validation of the visual behaviour continues.
+  animate once. On Flutter 3.44+ the framework's default Android transition is
+  already predictive — the flag guarantees it on older Flutter versions
+  (kaisel supports 3.24+) and under `pageTransitionsTheme` overrides. Validated on-device: the gesture tracks the page and commits
+  in a single animation, inactive tabs are untouched, and 3-button navigation
+  is unaffected.
 - **`KaiselSupportingPaneScaffold`** and non-master-detail adaptive examples
   (three-pane, scaffold-free stepper, foldables) on the same absorption
   primitive.

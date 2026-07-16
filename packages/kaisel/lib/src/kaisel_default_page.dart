@@ -11,9 +11,10 @@ import 'kaisel_page_wrapper.dart';
 /// feels out of place in a browser. kaisel defaults to a quick [fade] instead;
 /// pass another value to [KaiselRouterConfig] / [KaiselRouterDelegate] to opt
 /// out. On non-web platforms this is ignored — routes use the native
-/// [MaterialPage] transition. Opt into the Android predictive-back transition
-/// (so a nested-navigator route follows the OS back gesture) with
-/// `androidPredictiveBack` on [KaiselRouterConfig] / [KaiselRouterDelegate].
+/// [MaterialPage] transition (on recent Flutter, Android's default transition
+/// is already predictive-back-aware). `androidPredictiveBack` on
+/// [KaiselRouterConfig] / [KaiselRouterDelegate] guarantees the predictive
+/// transition regardless of Flutter version or theme overrides.
 ///
 /// Only the *default* wrapper honours this; a custom `pageWrapper` controls its
 /// own transitions.
@@ -112,10 +113,13 @@ class _KaiselPageRoute<T> extends PageRoute<T>
 
   static const _predictive = PredictiveBackPageTransitionsBuilder();
 
-  // Opt-in (androidPredictiveBack) Android predictive-back transition. On a
-  // nested navigator the enclosing route's PopScope makes it decline the gesture
+  // androidPredictiveBack guarantees the predictive transition regardless of
+  // Flutter version (before 3.44 the Android default wasn't predictive) or
+  // theme overrides;
+  // off, the theme decides. On a nested
+  // navigator the enclosing route's PopScope makes it decline the gesture
   // (popGestureEnabled is false when it would not pop), so only this innermost
-  // route animates — not twice. Off by default: the theme transition is used.
+  // route animates — not twice.
   @override
   Widget buildTransitions(
     BuildContext context,

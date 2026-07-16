@@ -777,7 +777,7 @@ npx skills add Mastersam07/kaisel
 
 ## Stability
 
-Stable under semantic versioning: breaking changes require a major version, each with a migration note in the [changelog](CHANGELOG.md). One feature is flagged as a preview: Android predictive-back transitions (opt-in via `androidPredictiveBack`).
+Stable under semantic versioning: breaking changes require a major version, each with a migration note in the [changelog](CHANGELOG.md).
 
 ## Example
 
