@@ -1,6 +1,6 @@
 // Android predictive-back demo — the opt-in `androidPredictiveBack` flag.
 //
-//   flutter run -t lib/main_predictive_back.dart   (Android 13+ device/emulator)
+//   flutter run -t lib/main_predictive_back.dart   (Android 14+ device/emulator)
 //
 // Bottom nav, two tabs. Open an item on Home, then back out with the edge
 // GESTURE: the detail follows your finger and settles in a single animation.

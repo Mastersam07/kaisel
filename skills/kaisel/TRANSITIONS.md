@@ -21,12 +21,14 @@ fully, pass a `pageWrapper` to the delegate. The wrapper receives a
 replaced, and returns a `Page<Object?>` subclass that determines the
 transition.
 
-**Predictive back has three gates**, and all must be open to see it: the
-OS engages it automatically on Android 15+ (Android 13–14 need
+**Predictive back has three gates**, and all must be open to see it: the OS
+delivers the gesture on Android 14+ to apps opted in with
 `android:enableOnBackInvokedCallback="true"` on the manifest's
-`<application>`; Android 12 and below never do); Flutter's default Android
-transition participates from Flutter 3.44; and `androidPredictiveBack`
-guarantees participation on older Flutter or under theme overrides. A custom
+`<application>` — the default once an app targets SDK 36 on Android 16.
+(Android 13 accepts the flag but lacks the gesture-progress APIs, and
+Android 12 and below never engage it.) Flutter's default Android transition
+participates from Flutter 3.44; and `androidPredictiveBack` guarantees
+participation on older Flutter or under theme overrides. A custom
 `pageWrapper` controls its own transitions either way.
 
 Three things to internalise:

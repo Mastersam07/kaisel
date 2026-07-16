@@ -216,10 +216,12 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   /// overrides. Off by default — the
   /// theme decides. Ignored on the web and when a [pageWrapper] is set.
   ///
-  /// The transition only matters where the OS engages predictive back at all:
-  /// automatic on Android 15+, opt-in on Android 13–14 via
+  /// The transition only matters where the OS delivers the back gesture at
+  /// all: Android 14+, for apps opted in with
   /// `android:enableOnBackInvokedCallback="true"` on the manifest's
-  /// `<application>`, and never on Android 12 and below.
+  /// `<application>` — the default once an app targets SDK 36 on Android 16.
+  /// Android 13 accepts the flag but lacks the gesture-progress APIs, so no
+  /// predictive animation shows there; Android 12 and below never engage it.
   final bool androidPredictiveBack;
 
   /// Optional builder that renders an active modal flow over the main
