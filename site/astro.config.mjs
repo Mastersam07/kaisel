@@ -8,6 +8,10 @@ import starlightLinksValidator from 'starlight-links-validator';
 // live under a subpath of the production origin and must not be indexed.
 const previewBase = process.env.SITE_BASE;
 
+// Set only by the production deploy job — local dev, validation builds, and
+// PR previews ship no analytics.
+const withAnalytics = Boolean(process.env.DOCS_ANALYTICS);
+
 const kaiselVersion = readFileSync(
   new URL('../packages/kaisel/pubspec.yaml', import.meta.url),
   'utf8',
@@ -18,6 +22,7 @@ export default defineConfig({
   base: previewBase ?? '/',
   integrations: [
     starlight({
+      routeMiddleware: './src/routeData.ts',
       plugins: previewBase ? [] : [starlightLinksValidator()],
       title: 'kaisel',
       description:
@@ -50,6 +55,18 @@ export default defineConfig({
               {
                 tag: 'meta',
                 attrs: { name: 'robots', content: 'noindex, nofollow' },
+              },
+            ]
+          : []),
+        ...(withAnalytics
+          ? [
+              {
+                tag: 'script',
+                attrs: {
+                  defer: true,
+                  src: 'https://cloud.umami.is/script.js',
+                  'data-website-id': '59e77c80-d5c4-45a9-8aa5-c47097dd2376',
+                },
               },
             ]
           : []),

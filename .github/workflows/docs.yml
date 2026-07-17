@@ -105,6 +105,8 @@ jobs:
         working-directory: site
       - run: npm run build
         working-directory: site
+        env:
+          DOCS_ANALYTICS: '1'
       # force_orphan gives prod clean-slate deploys (no stale files, single
       # commit of history); carrying the pr-* dirs into dist keeps open
       # previews alive across prod deploys.

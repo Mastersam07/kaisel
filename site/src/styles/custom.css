@@ -110,3 +110,16 @@
   background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
   white-space: nowrap;
 }
+
+/* Announcement banner in brand teal, readable in both themes. */
+.sl-banner {
+  --sl-color-banner-bg: linear-gradient(90deg, #0e7490, #22d3ee);
+  background: var(--sl-color-banner-bg);
+  color: #041018;
+  font-weight: 500;
+}
+
+.sl-banner a {
+  color: inherit;
+  text-decoration: underline;
+}
