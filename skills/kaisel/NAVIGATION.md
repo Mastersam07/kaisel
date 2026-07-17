@@ -256,6 +256,31 @@ guard-pipeline pass; three sequential `push`es are three. If your guards
 care about transitions, `set` is the right primitive for atomic state
 changes.
 
+### Declarative, state-driven stacks
+
+`set` is also kaisel's answer to **declarative routing** — what
+`AutoRouter.declarative` or a state-derived routes list does in other
+routers. Those APIs rebuild the route list from ambient state on every
+widget rebuild and diff the result. kaisel inverts that: the stack *is*
+state, so derive it with a pure function and `set` it when your state
+changes:
+
+```dart
+List<AppRoute> stackFor(AppModel m) => [
+  const Home(),
+  for (final doc in m.openDocuments) DocumentRoute(doc.id),
+  if (m.showOnboarding) const Onboarding(),
+];
+
+model.addListener(() => router.set(stackFor(model)));
+```
+
+The result is the same minimal-change navigation — pages are keyed by
+route value, so routes present in both old and new stacks keep their
+page state — but derivation happens on state *events*, not widget
+builds, and every derived stack still flows through the guard pipeline.
+`stackFor` is a pure function you can unit test without a widget tree.
+
 ## run
 
 ```dart
