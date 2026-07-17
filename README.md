@@ -1,4 +1,9 @@
-# kaisel — monorepo
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/kaisel-logo-dark.png">
+    <img src="assets/brand/kaisel-logo-light.png" alt="kaisel" width="400">
+  </picture>
+</p>
 
 [![pub package](https://img.shields.io/pub/v/kaisel.svg?color=blue)](https://pub.dev/packages/kaisel)
 [![CI](https://github.com/Mastersam07/kaisel/actions/workflows/ci.yml/badge.svg)](https://github.com/Mastersam07/kaisel/actions/workflows/ci.yml)

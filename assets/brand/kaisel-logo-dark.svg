@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1300 420">
+  <defs>
+    <radialGradient id="bgGlow" cx="50%" cy="42%" r="58%">
+      <stop offset="0%" stop-color="#0E7490" stop-opacity="0.50"/>
+      <stop offset="55%" stop-color="#0B2A3C" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#060A14" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="wingGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0E7490"/>
+      <stop offset="55%" stop-color="#22D3EE"/>
+      <stop offset="100%" stop-color="#A5F3FC"/>
+    </linearGradient>
+    <linearGradient id="bodyGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#155E75"/>
+      <stop offset="100%" stop-color="#67E8F9"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="20"/>
+    </filter>
+    <g id="mark">
+      <!-- right wing -->
+      <path id="wing" fill="url(#wingGrad)" d="
+        M 548 642
+        C 660 566, 782 484, 920 310
+        C 892 420, 852 516, 812 574
+        C 770 556, 730 588, 694 660
+        C 660 638, 610 658, 556 722
+        Z"/>
+      <!-- left wing (mirror) -->
+      <use href="#wing" transform="translate(1024,0) scale(-1,1)"/>
+      <!-- shadow-dissolve fragments floating above the wing sweep -->
+      <g id="frags" fill="url(#wingGrad)">
+        <path d="M 806 356 L 836 326 L 826 368 Z" opacity="0.7"/>
+        <path d="M 868 288 L 894 262 L 886 302 Z" opacity="0.5"/>
+        <path d="M 742 420 L 764 398 L 757 434 Z" opacity="0.55"/>
+      </g>
+      <use href="#frags" transform="translate(1024,0) scale(-1,1)"/>
+      <!-- neck / body: wide at base, tapering into the head -->
+      <path fill="url(#bodyGrad)" d="
+        M 462 782
+        C 452 630, 486 510, 540 425
+        C 564 383, 576 345, 566 298
+        L 610 316
+        C 618 370, 600 425, 572 476
+        C 534 552, 520 655, 546 782
+        Z"/>
+      <!-- head: skull, back-swept horn, and open jaw as one shard -->
+      <path fill="url(#bodyGrad)" d="
+        M 560 302
+        C 566 268, 580 250, 602 240
+        L 546 194
+        C 590 210, 616 218, 642 226
+        L 708 244
+        L 648 268
+        L 694 294
+        L 622 308
+        L 610 318
+        Z"/>
+      <!-- eye -->
+      <path fill="#E0FEFF" d="M 616 252 L 632 248 L 627 262 L 613 263 Z"/>
+      <!-- tail: long thin sweep -->
+      <path fill="url(#bodyGrad)" d="
+        M 512 768
+        C 424 866, 300 894, 186 826
+        C 294 910, 456 896, 532 786
+        Z"/>
+    </g>
+  </defs>
+  <g transform="translate(-30,-60) scale(0.44)">
+    <use href="#mark" filter="url(#glow)" opacity="0.45"/>
+    <use href="#mark"/>
+  </g>
+  <text x="440" y="272" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="188" font-weight="800" fill="#F8FAFC" letter-spacing="4">kaisel</text>
+</svg>
