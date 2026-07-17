@@ -14,9 +14,9 @@ your migration branch will actually look like.
 
 | Guide                                       | Best for                                              | Effort                  |
 | ------------------------------------------- | ----------------------------------------------------- | ----------------------- |
-| [`from-go-router.md`](from-go-router.md)    | Apps using `GoRouter` with string paths               | ~3–4 days, 30 screens   |
-| [`from-auto-route.md`](from-auto-route.md)  | Apps using `@AutoRouterConfig` with `build_runner`    | ~2 days, 30 screens     |
-| [`from-navigator.md`](from-navigator.md)    | Apps on Flutter's `Navigator` — imperative `push`, named routes, or the Router/Pages API (2.0) | ~2–4 days, 30 screens (less from named/2.0) |
+| [From go_router](from-go-router.md)    | Apps using `GoRouter` with string paths               | ~3–4 days, 30 screens   |
+| [From auto_route](from-auto-route.md)  | Apps using `@AutoRouterConfig` with `build_runner`    | ~2 days, 30 screens     |
+| [From Navigator](from-navigator.md)    | Apps on Flutter's `Navigator` — imperative `push`, named routes, or the Router/Pages API (2.0) | ~2–4 days, 30 screens (less from named/2.0) |
 
 ## Which guide is for you
 

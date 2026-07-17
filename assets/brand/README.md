@@ -10,7 +10,8 @@ of them, then re-render with `rsvg-convert` (see commands below).
 | `kaisel-icon.svg` | Master mark on the dark tile. Source of truth. |
 | `kaisel-icon-1024.png` | Hi-res square tile. Downscale for any avatar or icon slot. |
 | `kaisel-icon-rounded.svg/png` | App-icon tile with rounded corners. Avatars: X, Discord, Medium, pub.dev publisher. |
-| `kaisel-mark.svg/png` | Transparent mark. Package READMEs (core, lint, devtools); anywhere the background should show through. |
+| `kaisel-mark.svg/png` | Transparent mark for dark backgrounds. Package READMEs (core, lint, devtools); docs-site logo and hero (dark theme). |
+| `kaisel-mark-light.svg/png` | Transparent mark with a deepened ramp for white backgrounds. Docs-site logo and hero (light theme). |
 | `kaisel-logo-dark.svg/png` | Transparent lockup, white wordmark. README headers on dark backgrounds. |
 | `kaisel-logo-light.svg/png` | Transparent lockup, slate wordmark. README headers on light backgrounds. |
 | `kaisel-banner.png` | Lockup on the dark tile. dev.to covers, Medium headers, slides — wide slots that want a baked background. |

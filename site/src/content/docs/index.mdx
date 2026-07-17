@@ -1,0 +1,78 @@
+---
+title: kaisel
+description: A Dart 3-native router for Flutter — routes as values. No string paths, no codegen.
+template: splash
+hero:
+  tagline: Routes as values. A Dart 3-native router for Flutter — no string paths, no codegen.
+  image:
+    dark: ../../assets/kaisel-mark.svg
+    light: ../../assets/kaisel-mark-light.svg
+  actions:
+    - text: Get Started
+      link: /getting-started/
+      icon: rocket
+    - text: View on GitHub
+      link: https://github.com/Mastersam07/kaisel
+      icon: github
+      variant: secondary
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<Card title="Get started" icon="rocket">
+  <div class="get-started-card">
+
+    ```sh
+    flutter pub add kaisel
+    ```
+
+    <span>
+      The [getting started guide](/getting-started/) takes you from install to
+      navigating with typed routes in a few minutes — sealed class, exhaustive
+      `switch`, done.
+    </span>
+  </div>
+</Card>
+
+<CardGrid stagger>
+  <Card title="Sealed routes, exhaustive builds" icon="approve-check">
+    Navigation is a `switch` over a sealed type. Add a route and the compiler
+    finds every place that must handle it — no runtime "unknown route" left.
+  </Card>
+  <Card title="The stack is a value" icon="list-format">
+    Your history is a `List` of route objects. Push, pop, and set are list
+    operations — testable without a widget tree, restorable across process
+    death.
+  </Card>
+  <Card title="Every navigation. One observer." icon="magnifier">
+    Register a standard `NavigatorObserver` once — it sees tab switches and
+    adaptive in-place changes that produce no route event in other routers.
+  </Card>
+  <Card title="Zero codegen" icon="rocket">
+    No `build_runner`, no generated files, no magic strings. Routes are plain
+    Dart classes you already know how to write.
+  </Card>
+</CardGrid>
+
+<CardGrid>
+  <Card title="Learn" icon="open-book">
+    <ul class="link-list">
+      <li>[Navigation](/guides/navigation/)</li>
+      <li>[Shells & tabs](/guides/shells/)</li>
+      <li>[Modal flows](/guides/modal-flows/)</li>
+      <li>[Adaptive layouts](/guides/adaptive-layouts/)</li>
+      <li>[Guards](/guides/guards/)</li>
+      <li>[URLs & deep linking](/guides/urls-and-deep-linking/)</li>
+    </ul>
+  </Card>
+  <Card title="Migrate" icon="random">
+    <ul class="link-list">
+      <li>[Migration overview](/migration/)</li>
+      <li>[From go_router](/migration/from-go-router/)</li>
+      <li>[From auto_route](/migration/from-auto-route/)</li>
+      <li>[From Navigator](/migration/from-navigator/)</li>
+      <li>[Roadmap](/roadmap/)</li>
+      <li>[API reference](https://pub.dev/documentation/kaisel/latest/)</li>
+    </ul>
+  </Card>
+</CardGrid>
