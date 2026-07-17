@@ -18,3 +18,10 @@
 .hero img {
   filter: drop-shadow(0 0 40px rgba(34, 211, 238, 0.35));
 }
+
+/* Starlight tints each card icon a different hue; keep them all on brand. */
+.card > .title .icon {
+  color: var(--sl-color-accent-high);
+  border-color: color-mix(in srgb, var(--sl-color-accent) 50%, transparent);
+  background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
+}
