@@ -1,7 +1,13 @@
 // @ts-check
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLinksValidator from 'starlight-links-validator';
+
+const kaiselVersion = readFileSync(
+  new URL('../packages/kaisel/pubspec.yaml', import.meta.url),
+  'utf8',
+).match(/^version:\s*(\S+)/m)[1];
 
 export default defineConfig({
   site: 'https://kaisel.dev',
@@ -34,6 +40,10 @@ export default defineConfig({
       },
       customCss: ['./src/styles/custom.css'],
       head: [
+        {
+          tag: 'style',
+          content: `:root { --kaisel-version: 'v${kaiselVersion}'; }`,
+        },
         {
           tag: 'meta',
           attrs: { property: 'og:image', content: 'https://kaisel.dev/og.png' },

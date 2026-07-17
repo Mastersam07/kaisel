@@ -94,3 +94,19 @@
 ::selection {
   background: color-mix(in srgb, var(--sl-color-accent) 35%, transparent);
 }
+
+/* Version chip beside the hero title, fed from the kaisel pubspec at build
+   time via --kaisel-version (see astro.config.mjs). */
+[data-has-hero] .hero h1::after {
+  content: var(--kaisel-version);
+  font-size: 1rem;
+  font-weight: 500;
+  vertical-align: super;
+  margin-inline-start: 0.75rem;
+  padding: 0.15em 0.6em;
+  border-radius: 999px;
+  color: var(--sl-color-accent-high);
+  border: 1px solid color-mix(in srgb, var(--sl-color-accent) 50%, transparent);
+  background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
+  white-space: nowrap;
+}
