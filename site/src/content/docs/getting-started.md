@@ -74,5 +74,6 @@ final picked = await context.pushForResult<String>(const ColorPicker());
 - [Guards](/guides/guards/) — auth redirects as pure functions.
 - [URLs & deep linking](/guides/urls-and-deep-linking/) — make the app
   URL-addressable when you need it.
-- Coming from another router? Start at
-  [Migration from go_router](/migration/from-go-router/).
+- Coming from another router? Start at the
+  [migration overview](/migration/) — guides for go_router, auto_route,
+  and Navigator, with effort estimates.

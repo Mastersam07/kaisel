@@ -55,6 +55,7 @@ export default defineConfig({
         {
           label: 'Migration',
           items: [
+            { label: 'Overview', slug: 'migration' },
             { label: 'From go_router', slug: 'migration/from-go-router' },
             { label: 'From auto_route', slug: 'migration/from-auto-route' },
             { label: 'From Navigator', slug: 'migration/from-navigator' },

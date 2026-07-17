@@ -29,6 +29,7 @@ const pages = [
     ['TRANSITIONS.md', 'transitions'],
   ].map(([file, slug]) => [`skills/kaisel/${file}`, `guides/${slug}.md`]),
   ...[
+    ['README.md', 'index'],
     ['from-go-router.md', 'from-go-router'],
     ['from-auto-route.md', 'from-auto-route'],
     ['from-navigator.md', 'from-navigator'],
