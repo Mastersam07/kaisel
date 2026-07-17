@@ -4,6 +4,10 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLinksValidator from 'starlight-links-validator';
 
+// Set by the docs workflow for PR preview deploys (e.g. /pr-42). Previews
+// live under a subpath of the production origin and must not be indexed.
+const previewBase = process.env.SITE_BASE;
+
 const kaiselVersion = readFileSync(
   new URL('../packages/kaisel/pubspec.yaml', import.meta.url),
   'utf8',
@@ -11,9 +15,10 @@ const kaiselVersion = readFileSync(
 
 export default defineConfig({
   site: 'https://kaisel.dev',
+  base: previewBase ?? '/',
   integrations: [
     starlight({
-      plugins: [starlightLinksValidator()],
+      plugins: previewBase ? [] : [starlightLinksValidator()],
       title: 'kaisel',
       description:
         'A Dart 3-native router for Flutter — sealed routes, pattern matching, and a stack-as-value model. No string paths, no codegen.',
@@ -40,6 +45,14 @@ export default defineConfig({
       },
       customCss: ['./src/styles/custom.css'],
       head: [
+        ...(previewBase
+          ? [
+              {
+                tag: 'meta',
+                attrs: { name: 'robots', content: 'noindex, nofollow' },
+              },
+            ]
+          : []),
         {
           tag: 'style',
           content: `:root { --kaisel-version: 'v${kaiselVersion}'; }`,
