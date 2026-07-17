@@ -1,0 +1,36 @@
+name: Docs feedback
+description: Something in the docs was confusing, missing, or hard to find
+title: '[docs] '
+labels: [documentation]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Confusion reports are the most valuable docs contribution there is —
+        if you couldn't find something or a page didn't make sense, that's a
+        bug in the docs, not in you.
+  - type: input
+    id: goal
+    attributes:
+      label: What were you trying to do?
+      placeholder: e.g. make the stack follow my auth state
+    validations:
+      required: true
+  - type: input
+    id: looked
+    attributes:
+      label: Where did you look, or what did you search for?
+      placeholder: e.g. searched "declarative", read the Shells page
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to find, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: background
+    attributes:
+      label: Which router are you coming from? (optional)
+      placeholder: go_router / auto_route / Navigator / none
