@@ -10,9 +10,13 @@
       <stop offset="55%" stop-color="#22D3EE"/>
       <stop offset="100%" stop-color="#A5F3FC"/>
     </linearGradient>
-    <linearGradient id="bodyGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+    <linearGradient id="bodyGrad" gradientUnits="userSpaceOnUse" x1="512" y1="860" x2="512" y2="200">
       <stop offset="0%" stop-color="#155E75"/>
       <stop offset="100%" stop-color="#67E8F9"/>
+    </linearGradient>
+    <linearGradient id="headGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#1D82A6"/>
+      <stop offset="100%" stop-color="#9BEFFC"/>
     </linearGradient>
     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
       <feGaussianBlur stdDeviation="20"/>
@@ -52,20 +56,21 @@
         C 528 574, 516 664, 538 762
         C 514 780, 492 780, 468 762
         Z"/>
-      <!-- reptilian head with open jaw -->
-      <path fill="url(#bodyGrad)" d="
-        M 554 310
-        C 558 274, 574 250, 600 238
-        C 646 224, 686 230, 722 250
-        C 692 264, 664 272, 638 278
-        C 666 290, 684 304, 694 324
-        C 662 330, 632 330, 612 326
-        C 594 334, 572 330, 554 310
+      <!-- head: skull, back-swept horn, and open jaw as one shard -->
+      <path fill="url(#headGrad)" d="
+        M 556 330
+        C 560 278, 580 250, 602 240
+        L 546 194
+        C 590 210, 616 218, 642 226
+        L 708 244
+        L 648 268
+        L 694 294
+        L 622 308
+        L 620 344
+        L 598 354
         Z"/>
-      <!-- swept-back horn -->
-      <path fill="url(#bodyGrad)" d="M 574 266 C 528 222, 490 194, 448 176 C 492 220, 528 258, 558 300 Z"/>
       <!-- eye -->
-      <path fill="#E0FEFF" d="M 612 262 C 620 254, 632 254, 640 262 C 632 269, 619 269, 612 262 Z"/>
+      <path fill="#E0FEFF" d="M 616 252 L 632 248 L 627 262 L 613 263 Z"/>
       <!-- long serpentine tail with barb -->
       <path fill="url(#bodyGrad)" d="
         M 498 744
