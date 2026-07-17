@@ -1,10 +1,14 @@
-// A plain main-stack push does NOT reproduce this, because predictive back is
-// wired for the ROOT navigator; the shell puts the detail on a nested navigator,
-// which is the gap.
+// Android predictive-back demo — the opt-in `androidPredictiveBack` flag.
 //
-// Predictive back must be on: android/app/src/main/AndroidManifest.xml has
-//   android:enableOnBackInvokedCallback="true"  (already added; on by default on
-//   Android 15+).
+//   flutter run -t lib/main_predictive_back.dart   (Android 14+ device/emulator)
+//
+// Bottom nav, two tabs. Open an item on Home, then back out with the edge
+// GESTURE: the detail follows your finger and settles in a single animation.
+// Flip androidPredictiveBack to false below to compare with the default
+// transition (and to see the nested-navigator double the flag fixes).
+//
+// Predictive back needs android:enableOnBackInvokedCallback="true" in the
+// manifest (already set in this example; on by default from Android 15).
 
 import 'package:flutter/material.dart';
 import 'package:kaisel/kaisel.dart';

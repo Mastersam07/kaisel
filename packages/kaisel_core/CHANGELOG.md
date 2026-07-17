@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0
+
+First stable release. The API surface is frozen under semantic versioning:
+breaking changes now require a major version and will ship with migration
+notes. Functionally identical to 0.23.0 — sealed value routes, the
+stack-as-state `KaiselRouter` with guards, typed results, modal flows,
+`onTransition`, and the URL codec layer.
+
 ## 0.23.0
 
 ### Added

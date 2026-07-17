@@ -266,7 +266,7 @@ the terseness clearly earns that trade (a single-router screen, say).
 > For decisions between `push`, `replaceTop`, `pushOrReplaceTop`, `set`,
 > and `run<T>`, read [NAVIGATION.md](./NAVIGATION.md).
 
-## 4. Pre-1.0 parity callout
+## 4. Parity callout
 
 Be honest about gaps before assuming kaisel can drop into any existing
 codebase as a one-for-one replacement.

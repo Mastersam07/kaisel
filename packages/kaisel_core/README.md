@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Mastersam07/kaisel/dev/assets/brand/kaisel-icon-rounded.png" alt="kaisel" width="110">
+</p>
+
 # kaisel_core
 [![codecov](https://codecov.io/github/Mastersam07/kaisel/branch/dev/graph/badge.svg?token=tHYIe4iPGo)](https://codecov.io/github/Mastersam07/kaisel)
 
@@ -18,7 +22,7 @@ Most apps should depend on **`kaisel`** (the Flutter package), which re-exports 
 
 ```yaml
 dependencies:
-  kaisel: ^0.22.0
+  kaisel: ^1.0.0
 ```
 
 Depend on `kaisel_core` directly only if you want the navigation logic without Flutter. See the [`kaisel` README](https://github.com/Mastersam07/kaisel/tree/main/packages/kaisel) for the full guide.

@@ -209,10 +209,19 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   /// [pageWrapper] is set.
   final KaiselWebTransition webTransition;
 
-  /// Opt-in: drive the default page's Android transition through Flutter's
+  /// Guarantee the default page's Android transition goes through Flutter's
   /// predictive-back builder, so a nested-navigator route follows the OS back
-  /// gesture (fixing the shell double-animation). Off by default — the app's
-  /// theme transition is used. Ignored on the web and when a [pageWrapper] is set.
+  /// gesture regardless of Flutter version (before Flutter 3.44, Android's
+  /// default transition wasn't predictive) or `pageTransitionsTheme`
+  /// overrides. Off by default — the
+  /// theme decides. Ignored on the web and when a [pageWrapper] is set.
+  ///
+  /// The transition only matters where the OS delivers the back gesture at
+  /// all: Android 14+, for apps opted in with
+  /// `android:enableOnBackInvokedCallback="true"` on the manifest's
+  /// `<application>` — the default once an app targets SDK 36 on Android 16.
+  /// Android 13 accepts the flag but lacks the gesture-progress APIs, so no
+  /// predictive animation shows there; Android 12 and below never engage it.
   final bool androidPredictiveBack;
 
   /// Optional builder that renders an active modal flow over the main

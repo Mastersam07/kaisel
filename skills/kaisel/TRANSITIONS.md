@@ -9,9 +9,9 @@ sheets, cross-fade between sibling details, etc.
 ## The model
 
 By default, `KaiselRouterDelegate` wraps every route in a `MaterialPage`
-off the web (the native transition; opt into Android's predictive-back
-transition — so a route follows the OS back gesture — with `androidPredictiveBack`
-on the config/delegate), and a quick
+off the web (the native transition — on recent Flutter, Android's default is
+already predictive-back-aware; `androidPredictiveBack` on the config/delegate
+guarantees it on older Flutter and under theme overrides), and a quick
 **fade** on the web — where `MaterialPage`'s OS-derived slide feels out of
 place. Set `webTransition:`
 on the config/delegate to change the web default: `KaiselWebTransition.fade`
@@ -20,6 +20,16 @@ fully, pass a `pageWrapper` to the delegate. The wrapper receives a
 `KaiselPageWrapperContext<R>` describing what's being added or
 replaced, and returns a `Page<Object?>` subclass that determines the
 transition.
+
+**Predictive back has three gates**, and all must be open to see it: the OS
+delivers the gesture on Android 14+ to apps opted in with
+`android:enableOnBackInvokedCallback="true"` on the manifest's
+`<application>` — the default once an app targets SDK 36 on Android 16.
+(Android 13 accepts the flag but lacks the gesture-progress APIs, and
+Android 12 and below never engage it.) Flutter's default Android transition
+participates from Flutter 3.44; and `androidPredictiveBack` guarantees
+participation on older Flutter or under theme overrides. A custom
+`pageWrapper` controls its own transitions either way.
 
 Three things to internalise:
 
