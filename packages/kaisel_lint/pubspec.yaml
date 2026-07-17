@@ -4,6 +4,7 @@ version: 0.5.1
 repository: https://github.com/Mastersam07/kaisel/tree/dev/packages/kaisel_lint
 homepage: https://github.com/Mastersam07/kaisel/tree/dev/packages/kaisel_lint
 issue_tracker: https://github.com/Mastersam07/kaisel/issues
+documentation: https://kaisel.dev/tooling/lints/
 
 screenshots:
   - description: The kaisel mark

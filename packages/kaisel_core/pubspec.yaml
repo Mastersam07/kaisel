@@ -4,6 +4,7 @@ version: 1.0.0
 repository: https://github.com/Mastersam07/kaisel/tree/dev/packages/kaisel_core
 homepage: https://github.com/Mastersam07/kaisel/tree/dev/packages/kaisel_core
 issue_tracker: https://github.com/Mastersam07/kaisel/issues
+documentation: https://kaisel.dev
 resolution: workspace
 topics:
   - router
