@@ -97,6 +97,16 @@ export default defineConfig({
           ],
         },
         {
+          label: 'How-to',
+          items: [
+            { label: 'Return a value from a screen', slug: 'how-to/return-a-value' },
+            { label: 'Redirect to login', slug: 'how-to/redirect-to-login' },
+            { label: 'Drive the stack from app state', slug: 'how-to/state-driven-stack' },
+            { label: 'Deep link into a screen', slug: 'how-to/deep-link' },
+            { label: 'Track screens in analytics', slug: 'how-to/track-screens' },
+          ],
+        },
+        {
           label: 'Reference',
           items: [
             { label: 'Navigation', slug: 'guides/navigation' },
