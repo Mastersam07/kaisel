@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Mastersam07/kaisel/dev/assets/brand/kaisel-icon-rounded.png" alt="kaisel" width="110">
+  <img src="https://raw.githubusercontent.com/Mastersam07/kaisel/dev/assets/brand/kaisel-mark.png" alt="kaisel" width="110">
 </p>
 
 # kaisel_devtools

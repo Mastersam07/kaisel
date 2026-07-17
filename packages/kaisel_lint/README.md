@@ -1,9 +1,12 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Mastersam07/kaisel/dev/assets/brand/kaisel-icon-rounded.png" alt="kaisel" width="110">
+  <img src="https://raw.githubusercontent.com/Mastersam07/kaisel/dev/assets/brand/kaisel-mark.png" alt="kaisel" width="110">
+</p>
+
+<p align="center">
+  <a href="https://codecov.io/github/Mastersam07/kaisel"><img src="https://codecov.io/github/Mastersam07/kaisel/branch/dev/graph/badge.svg?token=tHYIe4iPGo" alt="codecov"></a>
 </p>
 
 # kaisel_lint
-[![codecov](https://codecov.io/github/Mastersam07/kaisel/branch/dev/graph/badge.svg?token=tHYIe4iPGo)](https://codecov.io/github/Mastersam07/kaisel)
 
 Static analysis rules, quick fixes, and assists for the
 [kaisel](https://pub.dev/packages/kaisel) Flutter router, built as an

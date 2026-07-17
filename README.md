@@ -5,9 +5,11 @@
   </picture>
 </p>
 
-[![pub package](https://img.shields.io/pub/v/kaisel.svg?color=blue)](https://pub.dev/packages/kaisel)
-[![CI](https://github.com/Mastersam07/kaisel/actions/workflows/ci.yml/badge.svg)](https://github.com/Mastersam07/kaisel/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/github/Mastersam07/kaisel/branch/dev/graph/badge.svg?token=tHYIe4iPGo)](https://codecov.io/github/Mastersam07/kaisel)
+<p align="center">
+  <a href="https://pub.dev/packages/kaisel"><img src="https://img.shields.io/pub/v/kaisel.svg?color=blue" alt="pub package"></a>
+  <a href="https://github.com/Mastersam07/kaisel/actions/workflows/ci.yml"><img src="https://github.com/Mastersam07/kaisel/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://codecov.io/github/Mastersam07/kaisel"><img src="https://codecov.io/github/Mastersam07/kaisel/branch/dev/graph/badge.svg?token=tHYIe4iPGo" alt="codecov"></a>
+</p>
 
 A Dart 3-native Flutter router built on sealed routes, pattern matching, and a stack-as-state model. **No string paths. No codegen.**
 

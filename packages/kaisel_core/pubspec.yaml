@@ -11,6 +11,10 @@ topics:
   - routing
   - deep-linking
 
+screenshots:
+  - description: The kaisel mark
+    path: assets/brand/kaisel-icon.webp
+
 environment:
   sdk: ^3.10.0
 

@@ -1,9 +1,14 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Mastersam07/kaisel/dev/assets/brand/kaisel-banner.png" alt="kaisel" width="480">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Mastersam07/kaisel/dev/assets/brand/kaisel-logo-dark.png">
+    <img src="https://raw.githubusercontent.com/Mastersam07/kaisel/dev/assets/brand/kaisel-logo-light.png" alt="kaisel" width="420">
+  </picture>
 </p>
 
-[![Test](https://github.com/Mastersam07/kaisel/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/Mastersam07/kaisel/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/github/Mastersam07/kaisel/branch/dev/graph/badge.svg?token=tHYIe4iPGo)](https://codecov.io/github/Mastersam07/kaisel)
+<p align="center">
+  <a href="https://github.com/Mastersam07/kaisel/actions/workflows/ci.yml"><img src="https://github.com/Mastersam07/kaisel/actions/workflows/ci.yml/badge.svg?branch=dev" alt="Test"></a>
+  <a href="https://codecov.io/github/Mastersam07/kaisel"><img src="https://codecov.io/github/Mastersam07/kaisel/branch/dev/graph/badge.svg?token=tHYIe4iPGo" alt="codecov"></a>
+</p>
 
 A Dart 3-native Flutter router built on sealed routes, pattern matching, and a stack-as-state model. **No string paths. No codegen.**
 
