@@ -7,45 +7,138 @@ on:
       - 'site/**'
       - 'skills/kaisel/**'
       - 'packages/kaisel/doc/migration/**'
+      - 'packages/kaisel/pubspec.yaml'
       - 'ROADMAP.md'
       - '.github/workflows/docs.yml'
   pull_request:
+    types: [opened, synchronize, reopened, closed]
     paths:
       - 'site/**'
       - 'skills/kaisel/**'
       - 'packages/kaisel/doc/migration/**'
+      - 'packages/kaisel/pubspec.yaml'
       - 'ROADMAP.md'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
+  pull-requests: write
 
-# Per-ref: PR builds run in parallel; deploys from dev serialize. Never
-# cancel in-progress — a killed Pages deployment can strand a half-rollout.
+# Every job writes the gh-pages branch; serialize them and never cancel a
+# push mid-flight.
 concurrency:
-  group: docs-${{ github.ref }}
+  group: docs-gh-pages
   cancel-in-progress: false
 
 jobs:
-  build:
+  preview:
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: withastro/action@v3
+      - uses: actions/setup-node@v4
         with:
-          path: ./site
           node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+        working-directory: site
+      # Production-mode build is the validation gate (link validator runs
+      # only without SITE_BASE).
+      - name: Validate
+        run: npm run build
+        working-directory: site
+      - name: Build preview
+        run: npm run build
+        working-directory: site
+        env:
+          SITE_BASE: /pr-${{ github.event.number }}
+      # Fork PRs get validation only: GITHUB_TOKEN is read-only for them,
+      # and they must never write our branch anyway.
+      - name: Deploy preview
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: site/dist
+          destination_dir: pr-${{ github.event.number }}
+          keep_files: true
+          commit_message: 'deploy docs preview for #${{ github.event.number }}'
+      - name: Comment preview link
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- docs-preview -->';
+            const body = `${marker}\n📖 Docs preview: https://kaisel.dev/pr-${context.issue.number}/ (updates on every push; removed when this PR closes)`;
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
 
   deploy:
-    if: github.event_name != 'pull_request'
-    needs: build
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+        working-directory: site
+      - run: npm run build
+        working-directory: site
+      # force_orphan gives prod clean-slate deploys (no stale files, single
+      # commit of history); carrying the pr-* dirs into dist keeps open
+      # previews alive across prod deploys.
+      - name: Carry forward open previews
+        run: |
+          if git fetch origin gh-pages --depth=1 2>/dev/null; then
+            git worktree add /tmp/gh-pages FETCH_HEAD
+            shopt -s nullglob
+            for dir in /tmp/gh-pages/pr-*/; do
+              cp -R "$dir" "site/dist/$(basename "$dir")"
+            done
+          fi
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: site/dist
+          force_orphan: true
+          cname: kaisel.dev
+          commit_message: 'deploy docs ${{ github.sha }}'
+
+  cleanup:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove preview directory
+        run: |
+          git fetch origin gh-pages 2>/dev/null || exit 0
+          git checkout gh-pages
+          if [ -d "pr-${{ github.event.number }}" ]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git rm -r --quiet "pr-${{ github.event.number }}"
+            git commit -m 'clean up docs preview for #${{ github.event.number }}'
+            git push origin gh-pages
+          fi
