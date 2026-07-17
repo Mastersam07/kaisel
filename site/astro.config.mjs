@@ -92,6 +92,7 @@ export default defineConfig({
           label: 'Start here',
           items: [
             'getting-started',
+            { label: 'Tutorial: your first app', slug: 'tutorial' },
             { label: 'The mental model', slug: 'concepts' },
           ],
         },

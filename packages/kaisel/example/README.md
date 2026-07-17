@@ -1,6 +1,6 @@
 # kaisel example
 
-Fifteen entry points, each demonstrating a slice of the library.
+Sixteen entry points, each demonstrating a slice of the library.
 Pick one with `-t`:
 
 | Entry point | What it shows |
@@ -16,6 +16,7 @@ Pick one with `-t`:
 | `lib/main_supporting_pane.dart` | Supporting-pane and three-pane adaptive layouts (1.0): `KaiselSupportingPaneScaffold`, plus a bare `absorbing: 2` `Row` on the same absorption primitive; the codec makes the same URL render as panes when wide and stacked screens when narrow |
 | `lib/main_adaptive_stepper.dart` | Scaffold-free adaptive (1.0): a linear checkout wizard whose stack collapses into a horizontal stepper at wide widths (`absorbing:` grows with depth) — proof absorption isn't about panes |
 | `lib/main_foldable.dart` | Foldable-aware adaptive (1.0): absorption keyed on `MediaQuery.displayFeatures` instead of width — folded stacks the screens, spanned renders two panes around the hinge |
+| `lib/main_tutorial.dart` | The finished app from the [docs tutorial](https://kaisel.dev/tutorial/) — navigation, a typed result, and a guard in ~150 lines |
 | `lib/main_predictive_back.dart` | Android predictive back (1.0): a bottom-nav shell with `androidPredictiveBack: true` — gesture-back on a nested detail tracks your finger and settles in a single animation (Android 14+; manifest opt-in included) |
 | `lib/main_media_cataloguer.dart` | A desktop-style app: top-level auth state machine (`router.set` swaps `LoginRoute` ↔ `ShellHost`), a cross-fade `pageWrapper` between them, a branched shell with per-branch typed routes + nested stacks, and a breadcrumb driven by `KaiselListenableBuilder`. Wired with `KaiselRouterConfig` + `KaiselBranchedShell.specs` + `context.shell()` |
 | `lib/main_lazy_shell.dart` | Lazy + deferred shell branches (v0.21): `.specs(lazy: true)` builds each tab on first visit and keeps it alive (the Home counter survives switches); the **Reports** tab is a `KaiselBranchSpec.deferred` whose screen lives behind a `deferred as` import — it shows a placeholder while loading, an error + **retry** on a (simulated) flaky first load, then the screen |
