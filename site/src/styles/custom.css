@@ -84,3 +84,9 @@
 .link-list a:hover {
   color: var(--sl-color-accent-high);
 }
+
+/* Starlight cards are square by default; round them to match the pill
+   buttons and code frames. */
+.card {
+  border-radius: 0.75rem;
+}
