@@ -182,6 +182,12 @@ app. Without it, `run` throws. (The lower-tier explicit form —
 `KaiselRouterDelegate(router:, builder:, modalBuilder:)` — still works
 if you're managing the delegate by hand.)
 
+`child` arrives already wrapped in a transparent `Material`, so flow
+screens can use material widgets (`ListTile`, `TextField`, ...) without
+a `Scaffold`, and the builder's own decoration can be a plain
+`Container` — the framework's "No Material widget found" assert can't
+fire inside a flow.
+
 ## Sub-stack inside a flow
 
 A flow can push and pop within itself. From inside a flow screen,

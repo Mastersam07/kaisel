@@ -34,8 +34,10 @@ typedef KaiselPageBuilder<R extends KaiselRoute> =
 /// the flow's own stack), return a widget to overlay on top of the main
 /// UI — typically a [Dialog], [BottomSheet], or full-screen page.
 ///
-/// The [flowChild] is already wired up to its own router; just wrap it
-/// in whatever presentation you want.
+/// The [flowChild] is already wired up to its own router and wrapped in a
+/// transparent [Material], so flow screens can use material widgets
+/// ([ListTile], [TextField], ...) without providing a [Scaffold]; just wrap
+/// it in whatever presentation you want.
 typedef KaiselModalBuilder =
     Widget Function(
       BuildContext context,
@@ -588,7 +590,10 @@ class KaiselRouterDelegate<R extends KaiselRoute>
               router.completeFlow<Object>(null);
             }
           },
-          child: flowNavigator,
+          child: Material(
+            type: MaterialType.transparency,
+            child: flowNavigator,
+          ),
         ),
       ),
     );

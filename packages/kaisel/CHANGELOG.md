@@ -20,6 +20,9 @@ Everything from the `1.0.0-dev` line is included — highlights since 0.22.0:
   primitive.
 - **`onTransition`** on `KaiselRouterConfig` / `KaiselRouter` — every committed
   stack change as values.
+- Flow content passed to `modalBuilder` is wrapped in a transparent
+  `Material`, so flow screens can use material widgets (`ListTile`,
+  `TextField`, ...) without providing a `Scaffold`.
 - **Complete observer coverage**: navigations the `Navigator` can't see —
   absorbed in-place changes (kind-matched `didPush`/`didPop`/`didReplace`,
   with push/pop pairing the same route instance) and shell tab switches — are

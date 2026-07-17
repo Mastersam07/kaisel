@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaisel/kaisel.dart';
@@ -127,5 +129,27 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     delegate.dispose();
     router.dispose();
+  });
+
+  testWidgets('flow content has a Material ancestor without a Scaffold', (
+    tester,
+  ) async {
+    final router = KaiselRouter<_App>(initial: const _Home());
+    final delegate = KaiselRouterDelegate<_App>(
+      router: router,
+      builder: (context, route) => switch (route) {
+        _Home() => const Scaffold(body: Center(child: Text('home'))),
+        _Flow() => const ListTile(title: Text('needs-material')),
+      },
+      modalBuilder: (context, route, flowContent) =>
+          ColoredBox(color: const Color(0xFF14141C), child: flowContent),
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
+    unawaited(router.run<void>(const _Flow()));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('needs-material'), findsOneWidget);
   });
 }
