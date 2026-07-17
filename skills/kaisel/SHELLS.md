@@ -1,5 +1,9 @@
 # Shells
 
+You're building an app with a bottom nav bar or sidebar, and each
+tab should keep its own history — leave a tab mid-flow, come back,
+and it's exactly where you left it.
+
 Reference for `KaiselBranchedShell` (multi-branch tab/sidebar layouts)
 and `KaiselShell` (single-branch layouts that just wrap content in
 chrome). This is kaisel's **nested routing**: each branch runs its own

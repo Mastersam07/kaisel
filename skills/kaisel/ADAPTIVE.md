@@ -1,5 +1,9 @@
 # Adaptive layouts
 
+You want one app that renders as a stacked phone UI on small screens
+and as master-detail, multi-pane, or foldable layouts on large ones —
+without maintaining a second navigation system.
+
 Reference for `KaiselBranch.adaptive`, `KaiselAdaptivePageBuilder`,
 `KaiselAbsorbingPage`, `KaiselStandalonePage`, `KaiselStackContext`,
 `KaiselMasterDetailScaffold`, and `KaiselSupportingPaneScaffold`. Use

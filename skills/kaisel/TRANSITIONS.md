@@ -1,5 +1,9 @@
 # Transitions
 
+You want screens to animate the way the design says — a fade between
+auth states, a sheet sliding up, a cross-fade between siblings —
+instead of the default platform slide.
+
 Reference for `KaiselPageWrapper`, `KaiselPageWrapperContext`, and the
 custom `Page<T>` subclasses you'll write to drive specific animations.
 Use this when default `MaterialPage` slide-on-push isn't what the

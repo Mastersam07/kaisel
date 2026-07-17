@@ -1,5 +1,9 @@
 # Guards
 
+You need to protect routes: send logged-out users to login, gate
+features behind flags or entitlements, or stop navigation away from
+unsaved work.
+
 Reference for `KaiselGuard<R>` and the guard pipeline. Use guards
 when something cross-cutting needs to influence what the stack
 becomes — auth gating, feature flags, entitlement checks, dirty-form

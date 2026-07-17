@@ -1,5 +1,9 @@
 # Modules
 
+Your app's routes split along feature or team boundaries — a shop, an
+auth flow, an admin area — and each should own its routes without the
+app knowing their internals.
+
 Reference for `RouteModule`, `KaiselModuleMount`, `ModuleStackCodec`,
 and `ConfigCodecWithModules`. Modules are kaisel's other form of
 **nested routing** — a feature's routes as a self-contained, mountable

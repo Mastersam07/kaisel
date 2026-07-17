@@ -1,5 +1,8 @@
 # Navigation methods
 
+You want to move between screens: open a detail page, come back,
+return a value to the caller, or swap the whole stack at once.
+
 Reference for choosing between `push`, `pop`, `set`, `replaceTop`,
 `pushOrReplaceTop`, and `run<T>`. Each method mutates the stack
 differently and is appropriate for a different situation.

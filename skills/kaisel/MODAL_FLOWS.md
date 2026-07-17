@@ -1,5 +1,9 @@
 # Modal flows
 
+You need a multi-step experience — a checkout, a wizard, a picker —
+that opens above the app, runs its own steps, and hands back a typed
+result when it finishes.
+
 Reference for `router.run<T>(...)`, `KaiselModalRoute<T>`, and
 `KaiselModalBuilder`. Use modal flows when a sub-experience has a
 clean entry, a multi-step middle, and a typed exit value. Payment

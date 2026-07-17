@@ -1,5 +1,8 @@
 # Codec — URLs and deep linking
 
+You want URLs: deep links that open the right screen, web addresses
+that survive refresh, links users can share.
+
 Reference for `KaiselConfigCodec<R>`, `KaiselStackCodec<R>`,
 `StackToConfigCodec`, and `KaiselRouteInformationParser`. The codec is
 the single place URL strings live in a kaisel app. Everywhere else
