@@ -2,7 +2,11 @@
 
 Reference for `KaiselBranchedShell` (multi-branch tab/sidebar layouts)
 and `KaiselShell` (single-branch layouts that just wrap content in
-chrome). Branched shells are the more common case — start there if
+chrome). This is kaisel's **nested routing**: each branch runs its own
+stack on a nested Navigator, and branches are **parallel routes** — every
+tab's stack stays alive and preserves its state while another tab is
+visible. (Coming from go_router, this is the `StatefulShellRoute`
+territory; from auto_route, nested routers.) Branched shells are the more common case — start there if
 the app has a bottom navigation bar, a sidebar, or any other "this is
 the persistent chrome, and the content swaps based on the selected
 section" pattern.

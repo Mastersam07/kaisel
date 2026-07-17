@@ -1,7 +1,9 @@
 # Modules
 
 Reference for `RouteModule`, `KaiselModuleMount`, `ModuleStackCodec`,
-and `ConfigCodecWithModules`. Use modules when an app's routes split
+and `ConfigCodecWithModules`. Modules are kaisel's other form of
+**nested routing** — a feature's routes as a self-contained, mountable
+stack on its own nested Navigator. Use modules when an app's routes split
 naturally along feature boundaries — a shop subsystem, an auth
 subsystem, a settings subsystem — and you want each to own its routes,
 page builders, and codec independently.

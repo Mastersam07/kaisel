@@ -6,7 +6,10 @@ Reference for `KaiselBranch.adaptive`, `KaiselAdaptivePageBuilder`,
 these when the same logical stack should render differently at different
 widths or postures. Master-detail is the common case, but the primitive
 (absorption) is layout-agnostic — supporting panes, three-pane, and
-foldables are the same mechanism, all driven by the same router state.
+foldables are the same mechanism, all driven by the same router state. If you're
+looking for **parallel routing** in the multi-pane sense — several routes
+rendered on screen at once — this is the guide: one stack, with adjacent
+routes absorbed into a single rendered layout.
 
 ## The model
 
