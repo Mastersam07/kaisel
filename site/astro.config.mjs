@@ -1,11 +1,13 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import starlightLinksValidator from 'starlight-links-validator';
 
 export default defineConfig({
   site: 'https://kaisel.dev',
   integrations: [
     starlight({
+      plugins: [starlightLinksValidator()],
       title: 'kaisel',
       description:
         'A Dart 3-native router for Flutter — sealed routes, pattern matching, and a stack-as-value model. No string paths, no codegen.',
@@ -26,6 +28,10 @@ export default defineConfig({
           href: 'https://pub.dev/packages/kaisel',
         },
       ],
+      editLink: {
+        baseUrl:
+          'https://github.com/Mastersam07/kaisel/edit/dev/site/src/content/docs/',
+      },
       customCss: ['./src/styles/custom.css'],
       head: [
         {
