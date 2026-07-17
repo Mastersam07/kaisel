@@ -62,6 +62,14 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Tooling',
+          items: [
+            { label: 'DevTools extension', slug: 'tooling/devtools' },
+            { label: 'Lints', slug: 'tooling/lints' },
+            { label: 'AI & editor skills', slug: 'tooling/ai-skills' },
+          ],
+        },
+        {
           label: 'Project',
           items: [
             { label: 'Roadmap', slug: 'roadmap' },

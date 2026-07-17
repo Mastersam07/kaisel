@@ -25,3 +25,58 @@
   border-color: color-mix(in srgb, var(--sl-color-accent) 50%, transparent);
   background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
 }
+
+/* Soft glow behind the hero, bloclibrary.dev-style. */
+[data-has-hero] main {
+  background:
+    radial-gradient(
+      ellipse 55% 35% at 72% 12%,
+      color-mix(in srgb, var(--sl-color-accent) 22%, transparent),
+      transparent 70%
+    );
+}
+
+/* Install snippet beside its blurb inside the get-started card. */
+.get-started-card {
+  display: grid;
+  gap: 1rem;
+  align-items: center;
+}
+
+@media (min-width: 50rem) {
+  .get-started-card {
+    grid-template-columns: minmax(0, 3fr) 4fr;
+  }
+}
+
+/* Bloc-style link directories inside cards. */
+.link-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.link-list li {
+  border-bottom: 1px solid var(--sl-color-hairline);
+}
+
+.link-list li:last-child {
+  border-bottom: none;
+}
+
+.link-list a {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.55rem 0.25rem;
+  text-decoration: none;
+  color: var(--sl-color-white);
+}
+
+.link-list a::after {
+  content: '→';
+  color: var(--sl-color-accent-high);
+}
+
+.link-list a:hover {
+  color: var(--sl-color-accent-high);
+}

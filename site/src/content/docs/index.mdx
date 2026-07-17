@@ -7,15 +7,31 @@ hero:
   image:
     file: ../../assets/kaisel-mark.svg
   actions:
-    - text: Get started
+    - text: Get Started
       link: /getting-started/
-      icon: right-arrow
-    - text: Coming from another router?
-      link: /migration/
-      variant: minimal
+      icon: rocket
+    - text: View on GitHub
+      link: https://github.com/Mastersam07/kaisel
+      icon: github
+      variant: secondary
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<Card title="Get started" icon="rocket">
+  <div class="get-started-card">
+
+    ```sh
+    flutter pub add kaisel
+    ```
+
+    <span>
+      The [getting started guide](/getting-started/) takes you from install to
+      navigating with typed routes in a few minutes — sealed class, exhaustive
+      `switch`, done.
+    </span>
+  </div>
+</Card>
 
 <CardGrid stagger>
   <Card title="Sealed routes, exhaustive builds" icon="approve-check">
@@ -34,5 +50,28 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
   <Card title="Zero codegen" icon="rocket">
     No `build_runner`, no generated files, no magic strings. Routes are plain
     Dart classes you already know how to write.
+  </Card>
+</CardGrid>
+
+<CardGrid>
+  <Card title="Learn" icon="open-book">
+    <ul class="link-list">
+      <li>[Navigation](/guides/navigation/)</li>
+      <li>[Shells & tabs](/guides/shells/)</li>
+      <li>[Modal flows](/guides/modal-flows/)</li>
+      <li>[Adaptive layouts](/guides/adaptive-layouts/)</li>
+      <li>[Guards](/guides/guards/)</li>
+      <li>[URLs & deep linking](/guides/urls-and-deep-linking/)</li>
+    </ul>
+  </Card>
+  <Card title="Migrate" icon="random">
+    <ul class="link-list">
+      <li>[Migration overview](/migration/)</li>
+      <li>[From go_router](/migration/from-go-router/)</li>
+      <li>[From auto_route](/migration/from-auto-route/)</li>
+      <li>[From Navigator](/migration/from-navigator/)</li>
+      <li>[Roadmap](/roadmap/)</li>
+      <li>[API reference](https://pub.dev/documentation/kaisel/latest/)</li>
+    </ul>
   </Card>
 </CardGrid>

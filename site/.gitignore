@@ -25,3 +25,5 @@ pnpm-debug.log*
 src/content/docs/guides/
 src/content/docs/migration/
 src/content/docs/roadmap.md
+src/content/docs/tooling/devtools.md
+src/content/docs/tooling/lints.md

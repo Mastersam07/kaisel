@@ -38,6 +38,8 @@ const pages = [
     `migration/${slug}.md`,
   ]),
   ['ROADMAP.md', 'roadmap.md'],
+  ['packages/kaisel_devtools/README.md', 'tooling/devtools.md', 'DevTools extension'],
+  ['packages/kaisel_lint/README.md', 'tooling/lints.md', 'Lints'],
 ];
 
 // Relative links between synced files become site links; anything else
@@ -50,16 +52,20 @@ const siteLinks = new Map([
 
 rmSync(join(out, 'guides'), { recursive: true, force: true });
 rmSync(join(out, 'migration'), { recursive: true, force: true });
+rmSync(join(out, 'tooling', 'devtools.md'), { force: true });
+rmSync(join(out, 'tooling', 'lints.md'), { force: true });
 rmSync(join(out, 'roadmap.md'), { force: true });
 
 const unresolved = [];
-for (const [source, destination] of pages) {
+for (const [source, destination, titleOverride] of pages) {
   let text = readFileSync(join(repo, source), 'utf8');
 
   const heading = text.match(/^# (.+)$/m);
   if (!heading) throw new Error(`${source}: no H1 to use as the page title`);
-  const title = heading[1].trim();
-  text = text.replace(/^# .+\n+/m, '');
+  const title = titleOverride ?? heading[1].trim();
+  // Drop everything through the H1 (brand images and badge rows in package
+  // READMEs shouldn't render inside a docs page).
+  text = text.slice(text.indexOf(heading[0]) + heading[0].length).trimStart();
 
   text = text.replace(/\]\(([^)\s]+)\)/g, (match, target) => {
     if (/^(https?:|#|mailto:)/.test(target)) return match;
