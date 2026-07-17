@@ -1,9 +1,13 @@
 /* kaisel brand — see assets/brand/README.md for the palette. */
 
-:root {
+:root,
+:root[data-theme='dark'] {
   --sl-color-accent-low: #0b3742;
   --sl-color-accent: #0e7490;
   --sl-color-accent-high: #a5f3fc;
+}
+
+:root[data-theme='dark'] {
   --sl-color-bg: #060a14;
   --sl-color-bg-nav: #080d19;
   --sl-color-bg-sidebar: #080d19;

@@ -9,7 +9,11 @@ export default defineConfig({
       title: 'kaisel',
       description:
         'A Dart 3-native router for Flutter — sealed routes, pattern matching, and a stack-as-value model. No string paths, no codegen.',
-      logo: { src: './src/assets/kaisel-mark.svg', alt: 'kaisel' },
+      logo: {
+        dark: './src/assets/kaisel-mark.svg',
+        light: './src/assets/kaisel-mark-light.svg',
+        alt: 'kaisel',
+      },
       social: [
         {
           icon: 'github',
