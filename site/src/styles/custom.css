@@ -90,3 +90,7 @@
 .card {
   border-radius: 0.75rem;
 }
+
+::selection {
+  background: color-mix(in srgb, var(--sl-color-accent) 35%, transparent);
+}
