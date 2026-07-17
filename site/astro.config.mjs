@@ -23,6 +23,20 @@ export default defineConfig({
         },
       ],
       customCss: ['./src/styles/custom.css'],
+      head: [
+        {
+          tag: 'meta',
+          attrs: { property: 'og:image', content: 'https://kaisel.dev/og.png' },
+        },
+        {
+          tag: 'meta',
+          attrs: { name: 'twitter:card', content: 'summary_large_image' },
+        },
+        {
+          tag: 'meta',
+          attrs: { name: 'twitter:image', content: 'https://kaisel.dev/og.png' },
+        },
+      ],
       sidebar: [
         { label: 'Start here', items: ['getting-started'] },
         {
