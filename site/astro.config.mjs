@@ -88,9 +88,15 @@ export default defineConfig({
         },
       ],
       sidebar: [
-        { label: 'Start here', items: ['getting-started'] },
         {
-          label: 'Guides',
+          label: 'Start here',
+          items: [
+            'getting-started',
+            { label: 'The mental model', slug: 'concepts' },
+          ],
+        },
+        {
+          label: 'Reference',
           items: [
             { label: 'Navigation', slug: 'guides/navigation' },
             { label: 'Shells & tabs', slug: 'guides/shells' },

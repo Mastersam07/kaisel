@@ -68,6 +68,8 @@ final picked = await context.pushForResult<String>(const ColorPicker());
 
 ## Where next
 
+- [The mental model](/concepts/) — five minutes on how kaisel thinks;
+  every other page assumes it.
 - [Navigation](/guides/navigation/) — the full core guide: stacks, typed
   results, and imperative navigation outside the tree.
 - [Shells & tabs](/guides/shells/) — bottom-nav with per-tab state.
