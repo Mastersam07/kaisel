@@ -1,0 +1,38 @@
+---
+title: kaisel
+description: A Dart 3-native router for Flutter — routes as values. No string paths, no codegen.
+template: splash
+hero:
+  tagline: Routes as values. A Dart 3-native router for Flutter — no string paths, no codegen.
+  image:
+    file: ../../assets/kaisel-mark.svg
+  actions:
+    - text: Get started
+      link: /getting-started/
+      icon: right-arrow
+    - text: Migrate from go_router
+      link: /migration/from-go-router/
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid stagger>
+  <Card title="Sealed routes, exhaustive builds" icon="approve-check">
+    Navigation is a `switch` over a sealed type. Add a route and the compiler
+    finds every place that must handle it — no runtime "unknown route" left.
+  </Card>
+  <Card title="The stack is a value" icon="list-format">
+    Your history is a `List` of route objects. Push, pop, and set are list
+    operations — testable without a widget tree, restorable across process
+    death.
+  </Card>
+  <Card title="Every navigation. One observer." icon="magnifier">
+    Register a standard `NavigatorObserver` once — it sees tab switches and
+    adaptive in-place changes that produce no route event in other routers.
+  </Card>
+  <Card title="Zero codegen" icon="rocket">
+    No `build_runner`, no generated files, no magic strings. Routes are plain
+    Dart classes you already know how to write.
+  </Card>
+</CardGrid>

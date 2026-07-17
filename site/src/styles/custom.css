@@ -1,0 +1,20 @@
+/* kaisel brand — see assets/brand/README.md for the palette. */
+
+:root {
+  --sl-color-accent-low: #0b3742;
+  --sl-color-accent: #0e7490;
+  --sl-color-accent-high: #a5f3fc;
+  --sl-color-bg: #060a14;
+  --sl-color-bg-nav: #080d19;
+  --sl-color-bg-sidebar: #080d19;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #cffafe;
+  --sl-color-accent: #0e7490;
+  --sl-color-accent-high: #155e75;
+}
+
+.hero img {
+  filter: drop-shadow(0 0 40px rgba(34, 211, 238, 0.35));
+}

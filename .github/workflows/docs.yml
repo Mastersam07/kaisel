@@ -1,0 +1,50 @@
+name: docs
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'site/**'
+      - 'skills/kaisel/**'
+      - 'packages/kaisel/doc/migration/**'
+      - 'ROADMAP.md'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'skills/kaisel/**'
+      - 'packages/kaisel/doc/migration/**'
+      - 'ROADMAP.md'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Per-ref: PR builds run in parallel; deploys from dev serialize. Never
+# cancel in-progress — a killed Pages deployment can strand a half-rollout.
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: withastro/action@v3
+        with:
+          path: ./site
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
