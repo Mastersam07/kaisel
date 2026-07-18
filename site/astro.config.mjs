@@ -104,6 +104,7 @@ export default defineConfig({
             { label: 'Drive the stack from app state', slug: 'how-to/state-driven-stack' },
             { label: 'Deep link into a screen', slug: 'how-to/deep-link' },
             { label: 'Track screens in analytics', slug: 'how-to/track-screens' },
+            { label: 'Use dialogs, sheets, and PopScope', slug: 'how-to/use-with-navigator' },
           ],
         },
         {
