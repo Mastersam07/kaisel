@@ -226,6 +226,12 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   // [run] and popped by [completeFlow]/[dismissFlow] in LIFO order.
   final List<_ActiveFlow<R>> _flows = <_ActiveFlow<R>>[];
 
+  // Set on a flow's sub-router, pointing at the router that ran the flow.
+  // Only the host chain's root aggregates renderable flows, so [run] on a
+  // sub-router forwards up (#55) — otherwise the flow would be added to a
+  // list nothing renders and its future would never complete.
+  KaiselRouter<R>? _flowHost;
+
   // Result channels for [pushForResult], keyed by stack-entry id. The
   // completer is resolved when its entry leaves the stack, with any value
   // stashed for it by a result-bearing [pop] (absent → resolves null).
@@ -534,7 +540,9 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   ///
   /// Nested flows are supported: calling [run] while another flow is
   /// active pushes a new flow on top, and flows complete in LIFO order
-  /// (see [completeFlow]).
+  /// (see [completeFlow]). This works from inside a flow too — a flow's
+  /// sub-router forwards [run] to the router that hosts it, so nested
+  /// flows always land on the overlay stack the host renders.
   ///
   /// Guards on the main router are **not** rerun when starting a flow
   /// (a flow is its own transient state, not a navigation on the main
@@ -549,8 +557,13 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
         '${flow.runtimeType} must extend or implement $R to run as a flow.',
       );
     }
+    final host = _flowHost;
+    if (host != null) {
+      return host.run<T>(flow, flowGuards: flowGuards);
+    }
     final completer = Completer<Object?>();
-    final flowRouter = KaiselRouter<R>(initial: flow as R, guards: flowGuards);
+    final flowRouter = KaiselRouter<R>(initial: flow as R, guards: flowGuards)
+      .._flowHost = this;
     flowRouter.addListener(notifyListeners);
     final entry = _ActiveFlow<R>(
       route: flow as KaiselModalRoute<Object?>,

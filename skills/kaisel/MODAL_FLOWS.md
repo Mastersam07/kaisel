@@ -197,7 +197,10 @@ fire inside a flow.
 A flow can push and pop within itself. From inside a flow screen,
 `context.router<AppRoute>()` resolves to the *flow's* sub-router, not
 the main one — so `.push(...)`, `.pop()`, and `.replaceTop(...)` mutate
-the flow's stack, not the underlying main stack.
+the flow's stack, not the underlying main stack. The one exception is
+`run<T>`: a sub-router forwards it to the router hosting the flow, so a
+nested flow always opens on the overlay stack that actually renders
+(kaisel_core 1.0.1+).
 
 ```dart
 // Inside _CardEntryScreen, going to the next step in the flow:

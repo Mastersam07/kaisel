@@ -1,4 +1,10 @@
-# Changelog
+## 1.0.1
+
+- Fix: `run<T>` called on a flow's sub-router (what `context.router<R>()`
+  resolves to inside a flow screen) now forwards to the hosting router, so
+  nested flows open on the rendered overlay stack instead of silently never
+  appearing ([#55](https://github.com/Mastersam07/kaisel/issues/55)).
+
 
 ## 1.0.0
 

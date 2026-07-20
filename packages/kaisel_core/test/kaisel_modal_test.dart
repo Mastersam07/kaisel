@@ -308,6 +308,53 @@ void main() {
   test('KaiselModalRoute can be extended directly', () {
     expect(_ExtModal(), isA<KaiselModalRoute<void>>());
   });
+
+  group('run on a flow sub-router (#55)', () {
+    test(
+      'forwards to the host so the nested flow renders and completes',
+      () async {
+        final r = KaiselRouter<_R>(initial: const _Home());
+        final outer = r.run<bool>(const _BoolFlow());
+        expect(r.activeFlows.length, 1);
+
+        final subRouter = r.activeFlows.first.router;
+        final inner = subRouter.run<String>(const _StringFlow());
+
+        // The nested flow lands on the host's stack, not the sub-router's.
+        expect(r.activeFlows.length, 2);
+        expect(subRouter.activeFlows, isEmpty);
+        expect(r.activeFlows.last.route, isA<_StringFlow>());
+
+        r.completeFlow<String>('inner-done');
+        expect(await inner, 'inner-done');
+        expect(r.activeFlows.length, 1);
+
+        r.completeFlow<bool>(true);
+        expect(await outer, isTrue);
+        expect(r.hasActiveFlow, isFalse);
+      },
+    );
+
+    test('forwards through two levels of nesting to the root', () async {
+      final r = KaiselRouter<_R>(initial: const _Home());
+      final first = r.run<bool>(const _BoolFlow());
+      final level1 = r.activeFlows.first.router;
+      final second = level1.run<String>(const _StringFlow());
+      final level2 = r.activeFlows.last.router;
+      final third = level2.run<bool>(const _BoolFlow());
+
+      expect(r.activeFlows.length, 3);
+      expect(level1.activeFlows, isEmpty);
+      expect(level2.activeFlows, isEmpty);
+
+      r.completeFlow<bool>(false);
+      expect(await third, isFalse);
+      r.completeFlow<String>('mid');
+      expect(await second, 'mid');
+      r.completeFlow<bool>(true);
+      expect(await first, isTrue);
+    });
+  });
 }
 
 // A modal route NOT in the _R sealed hierarchy — used to test the
