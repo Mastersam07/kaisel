@@ -228,8 +228,8 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
 
   // Set on a flow's sub-router, pointing at the router that ran the flow.
   // Only the host chain's root aggregates renderable flows, so [run] on a
-  // sub-router forwards up (#55) — otherwise the flow would be added to a
-  // list nothing renders and its future would never complete.
+  // sub-router forwards up — otherwise the flow would be added to a list
+  // nothing renders and its future would never complete.
   KaiselRouter<R>? _flowHost;
 
   // Result channels for [pushForResult], keyed by stack-entry id. The
