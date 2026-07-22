@@ -23,6 +23,8 @@
 //    instantly. The custom page forwards `name`/`arguments` so it stays
 //    observable.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:kaisel/kaisel.dart';
 
@@ -59,7 +61,13 @@ class _LogObserver extends NavigatorObserver {
     if (route.settings.name case final name?) _add('← $name');
   }
 
-  void _add(String entry) => _log.value = [..._log.value, entry];
+  // A newly mounted navigator (a flow opening) dispatches its initial
+  // observer notifications during build; mutating a listenable bound to
+  // widgets there throws markNeedsBuild-during-build. A microtask can't
+  // run mid-build, so this defers exactly enough — and from a tap it
+  // still lands before the next frame.
+  void _add(String entry) =>
+      scheduleMicrotask(() => _log.value = [..._log.value, entry]);
 }
 
 class _HomeScreen extends StatefulWidget {
