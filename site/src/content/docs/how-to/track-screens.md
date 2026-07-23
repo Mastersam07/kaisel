@@ -55,6 +55,18 @@ KaiselRouterConfig<AppRoute>(
 
 - The `observers:` builder must return **new instances each call** — an
   observer belongs to exactly one navigator. Don't share one instance.
+- **Don't synchronously update widget-bound state from observer
+  callbacks.** A newly mounted navigator (a flow opening, a tab's first
+  build) dispatches its initial notifications *during build* — mutating a
+  `ValueNotifier` a `ValueListenableBuilder` watches will throw
+  markNeedsBuild-during-build. Analytics calls are fine (they're I/O);
+  for UI-bound state, defer with a microtask — it can never run mid-build,
+  and from a tap it still lands before the next frame renders:
+
+  ```dart
+  void _add(String entry) =>
+      scheduleMicrotask(() => _log.value = [..._log.value, entry]);
+  ```
 - Using a custom `pageWrapper`? Forward `name:` and `arguments:` on every
   page you return, or observers go blind — see
   [Transitions](/guides/transitions/).
