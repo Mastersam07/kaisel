@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0+1
+
+Release, alongside kaisel 1.0.0+1.
+
 ## 1.0.0
 
 Stable release, alongside kaisel 1.0.0.

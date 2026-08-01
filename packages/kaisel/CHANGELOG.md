@@ -1,3 +1,14 @@
+## 1.0.0+1
+
+No library changes. Packaging and examples only:
+
+- `documentation` and `homepage` now point at [kaisel.dev](https://kaisel.dev).
+- Example: the results-and-flows log observer defers with a microtask, so a
+  flow opening no longer logs a caught markNeedsBuild-during-build error
+  ([#57](https://github.com/Mastersam07/kaisel/issues/57)).
+- Example: `main_tutorial.dart` — the finished app from the
+  [docs tutorial](https://kaisel.dev/tutorial/).
+
 # Changelog
 
 ## 1.0.0
