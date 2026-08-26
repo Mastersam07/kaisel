@@ -219,6 +219,56 @@ final result = await context.router<AppRoute>().run<String>(
 The flow's sub-router runs these on its own stack mutations. They
 don't see the main stack.
 
+## Re-running guards when the world changes
+
+Guards run on stack *mutations*. But the reason to re-check one is often that
+the world changed while the stack sat still: a lock timer fired, a session
+expired, an entitlement lapsed, a flag flipped. Point `reevaluateOn` at
+whatever already notifies on that change and the guard stays the single
+authority:
+
+```dart
+final _locked = ValueNotifier<bool>(false);
+
+KaiselGuard<AppRoute> appLockGuard(ValueListenable<bool> locked) =>
+    (current, proposed) {
+  final protected = proposed.any((route) => route is RequiresUnlock);
+  final shown = proposed.any((route) => route is Passcode);
+  if (protected && locked.value && !shown) return [...proposed, const Passcode()];
+  if (!locked.value && shown) {
+    return proposed.where((route) => route is! Passcode).toList();
+  }
+  return proposed;
+};
+
+final _config = KaiselRouterConfig<AppRoute>(
+  initial: const Home(),
+  guards: [appLockGuard(_locked)],
+  reevaluateOn: _locked,
+  builder: /* ... */,
+);
+```
+
+The imperative form is `router.reevaluate()`, which composes with any state
+primitive — a `Stream` subscription, a timer, a push notification handler.
+
+**Why this beats hand-rolling it.** Without re-evaluation the decision moves
+out of the guard: the listener has to push the passcode screen itself, and
+then carry its own idempotence check because the guard is no longer the only
+thing that appends it. Two places encode the same policy and drift. With
+re-evaluation the guard keeps deciding, and because it returns a *stack* the
+same function handles both directions — appending the screen on lock and
+dropping it on unlock.
+
+**Notes:**
+
+- Idempotent by construction: a guard that returns the same stack commits
+  nothing, so repeated firings are free.
+- Serialized with every other mutation, so it's safe to call while a
+  navigation is in flight.
+- This is kaisel's equivalent of auto_route's `reevaluateListenable` and
+  go_router's `refreshListenable`.
+
 ## Comparison with the source libraries
 
 **go_router's redirect** is a callback that returns `String?` (a
@@ -231,7 +281,8 @@ the redirect target.
 or pushes a redirect imperatively. Attached per route.
 
 **kaisel's KaiselGuard** is a pure function on the whole stack,
-registered globally on the router. The difference matters most when
+registered globally on the router, and re-runnable on demand
+(`reevaluateOn` / `router.reevaluate()`). The difference matters most when
 the cross-cutting concern is *about* transitions (dirty-form pops,
 auth-state changes, modal-blocking), not just about destinations.
 Returning a stack instead of a single route is also more expressive:
