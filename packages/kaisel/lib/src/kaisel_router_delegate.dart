@@ -905,7 +905,13 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     }
     bool roundTrips;
     try {
-      roundTrips = codec.decode(uri) != null;
+      final decoded = codec.decode(uri);
+      if (decoded case final Future<KaiselConfig<R>?> pending) {
+        pending.ignore();
+        roundTrips = true;
+      } else {
+        roundTrips = decoded != null;
+      }
     } catch (_) {
       roundTrips = false;
     }
@@ -929,8 +935,13 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     final codec = _codec;
     if (codec == null) return null;
     try {
-      final config = codec.decode(Uri.parse(url));
-      if (config == null) return null;
+      final decoded = codec.decode(Uri.parse(url));
+      if (decoded case final Future<KaiselConfig<R>?> pending) {
+        pending.ignore();
+        return null;
+      }
+      if (decoded is! KaiselConfig<R>) return null;
+      final config = decoded;
       final lines = <String>[
         'main: ${config.mainStack.map((r) => '$r').join(' → ')}',
       ];
@@ -961,7 +972,9 @@ class KaiselRouterDelegate<R extends KaiselRoute>
         case 'deepLink':
           final codec = _codec;
           if (codec == null) return _cmd(false, 'No codec wired.');
-          final config = codec.decode(Uri.parse('${command['url'] ?? ''}'));
+          final config = await codec.decode(
+            Uri.parse('${command['url'] ?? ''}'),
+          );
           if (config == null) return _cmd(false, 'URL did not decode.');
           await setNewRoutePath(config);
           return _cmd(true, 'Applied ${command['url']}.');

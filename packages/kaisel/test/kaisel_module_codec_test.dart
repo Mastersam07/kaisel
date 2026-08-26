@@ -113,14 +113,14 @@ class _MainCodec implements KaiselConfigCodec<_AppRoute> {
 
 void main() {
   group('ModuleStackCodec type erasure', () {
-    test('encodeAny downcasts to the typed encode', () {
+    test('encodeAny downcasts to the typed encode', () async {
       const codec = _CheckoutCodec();
       // Pass as List<KaiselRoute>, the erased entry point.
       final result = codec.encodeAny(const <KaiselRoute>[_Cart(), _Shipping()]);
       expect(result, ['shipping']);
     });
 
-    test('decodeAny upcasts the typed decode result', () {
+    test('decodeAny upcasts the typed decode result', () async {
       const codec = _CheckoutCodec();
       final result = codec.decodeAny(const ['shipping']);
       expect(result, isA<List<KaiselRoute>>());
@@ -129,12 +129,12 @@ void main() {
       expect(result[1], isA<_Shipping>());
     });
 
-    test('decodeAny returns null when the typed decode rejects', () {
+    test('decodeAny returns null when the typed decode rejects', () async {
       const codec = _CheckoutCodec();
       expect(codec.decodeAny(const ['nonsense']), isNull);
     });
 
-    test('typed encode/decode round-trip', () {
+    test('typed encode/decode round-trip', () async {
       const codec = _CheckoutCodec();
       for (final stack in <List<_CheckoutRoute>>[
         const [_Cart()],
@@ -165,18 +165,18 @@ void main() {
       ],
     );
 
-    test('non-module URLs delegate to the base codec', () {
-      final home = codec.decode(Uri.parse('/'));
+    test('non-module URLs delegate to the base codec', () async {
+      final home = await codec.decode(Uri.parse('/'));
       expect(home, isNotNull);
       expect(home!.mainStack, const [_Home()]);
       expect(home.nestedState, isNull);
 
-      final settings = codec.decode(Uri.parse('/settings'));
+      final settings = await codec.decode(Uri.parse('/settings'));
       expect(settings!.mainStack, const [_Settings()]);
     });
 
-    test('module root URL decodes to mount + module initial', () {
-      final result = codec.decode(Uri.parse('/checkout'));
+    test('module root URL decodes to mount + module initial', () async {
+      final result = await codec.decode(Uri.parse('/checkout'));
       expect(result, isNotNull);
       expect(result!.mainStack, const [_CheckoutMount()]);
       expect(result.nestedState, isA<KaiselModuleConfig>());
@@ -184,46 +184,51 @@ void main() {
       expect(nested.stack, const [_Cart()]);
     });
 
-    test('deep module URL decodes to full restored stack', () {
-      final result = codec.decode(Uri.parse('/checkout/confirm'));
+    test('deep module URL decodes to full restored stack', () async {
+      final result = await codec.decode(Uri.parse('/checkout/confirm'));
       expect(result!.mainStack, const [_CheckoutMount()]);
       final nested = result.nestedState! as KaiselModuleConfig;
       expect(nested.stack, const [_Cart(), _Shipping(), _Confirm()]);
     });
 
-    test('different module prefixes route to different module codecs', () {
-      final checkout = codec.decode(Uri.parse('/checkout/shipping'));
-      expect(checkout!.mainStack, const [_CheckoutMount()]);
+    test(
+      'different module prefixes route to different module codecs',
+      () async {
+        final checkout = await codec.decode(Uri.parse('/checkout/shipping'));
+        expect(checkout!.mainStack, const [_CheckoutMount()]);
 
-      final account = codec.decode(Uri.parse('/account/payment-methods'));
-      expect(account!.mainStack, const [_AccountMount()]);
-      final nested = account.nestedState! as KaiselModuleConfig;
-      expect(nested.stack, const [_Profile(), _PaymentMethods()]);
-    });
+        final account = await codec.decode(
+          Uri.parse('/account/payment-methods'),
+        );
+        expect(account!.mainStack, const [_AccountMount()]);
+        final nested = account.nestedState! as KaiselModuleConfig;
+        expect(nested.stack, const [_Profile(), _PaymentMethods()]);
+      },
+    );
 
     test(
       'URL within a known prefix but unrecognised by the module codec returns null '
       'and does NOT fall through to baseCodec',
-      () {
+      () async {
         // /checkout/nope matches the /checkout prefix; the module
         // codec rejects ['nope']. The composer returns null rather
         // than letting baseCodec try (which would also reject, but
         // the principle matters: the URL is in the module's
         // namespace).
-        expect(codec.decode(Uri.parse('/checkout/nope')), isNull);
+        expect(await codec.decode(Uri.parse('/checkout/nope')), isNull);
       },
     );
 
-    test('URL with no matching prefix falls through to baseCodec', () {
+    test('URL with no matching prefix falls through to baseCodec', () async {
       // /unknown isn't under any module prefix; baseCodec is asked.
       // Its decode returns null for unknown paths.
-      expect(codec.decode(Uri.parse('/unknown')), isNull);
+      expect(await codec.decode(Uri.parse('/unknown')), isNull);
     });
 
-    test('trailing slash in module URL is tolerated', () {
+    test('trailing slash in module URL is tolerated', () async {
       // /checkout/ should decode the same as /checkout.
-      final withSlash = codec.decode(Uri.parse('/checkout/'));
-      final withoutSlash = codec.decode(Uri.parse('/checkout'));
+      final withSlash = await codec.decode(Uri.parse('/checkout/'));
+      final withoutSlash = await codec.decode(Uri.parse('/checkout'));
       expect(withSlash, equals(withoutSlash));
     });
   });
@@ -240,22 +245,27 @@ void main() {
       ],
     );
 
-    test('non-module config delegates to base codec', () {
+    test('non-module config delegates to base codec', () async {
       final uri = codec.encode(KaiselConfig(mainStack: const [_Home()]));
       expect(uri.path, '/');
     });
 
-    test('module config with module state encodes to prefix + segments', () {
-      final uri = codec.encode(
-        KaiselConfig(
-          mainStack: const [_CheckoutMount()],
-          nestedState: KaiselModuleConfig(stack: const [_Cart(), _Shipping()]),
-        ),
-      );
-      expect(uri.pathSegments, ['checkout', 'shipping']);
-    });
+    test(
+      'module config with module state encodes to prefix + segments',
+      () async {
+        final uri = codec.encode(
+          KaiselConfig(
+            mainStack: const [_CheckoutMount()],
+            nestedState: KaiselModuleConfig(
+              stack: const [_Cart(), _Shipping()],
+            ),
+          ),
+        );
+        expect(uri.pathSegments, ['checkout', 'shipping']);
+      },
+    );
 
-    test('module root state encodes to just the prefix', () {
+    test('module root state encodes to just the prefix', () async {
       final uri = codec.encode(
         KaiselConfig(
           mainStack: const [_CheckoutMount()],
@@ -267,7 +277,7 @@ void main() {
 
     test(
       'mount route on top but no module state yet encodes just the prefix',
-      () {
+      () async {
         // Cold state: mount has been pushed but module widget hasn't
         // registered yet, so nestedState is null. The composer should
         // still produce a sensible URL for the mount itself rather
@@ -279,22 +289,25 @@ void main() {
       },
     );
 
-    test('round-trip: decode then encode is identity for module URLs', () {
-      for (final path in const [
-        '/checkout',
-        '/checkout/shipping',
-        '/checkout/confirm',
-      ]) {
-        final decoded = codec.decode(Uri.parse(path));
-        expect(decoded, isNotNull, reason: 'decode failed for $path');
-        final encoded = codec.encode(decoded!);
-        expect(encoded.path, path, reason: 'round-trip mismatch for $path');
-      }
-    });
+    test(
+      'round-trip: decode then encode is identity for module URLs',
+      () async {
+        for (final path in const [
+          '/checkout',
+          '/checkout/shipping',
+          '/checkout/confirm',
+        ]) {
+          final decoded = await codec.decode(Uri.parse(path));
+          expect(decoded, isNotNull, reason: 'decode failed for $path');
+          final encoded = codec.encode(decoded!);
+          expect(encoded.path, path, reason: 'round-trip mismatch for $path');
+        }
+      },
+    );
   });
 
   group('ModuleMount prefix parsing', () {
-    test('leading slash is optional', () {
+    test('leading slash is optional', () async {
       const withSlash = ConfigCodecWithModules<_AppRoute>(
         baseCodec: _MainCodec(),
         modules: [
@@ -323,12 +336,12 @@ void main() {
   });
 
   group('RouteModule.codec', () {
-    test('defaults to null when not overridden', () {
+    test('defaults to null when not overridden', () async {
       const module = _MinimalModule();
       expect(module.codec, isNull);
     });
 
-    test('returns the typed codec when overridden', () {
+    test('returns the typed codec when overridden', () async {
       const module = _CheckoutModule();
       expect(module.codec, isA<ModuleStackCodec<_CheckoutRoute>>());
       // Round-trip via the typed API on the module's own codec.

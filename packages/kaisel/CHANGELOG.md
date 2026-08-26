@@ -16,6 +16,10 @@
   main stack, shell branches, modules, and flows — so screen-view analytics
   no longer re-logs a tab you return to
   ([#66](https://github.com/Mastersam07/kaisel/issues/66)).
+- Deep-link decoding may now be asynchronous, following `kaisel_core`
+  ([#64](https://github.com/Mastersam07/kaisel/issues/64)). The route
+  information parser awaits the codec, so an async `decode` resolves before
+  the stack is applied.
 
 ## 1.0.0+1
 

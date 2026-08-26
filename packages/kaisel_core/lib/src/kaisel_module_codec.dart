@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:meta/meta.dart';
 
 import 'kaisel_config.dart';
@@ -205,7 +207,7 @@ class ConfigCodecWithModules<R extends KaiselRoute>
   }
 
   @override
-  KaiselConfig<R>? decode(Uri uri) {
+  FutureOr<KaiselConfig<R>?> decode(Uri uri) {
     final segments = uri.pathSegments
         .where((s) => s.isNotEmpty)
         .toList(growable: false);

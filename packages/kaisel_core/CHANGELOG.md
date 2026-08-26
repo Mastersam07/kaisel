@@ -10,6 +10,13 @@
   guarded mutation, with the anchor off-by-one and the no-match case owned by
   the library ([#62](https://github.com/Mastersam07/kaisel/issues/62)).
 - `popUntil` is now documented; it was reachable but missing from the guides.
+- `KaiselConfigCodec.decode` and `KaiselStackCodec.decode` now return
+  `FutureOr`, so a deep link whose destination depends on state that must be
+  read first — an entitlement, a feature flag, a cached profile — can be
+  expressed directly ([#64](https://github.com/Mastersam07/kaisel/issues/64)).
+  Existing synchronous codecs are unaffected: returning a plain value still
+  satisfies the contract. Code that *calls* `decode` directly now needs to
+  await it.
 
 ## 1.0.1
 
