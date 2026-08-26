@@ -38,10 +38,14 @@ below show the typed form first.
 | `push(route)` | Adds to top | `Future<void>` | Going forward to a new screen |
 | `pushForResult<T>(route)` | Adds to top | `Future<T?>` (screen result) | A main-stack screen that returns a value |
 | `pop([result])` | Removes top | `Future<bool>` (success) | Going back; respects guards, optionally returns `result` |
+| `maybePop([result])` | Navigator-first pop | `Future<bool>` (handled) | Back buttons and any screen with a drawer, sheet, or `PopScope` |
 | `back()` / `historyGo(delta)` | History-aligned back | `Future<bool>` (navigated) | Browser Back/Forward should mirror multi-level back on the web |
 | `replaceTop(route)` | Removes top, pushes new | `Future<void>` | Swap current screen in place (no back history) |
 | `pushOrReplaceTop(route)` | Push if top differs in runtime type; replace if same | `Future<void>` | Adaptive master-detail; tab-style in-place updates |
 | `set(routes)` | Replaces entire stack | `Future<void>` | Auth state transitions, deep-link landing |
+| `popUntil(predicate)` | Pops down to an anchor | `Future<void>` | "Back to the cart", unwinding several screens at once |
+| `pushAndPopUntil(route, predicate:)` | Pops to an anchor, then pushes | `Future<void>` | Finish a flow and land on a result screen |
+| `popUntilRoot()` | Pops everything above the root | `Future<void>` | "Home" from anywhere |
 | `run<T>(flow)` | Opens a typed modal flow | `Future<T?>` (flow result) | Modal sub-flows (payment, wizard, picker) |
 
 `pushForResult<T>` and `run<T>` both return `Future<T?>`. The difference is
@@ -155,6 +159,40 @@ a screen opened with `pushForResult<T>`.
   care whether it happened.
 - A guard can prevent a pop (e.g., a form-dirty guard that asks
   "discard changes?"). Always check the boolean if you care.
+
+## maybePop
+
+```dart
+context.maybePop();
+```
+
+Pops the way the system back button does: the `Navigator` is asked first,
+and the kaisel stack is only touched when the `Navigator` has nothing to
+pop.
+
+**Use for:** app-bar back buttons and any "go back" affordance on a screen
+that can host something dismissible. Two things get consulted that [pop]
+skips:
+
+- **Local history entries.** A `Drawer` or `PopupMenuButton` registers a
+  `LocalHistoryEntry` on the enclosing route rather than pushing a route.
+  `maybePop` closes those first; `pop` would leave the drawer open and
+  remove the screen underneath it.
+- **`PopScope` vetoes.** A `canPop: false` scope stops the pop and receives
+  `onPopInvokedWithResult`, so "intercept and redirect" handlers — step back
+  inside a wizard, prompt about unsaved work, complete with a value — still
+  run. `pop` mutates the stack without asking.
+
+**Notes:**
+
+- The returned `bool` is *handled*, not *popped* — matching
+  `NavigatorState.maybePop`. A veto returns `true` (the gesture was claimed);
+  `false` means nothing handled it and a back gesture should bubble to the OS.
+- When the `Navigator` has nothing to pop, the nearest router is popped
+  instead, so an adaptive layout that absorbs several entries into one
+  visible page still unwinds.
+- Coming from auto_route, this is the translation for `maybePop()` — not
+  `pop()`. Guards run on the resulting stack change either way.
 
 ## back / historyGo
 
@@ -283,6 +321,38 @@ route value, so routes present in both old and new stacks keep their
 page state — but derivation happens on state *events*, not widget
 builds, and every derived stack still flows through the guard pipeline.
 `stackFor` is a pure function you can unit test without a widget tree.
+
+## popUntil / pushAndPopUntil / popUntilRoot
+
+```dart
+final router = context.router<AppRoute>();
+
+router.popUntil((route) => route is Cart);
+router.pushAndPopUntil(const Receipt(), predicate: (route) => route is Home);
+router.popUntilRoot();
+```
+
+Anchor-relative unwinding, for when "go back" means several screens at once.
+Each is one mutation through the guard pipeline, not a loop of pops.
+
+**Use for:** finishing a checkout onto a receipt without leaving the payment
+screens behind it; a "back to cart" affordance; a Home button that clears
+everything above the root.
+
+**Notes:**
+
+- The anchor is the **topmost** entry matching the predicate; anything below
+  it stays.
+- **When nothing matches, the two differ deliberately.** `popUntil` keeps the
+  root — the stack can never be emptied — while `pushAndPopUntil` replaces
+  the whole stack with the pushed route, since there was no anchor to stop
+  at.
+- Browser history follows the verb each one resembles: `pushAndPopUntil` adds
+  an entry like `push`, the pop verbs move back like `pop`. (`set` replaces
+  the current entry — that's the difference from rolling these yourself on
+  top of it.)
+- `set` is still the primitive; these are the common shapes named, with the
+  off-by-one at the anchor handled for you.
 
 ## run
 

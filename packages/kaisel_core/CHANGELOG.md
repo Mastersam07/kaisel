@@ -1,5 +1,10 @@
 ## Unreleased
 
+- `pushAndPopUntil(route, predicate:)` and `popUntilRoot()` on `KaiselRouter`,
+  joining the existing `popUntil` — anchor-relative unwinding as a single
+  guarded mutation, with the anchor off-by-one and the no-match case owned by
+  the library ([#62](https://github.com/Mastersam07/kaisel/issues/62)).
+- `popUntil` is now documented; it was reachable but missing from the guides.
 - `KaiselConfigCodec.decode` and `KaiselStackCodec.decode` now return
   `FutureOr`, so a deep link whose destination depends on state that must be
   read first — an entitlement, a feature flag, a cached profile — can be
