@@ -7,6 +7,11 @@
   `PopScope` vetoes are consulted instead of bypassed, and the kaisel stack is
   only touched when the `Navigator` has nothing to pop
   ([#59](https://github.com/Mastersam07/kaisel/issues/59)).
+- `onScreenChanged` on `KaiselRouterConfig` / `KaiselRouterDelegate`: one
+  app-level signal for "the visible screen changed", de-duplicated across the
+  main stack, shell branches, modules, and flows — so screen-view analytics
+  no longer re-logs a tab you return to
+  ([#66](https://github.com/Mastersam07/kaisel/issues/66)).
 - Deep-link decoding may now be asynchronous, following `kaisel_core`
   ([#64](https://github.com/Mastersam07/kaisel/issues/64)). The route
   information parser awaits the codec, so an async `decode` resolves before

@@ -15,6 +15,12 @@ the app has a bottom navigation bar, a sidebar, or any other "this is
 the persistent chrome, and the content swaps based on the selected
 section" pattern.
 
+**Screen-view analytics across branches:** an observer belongs to one
+navigator, so its own de-duplication is per-branch — A → B → A re-logs A.
+For a single app-wide signal use `onScreenChanged` on the config, which
+reports the active branch's top (never the route hosting the shell) and
+de-duplicates across every navigator.
+
 ## Quick reference
 
 | Type | Purpose |
