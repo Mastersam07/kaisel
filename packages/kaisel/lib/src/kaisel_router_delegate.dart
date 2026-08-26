@@ -844,8 +844,12 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     bool roundTrips;
     try {
       final decoded = codec.decode(uri);
-      final resolvesAsynchronously = decoded is Future;
-      roundTrips = resolvesAsynchronously || decoded != null;
+      if (decoded case final Future<KaiselConfig<R>?> pending) {
+        pending.ignore();
+        roundTrips = true;
+      } else {
+        roundTrips = decoded != null;
+      }
     } catch (_) {
       roundTrips = false;
     }
@@ -869,8 +873,13 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     final codec = _codec;
     if (codec == null) return null;
     try {
-      final config = codec.decode(Uri.parse(url));
-      if (config is! KaiselConfig<R>) return null;
+      final decoded = codec.decode(Uri.parse(url));
+      if (decoded case final Future<KaiselConfig<R>?> pending) {
+        pending.ignore();
+        return null;
+      }
+      if (decoded is! KaiselConfig<R>) return null;
+      final config = decoded;
       final lines = <String>[
         'main: ${config.mainStack.map((r) => '$r').join(' → ')}',
       ];

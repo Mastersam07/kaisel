@@ -43,6 +43,16 @@ class _EntitlementCodec extends KaiselStackCodec<_R> {
   };
 }
 
+class _FailingCodec extends KaiselStackCodec<_R> {
+  const _FailingCodec();
+
+  @override
+  Uri encode(List<_R> stack) => Uri(path: '/');
+
+  @override
+  Future<List<_R>?> decode(Uri uri) async => throw StateError('storage down');
+}
+
 class _SyncCodec extends KaiselStackCodec<_R> {
   const _SyncCodec();
 
@@ -108,6 +118,24 @@ void main() {
     ).parseRouteInformation(RouteInformation(uri: Uri.parse('/nope')));
 
     expect(decoded.mainStack, const [_Home()]);
+  });
+
+  testWidgets('a rejecting async decode does not leak from DevTools paths', (
+    tester,
+  ) async {
+    final router = KaiselRouter<_R>(initial: const _Home());
+    final delegate = KaiselRouterDelegate<_R>(
+      router: router,
+      codec: const StackToConfigCodec(_FailingCodec()),
+      builder: (context, route) => const Scaffold(body: Text('home')),
+    );
+    await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
+
+    expect(delegate.debugDecode('/anything'), isNull);
+    delegate.debugSnapshot();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('synchronous codecs are unaffected', (tester) async {
