@@ -1,3 +1,11 @@
+## Unreleased
+
+- `pushAndPopUntil(route, predicate:)` and `popUntilRoot()` on `KaiselRouter`,
+  joining the existing `popUntil` — anchor-relative unwinding as a single
+  guarded mutation, with the anchor off-by-one and the no-match case owned by
+  the library ([#62](https://github.com/Mastersam07/kaisel/issues/62)).
+- `popUntil` is now documented; it was reachable but missing from the guides.
+
 ## 1.0.1
 
 - Fix: `run<T>` called on a flow's sub-router (what `context.router<R>()`

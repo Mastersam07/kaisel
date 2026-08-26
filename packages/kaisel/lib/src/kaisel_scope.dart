@@ -194,6 +194,34 @@ extension KaiselContextNavigation on BuildContext {
     };
   }
 
+  /// Pop the way the system back button does: ask the [Navigator] first, and
+  /// only fall through to the kaisel stack when it has nothing to pop.
+  ///
+  /// Reach for this instead of [pop] whenever something *other than a route*
+  /// may be dismissible — the difference is what gets consulted:
+  ///
+  /// - **Local history entries.** Widgets that dismiss without being routes
+  ///   (a [Drawer], a [PopupMenuButton]) register a [LocalHistoryEntry] on
+  ///   the enclosing route. `maybePop` closes those first; [pop] would leave
+  ///   one open and remove the screen underneath it.
+  /// - **[PopScope] vetoes.** A `canPop: false` scope stops the pop and gets
+  ///   its `onPopInvokedWithResult` callback, so "intercept and redirect"
+  ///   handlers still run. [pop] mutates the stack without asking.
+  ///
+  /// Returns whether the request was *handled* — popped, dismissed, or
+  /// intercepted by a veto — matching [NavigatorState.maybePop]. A `false`
+  /// means nothing claimed it and the back gesture should bubble to the OS.
+  ///
+  /// When the [Navigator] has nothing to pop the kaisel router is popped
+  /// instead, so an adaptive layout that collapses several stack entries into
+  /// one visible page still unwinds.
+  Future<bool> maybePop([Object? result]) async {
+    final navigator = Navigator.maybeOf(this);
+    if (navigator == null) return _nearestRouterScope().router.pop(result);
+    if (navigator.canPop()) return navigator.maybePop(result);
+    return _nearestRouterScope().router.pop(result);
+  }
+
   /// Go back one step, history-aligned, so the browser's own Back/Forward
   /// buttons keep mirroring the app stack — even across several pops in a row.
   ///
