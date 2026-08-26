@@ -1,3 +1,13 @@
+# Changelog
+
+## Unreleased
+
+- `context.maybePop()`: pops the way the system back button does — the
+  `Navigator` is asked first, so local history entries (an open `Drawer`) and
+  `PopScope` vetoes are consulted instead of bypassed, and the kaisel stack is
+  only touched when the `Navigator` has nothing to pop
+  ([#59](https://github.com/Mastersam07/kaisel/issues/59)).
+
 ## 1.0.0+1
 
 No library changes. Packaging and examples only:
@@ -8,8 +18,6 @@ No library changes. Packaging and examples only:
   ([#57](https://github.com/Mastersam07/kaisel/issues/57)).
 - Example: `main_tutorial.dart` — the finished app from the
   [docs tutorial](https://kaisel.dev/tutorial/).
-
-# Changelog
 
 ## 1.0.0
 
