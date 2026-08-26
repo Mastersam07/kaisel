@@ -5,6 +5,7 @@ import 'kaisel_adaptive.dart';
 import 'kaisel_inner_navigator.dart';
 import 'kaisel_page_wrapper.dart';
 import 'kaisel_router_delegate.dart';
+import 'kaisel_screen_signal.dart';
 import 'kaisel_scope.dart';
 
 /// A multi-branch navigation state container.
@@ -192,6 +193,7 @@ class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
   late int _lastBranch;
   KaiselRoute? _lastActiveTop;
   KaiselObserversBuilder? _switchObserversBuilder;
+  KaiselScreenReporter? _screenReporter;
   List<NavigatorObserver> _switchObservers = const [];
 
   KaiselRoute? _activeTop() {
@@ -213,6 +215,7 @@ class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
     }
     _lastBranch = branch;
     _lastActiveTop = top;
+    _screenReporter?.reportRoute(top);
     if (mounted) setState(() {});
   }
 
@@ -224,6 +227,8 @@ class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
       _switchObserversBuilder = builder;
       _switchObservers = builder?.call() ?? const <NavigatorObserver>[];
     }
+    _screenReporter = KaiselObserverScope.reporterOf(context);
+    _screenReporter?.reportRoute(_activeTop());
   }
 
   @override

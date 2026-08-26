@@ -7,6 +7,7 @@ import 'kaisel_default_page.dart';
 import 'kaisel_page_scope.dart';
 import 'kaisel_page_wrapper.dart';
 import 'kaisel_router_delegate.dart';
+import 'kaisel_screen_signal.dart';
 
 /// A [Navigator] driven by a [KaiselRouter].
 ///
@@ -36,6 +37,7 @@ class KaiselInnerNavigator<R extends KaiselRoute> extends StatefulWidget {
     this.adaptivePageBuilder,
     this.pageWrapper,
     this.observers = const [],
+    this.reportsScreen = true,
   }) : assert(
          (pageBuilder == null) != (adaptivePageBuilder == null),
          'Provide exactly one of pageBuilder or adaptivePageBuilder',
@@ -67,6 +69,13 @@ class KaiselInnerNavigator<R extends KaiselRoute> extends StatefulWidget {
   /// Optional list of [NavigatorObserver]s for the inner navigator.
   final List<NavigatorObserver> observers;
 
+  /// Whether this navigator feeds the app-level `onScreenChanged` signal.
+  ///
+  /// False for a shell's branch navigators: every branch mounts and pushes its
+  /// root, but only one is on screen, so the shell reports the active branch's
+  /// top instead.
+  final bool reportsScreen;
+
   @override
   State<KaiselInnerNavigator<R>> createState() =>
       _KaiselInnerNavigatorState<R>();
@@ -81,6 +90,7 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
   // per-instance [KaiselInnerNavigator.observers]. Cached so the list instance
   // is stable across rebuilds.
   KaiselObserversBuilder? _observersBuilder;
+  KaiselScreenObserver? _screenObserver;
   List<NavigatorObserver> _scopeObservers = const <NavigatorObserver>[];
   List<NavigatorObserver> _observers = const <NavigatorObserver>[];
 
@@ -101,6 +111,16 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
     _androidPredictiveBack = KaiselWebTransitionScope.androidPredictiveBackOf(
       context,
     );
+    final reporter = widget.reportsScreen
+        ? KaiselObserverScope.reporterOf(context)
+        : null;
+    if (!identical(reporter, _screenObserver?.reporter)) {
+      _screenObserver = switch (reporter) {
+        final reporter? => KaiselScreenObserver(reporter),
+        _ => null,
+      };
+      _mergeObservers();
+    }
     final builder = KaiselObserverScope.of(context);
     if (!identical(builder, _observersBuilder)) {
       _observersBuilder = builder;
@@ -110,7 +130,11 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
   }
 
   void _mergeObservers() {
-    _observers = <NavigatorObserver>[..._scopeObservers, ...widget.observers];
+    _observers = <NavigatorObserver>[
+      ..._scopeObservers,
+      ...widget.observers,
+      ?_screenObserver,
+    ];
   }
 
   void _onChange() {

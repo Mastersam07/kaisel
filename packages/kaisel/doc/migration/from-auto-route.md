@@ -481,6 +481,105 @@ mechanically produces `route == BuyRoute` — comparing a `String` to a
 *info*-level lint, catches it. Left alone it ships as a permanently-false
 condition. Pattern-match on the type instead.
 
+## Nested router shells (`AutoRouter` parents with `children:`)
+
+The shape that dominates any non-trivial auto_route app:
+
+```dart
+AutoRoute(
+  path: '/bills',
+  page: BillRouterRoute.page,        // class BillRouterPage extends AutoRouter
+  children: [
+    AutoRoute(page: BillListRoute.page, initial: true),
+    AutoRoute(page: BillDetailRoute.page),
+  ],
+),
+```
+
+The parent renders no UI of its own — it exists to host a nested navigator.
+kaisel's stack is flat, so there is no direct analogue, and this is usually
+the largest structural decision in a port. Pick by asking **what the nesting
+was buying you**:
+
+### 1. Nothing but organisation → flatten it
+
+The common case. If the parent is a bare `AutoRouter` and the children are
+ordinary screens, the nesting was a routing-table artifact. Make the children
+plain routes in your app family:
+
+```dart
+final class BillList extends AppRoute { const BillList(); }
+final class BillDetail extends AppRoute {
+  const BillDetail(this.id);
+  final String id;
+  @override
+  List<Object?> get props => [id];
+}
+```
+
+Call sites that pushed the **parent** push the initial child instead:
+
+```dart
+context.push(const BillList());     // was: router.push(BillRouterRoute())
+```
+
+Back behaviour is unchanged — `[Home, BillList, BillDetail]` pops exactly as
+the nested stack did.
+
+### 2. A section with its own preserved stack → a module
+
+If leaving the section and returning had to restore where you were, that
+history is real state, and a [module](/guides/modules/) owns it: a route
+family, an initial stack, a page builder, and its own URL prefix, mounted at
+a marker route on the host stack.
+
+```dart
+final class BillsMount extends AppRoute { const BillsMount(); }
+
+class BillsModule extends RouteModule<BillRoute> {
+  const BillsModule();
+
+  @override
+  List<BillRoute> get initialStack => const [BillList()];
+
+  @override
+  Widget buildPage(BuildContext context, BillRoute route) => switch (route) {
+    BillList() => const BillListScreen(),
+    BillDetail(:final id) => BillDetailScreen(id: id),
+  };
+}
+```
+
+The host renders the marker with the mount:
+
+```dart
+BillsMount() => const KaiselModuleMount<BillRoute>(module: BillsModule()),
+```
+
+Pushing the parent route translates directly: `push(const BillsMount())`. The
+module's nested navigator, its own back stack, and its `/bills` URL prefix
+(via `ModuleStackCodec` + `ConfigCodecWithModules`) all line up with what the
+`AutoRouter` parent was doing.
+
+### 3. A tab or bottom-nav section → a shell branch
+
+If the parent was reached through persistent chrome rather than a push, it is
+a [shell branch](/guides/shells/): one `KaiselBranchSpec` per section, each
+with its own sealed family and live stack. "Pushing the parent" becomes
+`context.shell().switchTo(index)`.
+
+### Choosing
+
+| The parent existed to… | Use |
+| --- | --- |
+| group routes in the config file | flatten — plain routes |
+| keep a section's back stack alive across visits | a module |
+| back a tab in persistent chrome | a shell branch |
+| scope a feature owned by another team | a module (it owns its codec too) |
+
+Flatten first if you are unsure: it is the smallest change, and a module or
+branch can be introduced later without touching the screens themselves.
+
 ## Already at parity — or better
 
 **DevTools.** kaisel ships its own zero-integration DevTools extension — a live

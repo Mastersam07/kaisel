@@ -10,6 +10,7 @@ import 'kaisel_default_page.dart';
 import 'kaisel_inner_navigator.dart';
 import 'kaisel_page_scope.dart';
 import 'kaisel_page_wrapper.dart';
+import 'kaisel_screen_signal.dart';
 import 'kaisel_scope.dart';
 import 'kaisel_stack_restorer.dart';
 
@@ -66,24 +67,35 @@ typedef KaiselObserversBuilder = List<NavigatorObserver> Function();
 /// [KaiselRouterDelegate] so that nested navigators (shell branches, modules,
 /// flows) can attach their own fresh observers. You don't use this directly.
 class KaiselObserverScope extends InheritedWidget {
-  /// Create the scope with the app's [observers] builder.
+  /// Create the scope with the app's [observers] builder and, when the app
+  /// asked for one, the [screenReporter] every visible navigator feeds.
   const KaiselObserverScope({
     super.key,
     required this.observers,
+    this.screenReporter,
     required super.child,
   });
 
   /// The builder, or null when the app supplied no observers.
   final KaiselObserversBuilder? observers;
 
+  /// The app-level screen signal, or null when no `onScreenChanged` was given.
+  final KaiselScreenReporter? screenReporter;
+
   /// The nearest builder, or null if none is installed.
   static KaiselObserversBuilder? of(BuildContext context) => context
       .dependOnInheritedWidgetOfExactType<KaiselObserverScope>()
       ?.observers;
 
+  /// The nearest screen reporter, or null if none is installed.
+  static KaiselScreenReporter? reporterOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<KaiselObserverScope>()
+      ?.screenReporter;
+
   @override
   bool updateShouldNotify(KaiselObserverScope oldWidget) =>
-      !identical(oldWidget.observers, observers);
+      !identical(oldWidget.observers, observers) ||
+      !identical(oldWidget.screenReporter, screenReporter);
 }
 
 /// The renderer over a [KaiselRouter].
@@ -117,6 +129,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.pageWrapper,
     this.modalBuilder,
     this.observers,
+    this.onScreenChanged,
     this.reevaluateOn,
     this.restorationScopeId,
     this.restoreRoute,
@@ -174,6 +187,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.pageWrapper,
     this.modalBuilder,
     this.observers,
+    this.onScreenChanged,
     this.reevaluateOn,
     this.restorationScopeId,
     this.restoreRoute,
@@ -277,10 +291,28 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   /// `restorationScopeId` (e.g. on `MaterialApp`).
   final KaiselRouteRestorer<R>? restoreRoute;
 
+  /// Called with the route the user is now looking at, once per change,
+  /// wherever in the app it lives — the main stack, a shell branch, a module,
+  /// or a modal flow.
+  ///
+  /// Unlike an [observers] instance, which belongs to one [Navigator] and so
+  /// holds per-branch state, this is a single app-level signal: switching tab
+  /// A → B → A reports each screen once, in order. Reach for it for
+  /// screen-view analytics; reach for [observers] when a package expects a
+  /// real [NavigatorObserver].
+  final KaiselScreenCallback? onScreenChanged;
+
+  late final KaiselScreenReporter? _screenReporter = switch (onScreenChanged) {
+    final callback? => KaiselScreenReporter(callback),
+    _ => null,
+  };
+
   /// The main stack's observers, built once from [observers] and reused for the
   /// delegate's lifetime (so they aren't rebuilt every frame).
-  late final List<NavigatorObserver> _mainObservers =
-      observers?.call() ?? const <NavigatorObserver>[];
+  late final List<NavigatorObserver> _mainObservers = [
+    ...?observers?.call(),
+    if (_screenReporter case final reporter?) KaiselScreenObserver(reporter),
+  ];
 
   /// Key for the main [Navigator]. Pass one to reach the navigator imperatively
   /// (e.g. a third-party SDK that wants a `GlobalKey<NavigatorState>`); defaults
@@ -487,6 +519,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
       androidPredictiveBack: androidPredictiveBack,
       child: KaiselObserverScope(
         observers: observers,
+        screenReporter: _screenReporter,
         child: KaiselNestedHostScope(
           host: this,
           child: RouterScope<R>(

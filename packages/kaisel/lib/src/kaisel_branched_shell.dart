@@ -5,6 +5,7 @@ import 'kaisel_adaptive.dart';
 import 'kaisel_inner_navigator.dart';
 import 'kaisel_page_wrapper.dart';
 import 'kaisel_router_delegate.dart';
+import 'kaisel_screen_signal.dart';
 import 'kaisel_scope.dart';
 
 /// Aggregator for a shell whose branches have **different** route types.
@@ -324,6 +325,7 @@ class _KaiselBranchState<R extends KaiselRoute> extends State<KaiselBranch<R>> {
   @override
   Widget build(BuildContext context) {
     Widget content = KaiselInnerNavigator<R>(
+      reportsScreen: false,
       router: widget.router,
       navigatorKey: _navKey,
       pageBuilder: widget._pageBuilder,
@@ -685,6 +687,7 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
   late int _lastBranch;
   KaiselRoute? _lastActiveTop;
   KaiselObserversBuilder? _switchObserversBuilder;
+  KaiselScreenReporter? _screenReporter;
   List<NavigatorObserver> _switchObservers = const [];
 
   KaiselRoute? _activeTop() {
@@ -706,6 +709,7 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
     }
     _lastBranch = branch;
     _lastActiveTop = top;
+    _screenReporter?.reportRoute(top);
     if (mounted) setState(() {});
   }
 
@@ -723,6 +727,8 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
       _switchObserversBuilder = builder;
       _switchObservers = builder?.call() ?? const <NavigatorObserver>[];
     }
+    _screenReporter = KaiselObserverScope.reporterOf(context);
+    _screenReporter?.reportRoute(_activeTop());
   }
 
   @override
