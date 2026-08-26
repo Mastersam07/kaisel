@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.1.0
+
+Additive only — no breaking changes.
 
 - `reevaluateOn` on `KaiselRouterConfig` / `KaiselRouterDelegate`: point it at
   any `Listenable` and the guard pipeline re-runs against the current stack
@@ -16,6 +18,14 @@
   main stack, shell branches, modules, and flows — so screen-view analytics
   no longer re-logs a tab you return to
   ([#66](https://github.com/Mastersam07/kaisel/issues/66)).
+- Migration guides: a full auto_route verb translation table (with the two
+  translations that silently change behaviour called out), how `AutoRouter`
+  parent-with-`children:` shells map onto flattening, modules, or shell
+  branches, and notes on callback-carrying routes and inherited path params
+  ([#67](https://github.com/Mastersam07/kaisel/issues/67),
+  [#68](https://github.com/Mastersam07/kaisel/issues/68),
+  [#69](https://github.com/Mastersam07/kaisel/issues/69),
+  [#70](https://github.com/Mastersam07/kaisel/issues/70)).
 
 ## 1.0.0+1
 

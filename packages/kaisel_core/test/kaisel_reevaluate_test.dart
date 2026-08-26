@@ -22,8 +22,9 @@ final class _Passcode extends _R {
 KaiselGuard<_R> _lockGuard(bool Function() locked) => (current, proposed) {
   final protected = proposed.any((route) => route is _Vault);
   final hasPasscode = proposed.any((route) => route is _Passcode);
-  if (protected && locked() && !hasPasscode)
+  if (protected && locked() && !hasPasscode) {
     return [...proposed, const _Passcode()];
+  }
   if (!locked() && hasPasscode) {
     return proposed.where((route) => route is! _Passcode).toList();
   }

@@ -1,4 +1,6 @@
-## Unreleased
+## 1.1.0
+
+Additive only — no breaking changes.
 
 - `KaiselRouter.reevaluate()` — re-runs the guard pipeline against the current
   stack and applies the result, so a policy that changes while the stack sits
