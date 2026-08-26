@@ -1,5 +1,10 @@
 ## Unreleased
 
+- `KaiselRouter.reevaluate()` — re-runs the guard pipeline against the current
+  stack and applies the result, so a policy that changes while the stack sits
+  still (an app lock, an expiring session, a lapsing entitlement) stays owned
+  by the guard instead of being duplicated in a listener
+  ([#60](https://github.com/Mastersam07/kaisel/issues/60)).
 - `pushAndPopUntil(route, predicate:)` and `popUntilRoot()` on `KaiselRouter`,
   joining the existing `popUntil` — anchor-relative unwinding as a single
   guarded mutation, with the anchor off-by-one and the no-match case owned by

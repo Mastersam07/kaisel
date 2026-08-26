@@ -467,6 +467,21 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     return _enqueueOrigin(() => _navigate(captured, replacesHistory: true));
   }
 
+  /// Re-run the guard pipeline against the current stack and apply whatever
+  /// it returns.
+  ///
+  /// Guards run on stack *mutations*, but the reason to re-check one is often
+  /// that the world changed while the stack sat still — a lock timer fired, a
+  /// session expired, an entitlement lapsed, a flag flipped. This is that
+  /// trigger: the pipeline sees `(current, current)`, so the same guard that
+  /// gates navigation can append a screen (lock the app) or drop one (unlock
+  /// it) without the app encoding that policy a second time.
+  ///
+  /// Idempotent by construction: a guard that keeps returning the same stack
+  /// commits nothing. Serialized with every other mutation, so it is safe to
+  /// call from a listener while a navigation is in flight.
+  Future<void> reevaluate() => _enqueueOrigin(() => _navigate(stack));
+
   /// Pop routes until [predicate] returns true for the top route, or
   /// only one route remains on the stack. Runs through guards.
   ///
