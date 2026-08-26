@@ -1,0 +1,187 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024">
+<style>
+  .theme-dark { display: none; }
+  @media (prefers-color-scheme: dark) {
+    .theme-light { display: none; }
+    .theme-dark { display: inline; }
+  }
+</style>
+<g class="theme-light">
+  <defs>
+    <radialGradient id="bgGlowL" cx="50%" cy="42%" r="58%">
+      <stop offset="0%" stop-color="#0B4A5E" stop-opacity="0.50"/>
+      <stop offset="55%" stop-color="#0B2A3C" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#060A14" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="wingGradL" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0B4A5E"/>
+      <stop offset="55%" stop-color="#0E7490"/>
+      <stop offset="100%" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="bodyGradL" gradientUnits="userSpaceOnUse" x1="512" y1="860" x2="512" y2="200">
+      <stop offset="0%" stop-color="#0B4A5E"/>
+      <stop offset="100%" stop-color="#0E7490"/>
+    </linearGradient>
+    <linearGradient id="headGradL" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#136179"/>
+      <stop offset="100%" stop-color="#22D3EE"/>
+    </linearGradient>
+    <filter id="glowL" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="20"/>
+    </filter>
+    <g id="markL">
+      <!-- right wing: bat membrane with wrist, thumb-claw, and three fingers -->
+      <path id="wingL" fill="url(#wingGradL)" d="
+        M 548 560
+        C 620 498, 692 444, 766 398
+        C 790 380, 815 362, 842 348
+        C 868 336, 894 326, 922 318
+        C 908 386, 884 462, 846 538
+        C 818 494, 776 506, 738 586
+        C 708 540, 664 554, 622 628
+        C 600 588, 576 582, 552 622
+        Z"/>
+      <path id="clawL" fill="url(#wingGradL)" d="
+        M 782 392
+        C 796 362, 814 344, 838 332
+        C 818 356, 806 376, 800 400
+        Z"/>
+      <use href="#wingL" transform="translate(1024,0) scale(-1,1)"/>
+      <use href="#clawL" transform="translate(1024,0) scale(-1,1)"/>
+      <!-- shadow-dissolve wisps, curved -->
+      <g id="fragsL" fill="url(#wingGradL)">
+        <path d="M 824 324 C 838 310, 852 302, 868 298 C 854 312, 844 324, 838 340 Z" opacity="0.65"/>
+        <path d="M 884 254 C 896 242, 908 236, 922 233 C 910 244, 901 254, 895 266 Z" opacity="0.45"/>
+      </g>
+      <use href="#fragsL" transform="translate(1024,0) scale(-1,1)"/>
+      <!-- sinuous neck and chest -->
+      <path fill="url(#bodyGradL)" d="
+        M 468 762
+        C 452 640, 478 545, 528 468
+        C 552 430, 566 376, 558 306
+        C 576 300, 596 306, 612 324
+        C 620 392, 602 448, 570 502
+        C 528 574, 516 664, 538 762
+        C 514 780, 492 780, 468 762
+        Z"/>
+      <!-- head: skull, back-swept horn, and open jaw as one shard -->
+      <path fill="url(#headGradL)" d="
+        M 556 330
+        C 560 278, 580 250, 602 240
+        L 546 194
+        C 590 210, 616 218, 642 226
+        L 708 244
+        L 648 268
+        L 694 294
+        L 622 308
+        L 620 344
+        L 598 354
+        Z"/>
+      <!-- eye -->
+      <path fill="#E0FEFF" d="M 616 252 L 632 248 L 627 262 L 613 263 Z"/>
+      <!-- long serpentine tail with barb -->
+      <path fill="url(#bodyGradL)" d="
+        M 498 744
+        C 438 828, 352 872, 262 856
+        C 208 846, 168 812, 158 770
+        C 150 742, 156 718, 172 700
+        C 168 726, 176 748, 196 768
+        C 246 806, 330 800, 398 756
+        C 436 732, 470 706, 498 676
+        Z"/>
+      <path fill="url(#bodyGradL)" d="M 168 706 C 150 688, 140 668, 138 645 C 154 664, 166 682, 178 698 Z"/>
+    </g>
+  </defs>
+  <use href="#markL" filter="url(#glowL)" opacity="0.55"/>
+  <use href="#markL"/>
+</g>
+<g class="theme-dark">
+  <defs>
+    <radialGradient id="bgGlowD" cx="50%" cy="42%" r="58%">
+      <stop offset="0%" stop-color="#0E7490" stop-opacity="0.50"/>
+      <stop offset="55%" stop-color="#0B2A3C" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#060A14" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="wingGradD" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0E7490"/>
+      <stop offset="55%" stop-color="#22D3EE"/>
+      <stop offset="100%" stop-color="#A5F3FC"/>
+    </linearGradient>
+    <linearGradient id="bodyGradD" gradientUnits="userSpaceOnUse" x1="512" y1="860" x2="512" y2="200">
+      <stop offset="0%" stop-color="#155E75"/>
+      <stop offset="100%" stop-color="#67E8F9"/>
+    </linearGradient>
+    <linearGradient id="headGradD" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#1D82A6"/>
+      <stop offset="100%" stop-color="#9BEFFC"/>
+    </linearGradient>
+    <filter id="glowD" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="20"/>
+    </filter>
+    <g id="markD">
+      <!-- right wing: bat membrane with wrist, thumb-claw, and three fingers -->
+      <path id="wingD" fill="url(#wingGradD)" d="
+        M 548 560
+        C 620 498, 692 444, 766 398
+        C 790 380, 815 362, 842 348
+        C 868 336, 894 326, 922 318
+        C 908 386, 884 462, 846 538
+        C 818 494, 776 506, 738 586
+        C 708 540, 664 554, 622 628
+        C 600 588, 576 582, 552 622
+        Z"/>
+      <path id="clawD" fill="url(#wingGradD)" d="
+        M 782 392
+        C 796 362, 814 344, 838 332
+        C 818 356, 806 376, 800 400
+        Z"/>
+      <use href="#wingD" transform="translate(1024,0) scale(-1,1)"/>
+      <use href="#clawD" transform="translate(1024,0) scale(-1,1)"/>
+      <!-- shadow-dissolve wisps, curved -->
+      <g id="fragsD" fill="url(#wingGradD)">
+        <path d="M 824 324 C 838 310, 852 302, 868 298 C 854 312, 844 324, 838 340 Z" opacity="0.65"/>
+        <path d="M 884 254 C 896 242, 908 236, 922 233 C 910 244, 901 254, 895 266 Z" opacity="0.45"/>
+      </g>
+      <use href="#fragsD" transform="translate(1024,0) scale(-1,1)"/>
+      <!-- sinuous neck and chest -->
+      <path fill="url(#bodyGradD)" d="
+        M 468 762
+        C 452 640, 478 545, 528 468
+        C 552 430, 566 376, 558 306
+        C 576 300, 596 306, 612 324
+        C 620 392, 602 448, 570 502
+        C 528 574, 516 664, 538 762
+        C 514 780, 492 780, 468 762
+        Z"/>
+      <!-- head: skull, back-swept horn, and open jaw as one shard -->
+      <path fill="url(#headGradD)" d="
+        M 556 330
+        C 560 278, 580 250, 602 240
+        L 546 194
+        C 590 210, 616 218, 642 226
+        L 708 244
+        L 648 268
+        L 694 294
+        L 622 308
+        L 620 344
+        L 598 354
+        Z"/>
+      <!-- eye -->
+      <path fill="#E0FEFF" d="M 616 252 L 632 248 L 627 262 L 613 263 Z"/>
+      <!-- long serpentine tail with barb -->
+      <path fill="url(#bodyGradD)" d="
+        M 498 744
+        C 438 828, 352 872, 262 856
+        C 208 846, 168 812, 158 770
+        C 150 742, 156 718, 172 700
+        C 168 726, 176 748, 196 768
+        C 246 806, 330 800, 398 756
+        C 436 732, 470 706, 498 676
+        Z"/>
+      <path fill="url(#bodyGradD)" d="M 168 706 C 150 688, 140 668, 138 645 C 154 664, 166 682, 178 698 Z"/>
+    </g>
+  </defs>
+  <use href="#markD" filter="url(#glowD)" opacity="0.55"/>
+  <use href="#markD"/>
+</g>
+</svg>
