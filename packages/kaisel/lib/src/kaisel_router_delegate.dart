@@ -117,6 +117,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.pageWrapper,
     this.modalBuilder,
     this.observers,
+    this.reevaluateOn,
     this.restorationScopeId,
     this.restoreRoute,
     this.webTransition = KaiselWebTransition.fade,
@@ -128,6 +129,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
        navigatorKey = navigatorKey ?? GlobalKey<NavigatorState>(),
        _codec = codec {
     router.addListener(_onRootChanged);
+    reevaluateOn?.addListener(_reevaluate);
     _registerWithInspector();
   }
 
@@ -172,6 +174,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     this.pageWrapper,
     this.modalBuilder,
     this.observers,
+    this.reevaluateOn,
     this.restorationScopeId,
     this.restoreRoute,
     this.webTransition = KaiselWebTransition.fade,
@@ -183,6 +186,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
        navigatorKey = navigatorKey ?? GlobalKey<NavigatorState>(),
        _codec = codec {
     router.addListener(_onRootChanged);
+    reevaluateOn?.addListener(_reevaluate);
     _registerWithInspector();
   }
 
@@ -225,6 +229,31 @@ class KaiselRouterDelegate<R extends KaiselRoute>
   /// Android 13 accepts the flag but lacks the gesture-progress APIs, so no
   /// predictive animation shows there; Android 12 and below never engage it.
   final bool androidPredictiveBack;
+
+  /// Re-runs the guard pipeline against the current stack whenever this
+  /// fires.
+  ///
+  /// Guards run on stack mutations, so a policy that depends on state which
+  /// can change *while the stack sits still* — a lock timer, an expiring
+  /// session, a lapsing entitlement, a flipped flag — otherwise never gets
+  /// re-consulted. Point this at whatever already notifies on that change and
+  /// the guard stays the single authority:
+  ///
+  /// ```dart
+  /// KaiselRouterConfig(
+  ///   guards: [appLockGuard(lockState)],
+  ///   reevaluateOn: lockState,
+  ///   ...
+  /// );
+  /// ```
+  ///
+  /// See [KaiselRouter.reevaluate] for the imperative form.
+  final Listenable? reevaluateOn;
+
+  void _reevaluate() {
+    if (_isDisposed) return;
+    unawaited(router.reevaluate());
+  }
 
   /// Optional builder that renders an active modal flow over the main
   /// UI. Required if your app uses `router.run<T>(...)`.
@@ -1063,6 +1092,7 @@ class KaiselRouterDelegate<R extends KaiselRoute>
       KaiselInspector.instance.deregister(t);
     }
     router.removeListener(_onRootChanged);
+    reevaluateOn?.removeListener(_reevaluate);
     for (final handle in _nested) {
       final listener = _nestedListeners.remove(handle);
       if (listener != null) handle.removeListener(listener);

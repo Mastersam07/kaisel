@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `reevaluateOn` on `KaiselRouterConfig` / `KaiselRouterDelegate`: point it at
+  any `Listenable` and the guard pipeline re-runs against the current stack
+  when it fires — the declarative form of `KaiselRouter.reevaluate()`
+  ([#60](https://github.com/Mastersam07/kaisel/issues/60)).
 - `context.maybePop()`: pops the way the system back button does — the
   `Navigator` is asked first, so local history entries (an open `Drawer`) and
   `PopScope` vetoes are consulted instead of bypassed, and the kaisel stack is
