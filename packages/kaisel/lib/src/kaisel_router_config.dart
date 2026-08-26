@@ -6,6 +6,7 @@ import 'kaisel_default_page.dart';
 import 'kaisel_page_wrapper.dart';
 import 'kaisel_route_information_parser.dart';
 import 'kaisel_router_delegate.dart';
+import 'kaisel_screen_signal.dart';
 import 'kaisel_stack_restorer.dart';
 
 /// A ready-made [RouterConfig] that bundles a [KaiselRouter] and a
@@ -64,6 +65,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
     bool androidPredictiveBack = false,
     KaiselModalBuilder? modalBuilder,
     KaiselObserversBuilder? observers,
+    KaiselScreenCallback? onScreenChanged,
     GlobalKey<NavigatorState>? navigatorKey,
     String? restorationScopeId,
     KaiselRouteRestorer<R>? restoreRoute,
@@ -85,6 +87,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
         androidPredictiveBack: androidPredictiveBack,
         modalBuilder: modalBuilder,
         observers: observers,
+        onScreenChanged: onScreenChanged,
         navigatorKey: navigatorKey,
         restorationScopeId: restorationScopeId,
         restoreRoute: restoreRoute,
@@ -108,6 +111,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
     bool androidPredictiveBack = false,
     KaiselModalBuilder? modalBuilder,
     KaiselObserversBuilder? observers,
+    KaiselScreenCallback? onScreenChanged,
     GlobalKey<NavigatorState>? navigatorKey,
     String? restorationScopeId,
     KaiselRouteRestorer<R>? restoreRoute,
@@ -129,6 +133,7 @@ class KaiselRouterConfig<R extends KaiselRoute>
         androidPredictiveBack: androidPredictiveBack,
         modalBuilder: modalBuilder,
         observers: observers,
+        onScreenChanged: onScreenChanged,
         navigatorKey: navigatorKey,
         restorationScopeId: restorationScopeId,
         restoreRoute: restoreRoute,

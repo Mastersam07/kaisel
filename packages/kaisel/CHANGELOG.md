@@ -1,3 +1,13 @@
+# Changelog
+
+## Unreleased
+
+- `onScreenChanged` on `KaiselRouterConfig` / `KaiselRouterDelegate`: one
+  app-level signal for "the visible screen changed", de-duplicated across the
+  main stack, shell branches, modules, and flows — so screen-view analytics
+  no longer re-logs a tab you return to
+  ([#66](https://github.com/Mastersam07/kaisel/issues/66)).
+
 ## 1.0.0+1
 
 No library changes. Packaging and examples only:
@@ -8,8 +18,6 @@ No library changes. Packaging and examples only:
   ([#57](https://github.com/Mastersam07/kaisel/issues/57)).
 - Example: `main_tutorial.dart` — the finished app from the
   [docs tutorial](https://kaisel.dev/tutorial/).
-
-# Changelog
 
 ## 1.0.0
 
