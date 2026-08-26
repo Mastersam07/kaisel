@@ -344,6 +344,23 @@ branch shares **one** route type `R`, so there's no per-branch typing.
 It builds its own `ShellRouter` internally from `branchInitials` — you
 don't construct one, and there's no `shell:` parameter.
 
+**A screen that is both a tab and a full screen needs two route values.**
+This follows from the scoping rule below, and it looks like duplication until
+you see why. A "recipients" screen might be a bottom-nav tab (no app bar of
+its own — the shell chrome supplies one) *and* be reachable as a full screen
+from a settings drawer (its own app bar, covering the bottom bar). Those are
+genuinely different navigation states, so each family gets a value:
+
+```dart
+final class RecipientsTab extends DashboardTabRoute { const RecipientsTab(); }
+final class Recipients extends AppRoute { const Recipients(); }
+```
+
+Both build the same page widget with different chrome. The alternative —
+one value in two families — isn't expressible, and shouldn't be: pushing the
+tab's value onto the main stack would render a tab body with no shell around
+it.
+
 **Critical: `R` must be a sealed type scoped to the shell's routes, not
 your app-wide `AppRoute`.** The `pageBuilder` switch is exhaustive over
 `R`; if `R` is `AppRoute`, the switch has to handle *every* route the app
