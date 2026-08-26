@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'kaisel_codec.dart';
 import 'kaisel_route.dart';
 
@@ -42,7 +44,10 @@ abstract class KaiselStackCodec<R extends KaiselRoute> {
 
   /// Decode a URL to a stack. Return `null` if the URL is unrecognised
   /// — the parser will fall back to the configured fallback stack.
-  List<R>? decode(Uri uri);
+  ///
+  /// May be asynchronous when the destination depends on state that has to be
+  /// read first. Returning a plain value stays valid.
+  FutureOr<List<R>?> decode(Uri uri);
 }
 
 /// Adapts a single-route [KaiselCodec] to the multi-route

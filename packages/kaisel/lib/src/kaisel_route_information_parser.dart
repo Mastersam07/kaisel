@@ -66,7 +66,7 @@ class KaiselRouteInformationParser<R extends KaiselRoute>
   Future<KaiselConfig<R>> parseRouteInformation(
     RouteInformation routeInformation,
   ) async {
-    final decoded = _codec.decode(routeInformation.uri);
+    final decoded = await _codec.decode(routeInformation.uri);
     if (decoded == null) return KaiselConfig<R>(mainStack: _fallback);
     return decoded;
   }

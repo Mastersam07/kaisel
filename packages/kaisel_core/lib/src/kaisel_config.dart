@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:meta/meta.dart';
 
 import 'kaisel_notifier.dart';
@@ -216,7 +218,12 @@ abstract class KaiselConfigCodec<R extends KaiselRoute> {
 
   /// Decode a URL into a configuration, or return `null` if
   /// unrecognised (the parser will then use the fallback stack).
-  KaiselConfig<R>? decode(Uri uri);
+  ///
+  /// May be asynchronous: a deep link's destination can depend on state that
+  /// has to be read first — an entitlement, a feature flag, a cached profile.
+  /// Returning a plain value stays valid, so synchronous codecs need no
+  /// change.
+  FutureOr<KaiselConfig<R>?> decode(Uri uri);
 }
 
 /// Adapter so a [KaiselStackCodec] (stack-only URLs) works wherever
@@ -238,10 +245,16 @@ class StackToConfigCodec<R extends KaiselRoute>
   Uri encode(KaiselConfig<R> config) => stackCodec.encode(config.mainStack);
 
   @override
-  KaiselConfig<R>? decode(Uri uri) {
+  FutureOr<KaiselConfig<R>?> decode(Uri uri) {
     final stack = stackCodec.decode(uri);
-    return stack == null ? null : KaiselConfig<R>(mainStack: stack);
+    return switch (stack) {
+      final Future<List<R>?> pending => pending.then(_toConfig),
+      _ => _toConfig(stack),
+    };
   }
+
+  KaiselConfig<R>? _toConfig(List<R>? stack) =>
+      stack == null ? null : KaiselConfig<R>(mainStack: stack);
 }
 
 // Nested-router host machinery

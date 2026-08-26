@@ -167,8 +167,8 @@ void main() {
 
     test(
       'decode of a module URL yields mount on main stack + module state',
-      () {
-        final result = codec.decode(Uri.parse('/checkout/shipping'));
+      () async {
+        final result = await codec.decode(Uri.parse('/checkout/shipping'));
         expect(result, isNotNull);
         final config = result ?? KaiselConfig(mainStack: const [_Home()]);
         expect(config.mainStack, const [_CheckoutMount()]);
@@ -184,20 +184,23 @@ void main() {
       },
     );
 
-    test('decode of a URL matching no module and no host route is null', () {
-      expect(codec.decode(Uri.parse('/unknown')), isNull);
-      // Under the module prefix but rejected by the module codec — the
-      // composer returns null and does NOT fall through to the host codec.
-      expect(codec.decode(Uri.parse('/checkout/nope')), isNull);
-    });
+    test(
+      'decode of a URL matching no module and no host route is null',
+      () async {
+        expect(await codec.decode(Uri.parse('/unknown')), isNull);
+        // Under the module prefix but rejected by the module codec — the
+        // composer returns null and does NOT fall through to the host codec.
+        expect(await codec.decode(Uri.parse('/checkout/nope')), isNull);
+      },
+    );
 
-    test('decode then encode is identity for module URLs', () {
+    test('decode then encode is identity for module URLs', () async {
       for (final path in const [
         '/checkout',
         '/checkout/shipping',
         '/checkout/confirm',
       ]) {
-        final decoded = codec.decode(Uri.parse(path));
+        final decoded = await codec.decode(Uri.parse(path));
         expect(decoded, isNotNull, reason: 'decode failed for $path');
         final config = decoded ?? KaiselConfig(mainStack: const [_Home()]);
         expect(codec.encode(config).path, path, reason: 'round-trip $path');

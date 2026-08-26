@@ -1,3 +1,12 @@
+# Changelog
+
+## Unreleased
+
+- Deep-link decoding may now be asynchronous, following `kaisel_core`
+  ([#64](https://github.com/Mastersam07/kaisel/issues/64)). The route
+  information parser awaits the codec, so an async `decode` resolves before
+  the stack is applied.
+
 ## 1.0.0+1
 
 No library changes. Packaging and examples only:
@@ -8,8 +17,6 @@ No library changes. Packaging and examples only:
   ([#57](https://github.com/Mastersam07/kaisel/issues/57)).
 - Example: `main_tutorial.dart` — the finished app from the
   [docs tutorial](https://kaisel.dev/tutorial/).
-
-# Changelog
 
 ## 1.0.0
 

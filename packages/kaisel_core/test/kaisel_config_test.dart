@@ -260,10 +260,10 @@ void main() {
   });
 
   group('StackToConfigCodec adapter', () {
-    test('round-trips a stack-only URL through KaiselConfig', () {
+    test('round-trips a stack-only URL through KaiselConfig', () async {
       const adapter = StackToConfigCodec<_Top>(_LegacyStackCodec());
 
-      final decoded = adapter.decode(Uri(path: '/settings'));
+      final decoded = await adapter.decode(Uri(path: '/settings'));
       expect(decoded, isNotNull);
       expect(decoded!.mainStack, const [_Shell(), _Settings()]);
       expect(decoded.nestedState, isNull);
