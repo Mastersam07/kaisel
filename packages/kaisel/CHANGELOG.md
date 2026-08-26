@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `context.maybePop()`: pops the way the system back button does — the
+  `Navigator` is asked first, so local history entries (an open `Drawer`) and
+  `PopScope` vetoes are consulted instead of bypassed, and the kaisel stack is
+  only touched when the `Navigator` has nothing to pop
+  ([#59](https://github.com/Mastersam07/kaisel/issues/59)).
 - `onScreenChanged` on `KaiselRouterConfig` / `KaiselRouterDelegate`: one
   app-level signal for "the visible screen changed", de-duplicated across the
   main stack, shell branches, modules, and flows — so screen-view analytics
