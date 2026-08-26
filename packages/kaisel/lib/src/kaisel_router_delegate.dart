@@ -844,9 +844,8 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     bool roundTrips;
     try {
       final decoded = codec.decode(uri);
-      // An async codec can't be resolved inside this synchronous snapshot, so
-      // it is reported as round-tripping rather than as a problem.
-      roundTrips = decoded is Future || decoded != null;
+      final resolvesAsynchronously = decoded is Future;
+      roundTrips = resolvesAsynchronously || decoded != null;
     } catch (_) {
       roundTrips = false;
     }
