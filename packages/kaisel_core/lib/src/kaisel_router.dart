@@ -487,13 +487,18 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   /// it are kept. When nothing matches, the stack becomes `[route]` — the
   /// whole history is replaced, which is what "and pop until" means with no
   /// anchor to stop at.
-  Future<void> pushAndPopUntil(R route, {required bool Function(R) predicate}) {
+  /// Like [push], this is forward navigation: it adds a browser history entry
+  /// rather than replacing one.
+  Future<void> pushAndPopUntil(
+    R route, {
+    required bool Function(R) predicate,
+  }) => _enqueueOrigin(() {
     final anchor = stack.lastIndexWhere(predicate);
-    return set([...stack.take(anchor + 1), route]);
-  }
+    return _navigate([...stack.take(anchor + 1), route]);
+  });
 
   /// Pop every route above the root. Runs through guards.
-  Future<void> popUntilRoot() => set([stack.first]);
+  Future<void> popUntilRoot() => _enqueueOrigin(() => _navigate([stack.first]));
 
   /// Used by the delegate to sync state when the navigator pops a page
   /// (e.g. system back). Synchronous: by the time the navigator notifies

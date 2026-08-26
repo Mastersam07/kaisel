@@ -99,6 +99,35 @@ void main() {
     });
   });
 
+  group('history semantics match pop and push', () {
+    test('popUntilRoot does not replace the history entry', () async {
+      final router = routerWith(const [_Home(), _Cart(), _Payment()]);
+
+      await router.popUntilRoot();
+
+      expect(router.replacesHistoryEntry, isFalse);
+    });
+
+    test('pushAndPopUntil adds an entry like push', () async {
+      final router = routerWith(const [_Home(), _Cart()]);
+
+      await router.pushAndPopUntil(
+        const _Receipt(),
+        predicate: (route) => route is _Home,
+      );
+
+      expect(router.replacesHistoryEntry, isFalse);
+    });
+
+    test('set still replaces, for contrast', () async {
+      final router = routerWith(const [_Home(), _Cart()]);
+
+      await router.set(const [_Home()]);
+
+      expect(router.replacesHistoryEntry, isTrue);
+    });
+  });
+
   group('popUntilRoot', () {
     test('leaves only the bottom route', () async {
       final router = routerWith(const [_Home(), _Cart(), _Payment()]);
