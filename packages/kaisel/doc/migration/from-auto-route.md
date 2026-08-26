@@ -170,6 +170,45 @@ are now separate — the screen takes its parameter directly, no
 value equality so two `ProductDetail('sku-42')` instances are equal
 to each other (matters for stack diffing).
 
+**Routes that carried callbacks.** A closure field breaks both `const`-ness
+and value equality, so `onComplete` / `onClose` / `onAction` can't travel on a
+kaisel route. Move the behaviour to the page builder, which has the router in
+scope, and turn the callback into a result:
+
+```dart
+// route carries data only; the builder wires the behaviour
+EddFlow(:final type) => EddFlowPage(type: type, onComplete: router.pop),
+```
+
+That works, but a bare `pop()` is indistinguishable from the user backing out
+— both arrive as `null` at `pushForResult`. When the caller needs to tell
+"completed" from "dismissed", either pop an explicit value
+(`onComplete: () => router.pop(true)`) or — for a multi-step sub-experience —
+reach for [`run<T>`](/guides/modal-flows/) with a `KaiselModalRoute<T>`, whose
+typed completion contract exists for exactly this conversion.
+
+**Parameters inherited from a parent router.** auto_route lets a nested child
+read a path parameter declared on its parent via
+`@PathParam.inherit('countryCode')`, resolved from the URL at build time — so
+the child's generated args class never carries it. kaisel routes are explicit
+data with no inheritance: the child must declare the field itself, which also
+means **every construction site for that route gains an argument**.
+
+```dart
+final class BillProvider extends AppRoute {
+  const BillProvider({required this.countryCode, required this.providerId});
+  final String countryCode;
+  final String providerId;
+  @override
+  List<Object?> get props => [countryCode, providerId];
+}
+```
+
+The change is mechanical but nothing in the type system points at it — a naive
+port compiles and then has no idea what country it is for. Grep for
+`PathParam.inherit` before you start; each hit is a field to add and a set of
+call sites to update.
+
 Group your routes into a single sealed hierarchy:
 
 ```dart
