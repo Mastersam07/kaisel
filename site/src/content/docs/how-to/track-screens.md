@@ -23,6 +23,26 @@ That's the entire integration. The builder is called once per navigator
 gets its own fresh observer instance — which is what `NavigatorObserver`
 requires — and together they see the whole app.
 
+## One screen signal for the whole app
+
+An observer instance belongs to one `Navigator`, so in a shell app its
+de-duplication state is per-branch: switching tab A → B → A re-logs A,
+because the instance that holds "A was last" never saw B. When you want a
+single stream of screen views rather than a `NavigatorObserver`, use
+`onScreenChanged` — kaisel de-duplicates it app-wide:
+
+```dart
+KaiselRouterConfig<AppRoute>(
+  onScreenChanged: (route) => analytics.logScreenView(route.routeName),
+  ...
+);
+```
+
+It fires once per visible-screen change wherever the screen lives — main
+stack, shell branch, module, or modal flow — and never reports the route
+that merely *hosts* a shell. Dialogs, sheets, and anything else pushed
+imperatively are not screens and are ignored.
+
 ## What you get that other routers don't report
 
 kaisel reports **every navigation** to your observers, including two
