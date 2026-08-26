@@ -439,6 +439,48 @@ class AppCodec extends KaiselConfigCodec<AppRoute> {
 The codec is the only place strings live. Every other layer reasons
 about typed routes.
 
+## Verb translation
+
+The full navigation surface, since a real migration touches far more than the
+concept mapping above. (One port measured 787 router calls across 41 files.)
+
+| auto_route | kaisel |
+| --- | --- |
+| `push(X)` | `push(X)` |
+| `push<T>(X)` (awaited) | `pushForResult<T>(X)` |
+| `navigate(X)` | `push(X)` |
+| `replace(X)` | `replaceTop(X)` |
+| `replaceAll([...])` | `set([...])` |
+| `popAndPush(X)` | `replaceTop(X)` |
+| `pop()` | `pop()` |
+| `pop<T>(result)` | `pop(result)` — the result is `Object?`, so the type is not checked against the awaiting `pushForResult<T>` |
+| `maybePop()` | `context.maybePop()` — **not** `pop()`; see below |
+| `pushAndPopUntil(X, predicate:)` | `pushAndPopUntil(X, predicate:)` |
+| `popUntilRouteWithName(n)` | `popUntil((route) => route is N)` |
+| `popUntilRoot()` | `popUntilRoot()` |
+| `router.root` / `router.parent` | n/a — the stack is flat |
+| `router.stackData` | `router.stack` |
+| `entry.routeData` | the entry **is** the route |
+| `entry.routeData.args` | destructure the route: `Product(:final id)` |
+| `route.settings.name == X.name` | `route is X` — see below |
+| `isRouteActive(X.name)` | `stack.any((route) => route is X)` |
+
+### Two rows that bite
+
+**`maybePop()` → `pop()` is wrong.** It is the most natural-looking
+translation and it silently changes behaviour: `pop()` mutates the kaisel
+stack directly, so an open `Drawer`'s local history entry is never consumed
+and a `PopScope(canPop: false)` veto is never consulted. Use
+`context.maybePop()`, which asks the `Navigator` first. In one migration
+`maybePop` was 155 of 170 pop-family calls — this is the common case, not an
+edge one.
+
+**`route.settings.name == X.name` → `route is X`.** Rewriting `.name`
+mechanically produces `route == BuyRoute` — comparing a `String` to a
+`Type`. That **compiles**; only `unrelated_type_equality_checks`, an
+*info*-level lint, catches it. Left alone it ships as a permanently-false
+condition. Pattern-match on the type instead.
+
 ## Already at parity — or better
 
 **DevTools.** kaisel ships its own zero-integration DevTools extension — a live
