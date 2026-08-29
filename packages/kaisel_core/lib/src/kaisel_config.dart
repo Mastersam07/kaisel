@@ -220,7 +220,8 @@ abstract class KaiselConfigCodec<R extends KaiselRoute> {
   /// unrecognised (the parser will then use the fallback stack).
   ///
   /// May be asynchronous: a deep link's destination can depend on state that
-  /// has to be read first — an entitlement, a feature flag, a cached profile.
+  /// has to be read first, such as an entitlement, a feature flag, or a
+  /// cached profile.
   /// Returning a plain value stays valid, so synchronous codecs need no
   /// change.
   FutureOr<KaiselConfig<R>?> decode(Uri uri);
