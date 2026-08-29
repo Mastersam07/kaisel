@@ -141,7 +141,24 @@ guard blocked the mutation. Pass an optional `result` to hand a value
 back to a matching `pushForResult<T>` awaiter.
 
 **Use for:** Back buttons, "cancel" actions, and returning a value from
-a screen opened with `pushForResult<T>`.
+a screen opened with `pushForResult<T>` or `run<T>`.
+
+**On the first screen of a modal flow**, `context.pop(result)` completes
+the flow with `result` rather than doing nothing. That is what the system
+back button already does there. So one screen can serve as both a pushed page and a
+flow root without knowing which it is in:
+
+```dart
+// Works either way: pushed with pushForResult<String>, or run<String>.
+FilledButton(
+  onPressed: () => context.pop(draft),
+  child: const Text('Save'),
+)
+```
+
+(This applies to the terse `context.pop`, which can see the enclosing flow.
+`router.pop()` on a flow's sub-router still just reports `false` at its
+root, because the router has no view of the widget tree.)
 
 **Notes:**
 
@@ -157,8 +174,6 @@ a screen opened with `pushForResult<T>`.
   guard can prevent a pop (e.g. a form-dirty guard that asks "discard
   changes?"); `pop` then returns `false`. Always check the boolean if you
   care whether it happened.
-- A guard can prevent a pop (e.g., a form-dirty guard that asks
-  "discard changes?"). Always check the boolean if you care.
 
 ## maybePop
 
