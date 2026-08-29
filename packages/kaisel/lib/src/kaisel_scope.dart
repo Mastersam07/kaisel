@@ -170,12 +170,12 @@ extension KaiselContextNavigation on BuildContext {
   /// matching [pushForResult] awaiter.
   ///
   /// On the **first screen of a modal flow** there is nothing left to pop, so
-  /// this completes the flow with [result] instead — the same thing the system
-  /// back button does there. That keeps a screen's contract identical whether
+  /// this completes the flow with [result] instead. That is what the system
+  /// back button already does there. That keeps a screen's contract identical whether
   /// it was pushed with [pushForResult] or opened with [KaiselRouter.run], so
   /// one widget can serve both without knowing which it is in.
   ///
-  /// Returns `false` only when nothing could be popped or completed — the root
+  /// Returns `false` only when nothing could be popped or completed: the root
   /// of the main stack.
   ///
   /// When called from inside an overlay you pushed imperatively

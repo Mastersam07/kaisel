@@ -5,7 +5,7 @@
 - **Behaviour change:** `context.pop()` on the first screen of a modal flow
   now completes that flow with the result, instead of returning `false` and
   doing nothing. The system back button already dismissed the flow there, so
-  the two now agree — and a screen keeps the same contract whether it was
+  the two now agree, and a screen keeps the same contract whether it was
   pushed with `pushForResult<T>` or opened with `run<T>`
   ([#86](https://github.com/Mastersam07/kaisel/issues/86)). `pop` still
   returns `false` at the root of the main stack.
