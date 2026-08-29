@@ -144,8 +144,8 @@ back to a matching `pushForResult<T>` awaiter.
 a screen opened with `pushForResult<T>` or `run<T>`.
 
 **On the first screen of a modal flow**, `context.pop(result)` completes
-the flow with `result` rather than doing nothing — the same thing the system
-back button does there. So one screen can serve as both a pushed page and a
+the flow with `result` rather than doing nothing. That is what the system
+back button already does there. So one screen can serve as both a pushed page and a
 flow root without knowing which it is in:
 
 ```dart
@@ -158,7 +158,7 @@ FilledButton(
 
 (This applies to the terse `context.pop`, which can see the enclosing flow.
 `router.pop()` on a flow's sub-router still just reports `false` at its
-root — the router has no view of the widget tree.)
+root, because the router has no view of the widget tree.)
 
 **Notes:**
 
