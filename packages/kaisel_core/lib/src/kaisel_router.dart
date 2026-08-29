@@ -110,6 +110,15 @@ abstract class KaiselNavigator implements KaiselListenable {
   bool get replacesHistoryEntry;
 }
 
+/// Stack-assignment operations for a type-erased [KaiselNavigator].
+extension KaiselNavigatorSet on KaiselNavigator {
+  /// Replace this navigator's stack with [stack].
+  ///
+  /// This is an assignment-oriented alias for [restoreStack]. Use
+  /// [restoreStack] when restoring previously captured navigation state.
+  Future<void> set(List<KaiselRoute> stack) => restoreStack(stack);
+}
+
 /// Identity-stable wrapper for a route on the stack.
 ///
 /// Two value-equal routes (e.g. `const Home()` pushed twice) still need
