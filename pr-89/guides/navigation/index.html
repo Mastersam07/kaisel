@@ -246,13 +246,13 @@ back to a matching <code dir="auto">pushForResult&lt;T&gt;</code> awaiter.</p>
 <p><strong>Use for:</strong> Back buttons, “cancel” actions, and returning a value from
 a screen opened with <code dir="auto">pushForResult&lt;T&gt;</code> or <code dir="auto">run&lt;T&gt;</code>.</p>
 <p><strong>On the first screen of a modal flow</strong>, <code dir="auto">context.pop(result)</code> completes
-the flow with <code dir="auto">result</code> rather than doing nothing — the same thing the system
-back button does there. So one screen can serve as both a pushed page and a
+the flow with <code dir="auto">result</code> rather than doing nothing. That is what the system
+back button already does there. So one screen can serve as both a pushed page and a
 flow root without knowing which it is in:</p>
 <div class="expressive-code"><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="dart"><code><div class="ec-line"><div class="code"><span style="--0:#919F9F;--1:#5D6376">// Works either way: pushed with pushForResult&lt;String&gt;, or run&lt;String&gt;.</span></div></div><div class="ec-line"><div class="code"><span style="--0:#FFCB8B;--1:#3B61B0">FilledButton</span><span style="--0:#D6DEEB;--1:#403F53">(</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#D6DEEB;--1:#403F53">  </span></span><span style="--0:#D6DEEB;--1:#403F53">onPressed</span><span style="--0:#C792EA;--1:#8844AE">:</span><span style="--0:#D6DEEB;--1:#403F53"> () </span><span style="--0:#7FDBCA;--1:#096E72">=&gt;</span><span style="--0:#D6DEEB;--1:#403F53"> context.</span><span style="--0:#82AAFF;--1:#3B61B0">pop</span><span style="--0:#D6DEEB;--1:#403F53">(draft),</span></div></div><div class="ec-line"><div class="code"><span class="indent"><span style="--0:#D6DEEB;--1:#403F53">  </span></span><span style="--0:#D6DEEB;--1:#403F53">child</span><span style="--0:#C792EA;--1:#8844AE">:</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#C792EA;--1:#8844AE">const</span><span style="--0:#D6DEEB;--1:#403F53"> </span><span style="--0:#FFCB8B;--1:#3B61B0">Text</span><span style="--0:#D6DEEB;--1:#403F53">(</span><span style="--0:#FFCB8B;--1:#3B61B0">'Save'</span><span style="--0:#D6DEEB;--1:#403F53">),</span></div></div><div class="ec-line"><div class="code"><span style="--0:#D6DEEB;--1:#403F53">)</span></div></div></code></pre><div class="copy"><div aria-live="polite"></div><button title="Copy to clipboard" data-copied="Copied!" data-code="// Works either way: pushed with pushForResult<String>, or run<String>.FilledButton(  onPressed: () => context.pop(draft),  child: const Text(&#x27;Save&#x27;),)"><div></div></button></div></figure></div>
 <p>(This applies to the terse <code dir="auto">context.pop</code>, which can see the enclosing flow.
 <code dir="auto">router.pop()</code> on a flow’s sub-router still just reports <code dir="auto">false</code> at its
-root — the router has no view of the widget tree.)</p>
+root, because the router has no view of the widget tree.)</p>
 <p><strong>Notes:</strong></p>
 <ul>
 <li>The <code dir="auto">Future&lt;bool&gt;</code> is the <em>success</em> indicator, not the result value —
