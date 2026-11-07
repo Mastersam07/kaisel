@@ -22,6 +22,14 @@
   splash screens, and the codec guide explains that `nestedState` waits for
   the shell to mount on a cold start
   ([#87](https://github.com/Mastersam07/kaisel/issues/87)).
+- Fix: hidden shell branches no longer keep their animations ticking. The
+  default containers of `KaiselShell` and `KaiselBranchedShell` (eager and
+  lazy) now wrap each branch in `TickerMode`, enabled only for the active
+  branch, the same way Flutter's `Overlay` treats routes kept alive under an
+  opaque route. A looping animation on one tab no longer keeps the app from
+  going idle on the others. State is unaffected, and custom
+  `branchContentBuilder` containers are left as they are
+  ([#92](https://github.com/Mastersam07/kaisel/issues/92)).
 
 ## 1.1.0
 
