@@ -54,6 +54,57 @@ was headed to `[Home(), Cart(), Payment()]`, they land on Payment with
 Cart beneath it and back behaving correctly. The same guard handles deep
 links into protected routes with zero extra code.
 
+## Deep links into a shell
+
+A guard is typed to one route family, so a main router guard can't name a
+branch route like `ProductDetail`. It doesn't need to. When the codec
+decodes a shell URL, the branch target travels in the config's
+`nestedState`:
+
+```dart
+['products', final id] => KaiselConfig(
+  mainStack: [const ShellHost()],
+  nestedState: KaiselShellConfig(
+    activeBranch: 1,
+    activeBranchStack: [const ProductList(), ProductDetail(id)],
+  ),
+),
+```
+
+Mark the shell host as protected (`final class ShellHost extends AppRoute
+implements RequiresAuth`) and the guard above works unchanged. When it
+redirects to Login, the shell never mounts, so the delegate holds the
+nested state. After sign in, `set(_intended)` mounts `ShellHost`, the
+held state is applied, and the user lands on the product detail with the
+list beneath it. Stash only the main stack; the router keeps the rest.
+
+This doesn't depend on how the link arrives: the platform URL on a cold
+start, or your own handler calling `routerDelegate.setNewRoutePath` for a
+link from a links or push package. Both pass through the guard.
+
+The same recipe covers a splash screen that waits for app start up. Swap
+the login check for a readiness check:
+
+```dart
+KaiselGuard<AppRoute> initGuard(ValueListenable<bool> ready) {
+  return (current, proposed) {
+    if (!ready.value && proposed.any((r) => r is! Splash)) {
+      _intended = proposed;
+      return const [Splash()];
+    }
+    return proposed;
+  };
+}
+```
+
+and when start up finishes:
+
+```dart
+_ready.value = true;
+context.router<AppRoute>().set(_intended ?? const [ShellHost()]);
+_intended = null;
+```
+
 ## Notes
 
 - Guards don't run on system back (the pop has already animated by the

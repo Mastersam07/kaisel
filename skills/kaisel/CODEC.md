@@ -247,6 +247,20 @@ Only the active branch's stack is in the URL by design: switching tabs
 and coming back restores each tab's in-memory history without the URL
 enumerating every branch.
 
+### Cold starts: nested state waits for the shell
+
+A deep link usually arrives before the shell exists. The delegate applies
+`mainStack` right away and holds `nestedState` until the shell mounts and
+registers, then applies it, building the target branch even if it was
+never visited. You don't cache the link or replay it yourself.
+
+The same holds when a guard redirects the main stack first (to Login or a
+splash screen). The shell doesn't mount, so the nested state keeps
+waiting; once the guard lets `ShellHost` through, the user lands on the
+linked tab and screen. The
+[Redirect to login](https://kaisel.dev/how-to/redirect-to-login/#deep-links-into-a-shell)
+how-to has the full recipe.
+
 ## Browser back and history
 
 When the codec is configured, the platform's URL bar and browser
@@ -266,6 +280,7 @@ behaviour, and refresh handling all need to be exercised.
 |:--------|:----|
 | Decoding to a single-route stack like `[ProductDetail(id)]` when the URL has obvious parent breadcrumbs | Decode to the full breadcrumb stack `[Home, ProductList, ProductDetail(id)]`. Back navigation needs a coherent history. |
 | Falling through `decode` without a 404 case | Use a `NotFound(uri)` route and a `_ => KaiselConfig(mainStack: [NotFound(uri)])` arm. Better than silently throwing or returning empty. |
+| A deep link always opens at `initial` | `decode` returned null for that URL, so the parser used the fallback stack. Debug builds log `kaisel: decode returned null for <uri>`; add a case for that path. Also check that the config has a codec at all: without one, no parser is built and platform URLs are ignored. |
 | Trying to encode a non-URL-routable variant exhaustively | Split the destination into sealed variants — one URL-routable, one in-app only. The encode method handles each explicitly. |
 | Not testing browser back / forward / refresh on the web | The codec doesn't guarantee browser-bar behaviour by itself; the platform integration has rough edges. Test it. |
 | Putting query parameters in the route as a string blob | Parse them into typed fields in `decode` and reconstruct in `encode`. The route should hold typed values, not raw URI fragments. |
