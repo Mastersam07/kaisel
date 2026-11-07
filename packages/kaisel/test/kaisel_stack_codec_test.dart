@@ -133,6 +133,28 @@ void main() {
       expect(result.nestedState, isNull);
     });
 
+    test('logs the URL when decode returns null', () async {
+      final logs = <String>[];
+      final original = debugPrint;
+      debugPrint = (message, {wrapWidth}) => logs.add(message ?? '');
+      addTearDown(() => debugPrint = original);
+
+      final parser = KaiselRouteInformationParser<_R>.fromStackCodec(
+        codec: const _StackCodec(),
+        fallback: const [_Home()],
+      );
+      await parser.parseRouteInformation(
+        RouteInformation(uri: Uri.parse('/nope')),
+      );
+      await parser.parseRouteInformation(
+        RouteInformation(uri: Uri.parse('/settings')),
+      );
+
+      expect(logs, hasLength(1));
+      expect(logs.single, contains('/nope'));
+      expect(logs.single, contains('fallback'));
+    });
+
     test('.single constructor wraps a legacy codec', () async {
       final parser = KaiselRouteInformationParser<_R>.single(
         codec: const _SingleCodec(),
