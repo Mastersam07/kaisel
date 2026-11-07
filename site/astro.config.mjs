@@ -103,6 +103,7 @@ export default defineConfig({
             { label: 'Redirect to login', slug: 'how-to/redirect-to-login' },
             { label: 'Drive the stack from app state', slug: 'how-to/state-driven-stack' },
             { label: 'Deep link into a screen', slug: 'how-to/deep-link' },
+            { label: 'Async deep link decisions', slug: 'how-to/async-deep-link-decisions' },
             { label: 'Track screens in analytics', slug: 'how-to/track-screens' },
             { label: 'Use dialogs, sheets, and PopScope', slug: 'how-to/use-with-navigator' },
           ],
