@@ -335,4 +335,16 @@ void main() {
       expect(r.stack, const [_HomeRoot()]);
     });
   });
+
+  group('KaiselNavigator.set', () {
+    test('replaces the stack through the type-erased interface', () async {
+      final router = KaiselRouter<_Home>(initial: const _HomeRoot());
+      addTearDown(router.dispose);
+      final KaiselNavigator navigator = router;
+
+      await navigator.set(const [_HomeRoot(), _Product('a')]);
+
+      expect(router.stack, const [_HomeRoot(), _Product('a')]);
+    });
+  });
 }
