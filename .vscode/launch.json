@@ -39,7 +39,7 @@
             "type": "dart",
             "args": [
                 "--target=lib/main_adaptive.dart",
-                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+                "--device-id=58A2EE3B-F7D6-4094-94CE-18C536F1E5F2",
             ],
         },
         {
@@ -59,7 +59,7 @@
             "type": "dart",
             "args": [
                 "--target=lib/main_supporting_pane.dart",
-                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+                "--device-id=58A2EE3B-F7D6-4094-94CE-18C536F1E5F2",
             ],
         },
         {
@@ -79,7 +79,7 @@
             "type": "dart",
             "args": [
                 "--target=lib/main_adaptive_stepper.dart",
-                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+                "--device-id=58A2EE3B-F7D6-4094-94CE-18C536F1E5F2",
             ],
         },
         {
@@ -121,7 +121,7 @@
             "type": "dart",
             "args": [
                 "--target=lib/main_nested_flows.dart",
-                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+                "--device-id=58A2EE3B-F7D6-4094-94CE-18C536F1E5F2",
             ],
         },
         {
@@ -141,7 +141,7 @@
             "type": "dart",
             "args": [
                 "--target=lib/main_transitions.dart",
-                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+                "--device-id=58A2EE3B-F7D6-4094-94CE-18C536F1E5F2",
             ],
         },
          {
@@ -161,7 +161,7 @@
             "type": "dart",
             "args": [
                 "--target=lib/main_shell_adaptive.dart",
-                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+                "--device-id=58A2EE3B-F7D6-4094-94CE-18C536F1E5F2",
             ],
         },
          {
@@ -181,7 +181,7 @@
             "type": "dart",
             "args": [
                 "--target=lib/main_media_cataloguer.dart",
-                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+                "--device-id=58A2EE3B-F7D6-4094-94CE-18C536F1E5F2",
             ],
         },
         {
@@ -201,7 +201,7 @@
             "type": "dart",
             "args": [
                 "--target=lib/main_terse.dart",
-                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+                "--device-id=58A2EE3B-F7D6-4094-94CE-18C536F1E5F2",
             ],
         },
         {
@@ -221,7 +221,7 @@
             "type": "dart",
             "args": [
                 "--target=lib/main_inspector.dart",
-                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+                "--device-id=58A2EE3B-F7D6-4094-94CE-18C536F1E5F2",
             ],
         },
         {
@@ -241,7 +241,7 @@
             "type": "dart",
             "args": [
                 "--target=lib/main_results_and_flows.dart",
-                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+                "--device-id=58A2EE3B-F7D6-4094-94CE-18C536F1E5F2",
             ],
         },
         {
@@ -261,7 +261,7 @@
             "type": "dart",
             "args": [
                 "--target=lib/main_lazy_shell.dart",
-                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+                "--device-id=58A2EE3B-F7D6-4094-94CE-18C536F1E5F2",
             ],
         },
         {
@@ -281,7 +281,7 @@
             "type": "dart",
             "args": [
                 "--target=lib/main_auth_redirect.dart",
-                "--device-id=8132DC0D-96BA-47F8-BADD-974E67D93671",
+                "--device-id=58A2EE3B-F7D6-4094-94CE-18C536F1E5F2",
             ],
         },
         {
