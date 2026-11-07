@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Fix: a nested deep link held back by a guard (for example a signed out user
+  sent to Login) no longer fires later when the user opens the shell from the
+  app's own UI. A config without `nestedState` now clears the queued nested
+  state; a guard rewrite still keeps it, so the login detour resumes the link
+  as before ([#87](https://github.com/Mastersam07/kaisel/issues/87)).
+
 ## 1.1.0
 
 Additive only — no breaking changes.
