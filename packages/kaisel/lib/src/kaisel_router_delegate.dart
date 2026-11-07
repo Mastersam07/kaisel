@@ -457,7 +457,13 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     if (configuration.mainStack.isEmpty) return;
     await router.applyFromInformation(configuration.mainStack);
     final nestedState = configuration.nestedState;
-    if (nestedState == null) return;
+    if (nestedState == null) {
+      // A config that names no nested state is a statement about the whole
+      // tree, so it retires a queued one. A guard rewrite is not: it says
+      // "not yet", and the queued state still applies once the host mounts.
+      _pendingNested = null;
+      return;
+    }
 
     // Find a registered handle whose configType matches the incoming
     // config's runtime type. Prefer the most recently registered (the

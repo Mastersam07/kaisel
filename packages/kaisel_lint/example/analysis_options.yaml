@@ -1,3 +1,6 @@
+analyzer:
+  exclude:
+    - build/**
 include: package:flutter_lints/flutter.yaml
 
 # Enable the kaisel_lint plugin and turn on all of its rules, including the
