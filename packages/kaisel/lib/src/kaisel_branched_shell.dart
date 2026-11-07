@@ -486,7 +486,9 @@ typedef KaiselBranchedShellChromeBuilder =
 /// custom animated switcher, etc. When omitted, the shell uses an [IndexedStack]
 /// that keeps every branch mounted so per-branch state survives tab switches —
 /// if you replace it, preserving that state becomes your responsibility (e.g. a
-/// `PageView` with `AutomaticKeepAliveClientMixin` on its children).
+/// `PageView` with `AutomaticKeepAliveClientMixin` on its children). The default
+/// also mutes animations in hidden branches with [TickerMode]; a custom
+/// container that keeps hidden branches mounted should do the same.
 typedef KaiselBranchContentBuilder =
     Widget Function(
       BuildContext context,
@@ -604,7 +606,8 @@ class KaiselBranchedShell extends StatefulWidget {
   final KaiselBranchedShellChromeBuilder chromeBuilder;
 
   /// Optional override for how the branches are laid out. When `null`, the
-  /// shell uses an [IndexedStack] (all branches mounted, state preserved). Pass
+  /// shell uses an [IndexedStack] (all branches mounted, state preserved,
+  /// tickers in hidden branches muted with [TickerMode]). Pass
   /// one to use a [PageView] or any other container — see
   /// [KaiselBranchContentBuilder].
   final KaiselBranchContentBuilder? branchContentBuilder;
@@ -827,7 +830,13 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
               ),
               (_, _, false) => IndexedStack(
                 index: _shell.activeBranch,
-                children: restorableBranches,
+                children: [
+                  for (final (i, branch) in restorableBranches.indexed)
+                    TickerMode(
+                      enabled: i == _shell.activeBranch,
+                      child: branch,
+                    ),
+                ],
               ),
             };
             return widget.chromeBuilder(
@@ -888,7 +897,10 @@ class _LazyKeepAliveStackState extends State<_LazyKeepAliveStack> {
       index: widget.index,
       children: [
         for (var i = 0; i < widget.itemCount; i++)
-          _built[i] ?? const SizedBox.shrink(),
+          TickerMode(
+            enabled: i == widget.index,
+            child: _built[i] ?? const SizedBox.shrink(),
+          ),
       ],
     );
   }

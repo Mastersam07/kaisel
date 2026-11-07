@@ -264,7 +264,10 @@ class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
                 index: _shell.activeBranch,
                 children: [
                   for (var i = 0; i < _shell.branchCount; i++)
-                    _buildBranch(context, i),
+                    TickerMode(
+                      enabled: i == _shell.activeBranch,
+                      child: _buildBranch(context, i),
+                    ),
                 ],
               );
               return widget.chromeBuilder(
