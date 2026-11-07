@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Debug builds now log `kaisel: decode returned null for <uri>` when the
+  codec does not recognise a URL and the parser falls back. Before, a deep
+  link that silently opened at `initial` gave no hint why
+  ([#87](https://github.com/Mastersam07/kaisel/issues/87)).
+- Docs: the redirect to login how-to now covers deep links into a shell and
+  splash screens, and the codec guide explains that `nestedState` waits for
+  the shell to mount on a cold start
+  ([#87](https://github.com/Mastersam07/kaisel/issues/87)).
+
 ## 1.1.0
 
 Additive only — no breaking changes.
