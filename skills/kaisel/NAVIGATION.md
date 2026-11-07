@@ -135,18 +135,17 @@ await context.pop(selectedId);
 final didPop = await context.pop();
 ```
 
-Removes the top entry. Returns `true` if the pop happened, `false` if
-the stack was already at one entry (you can't pop the root) or if a
-guard blocked the mutation. Pass an optional `result` to hand a value
-back to a matching `pushForResult<T>` awaiter.
+Removes the top entry. Returns `false` if the stack was already at one
+entry (you can't pop the root), `true` otherwise. Pass an optional
+`result` to hand a value back to a matching `pushForResult<T>` awaiter.
 
 **Use for:** Back buttons, "cancel" actions, and returning a value from
 a screen opened with `pushForResult<T>` or `run<T>`.
 
 **On the first screen of a modal flow**, `context.pop(result)` completes
 the flow with `result` rather than doing nothing. That is what the system
-back button already does there. So one screen can serve as both a pushed page and a
-flow root without knowing which it is in:
+back button already does there. So one screen can serve as both a pushed
+page and a flow root without knowing which it is in:
 
 ```dart
 // Works either way: pushed with pushForResult<String>, or run<String>.
@@ -171,9 +170,10 @@ root, because the router has no view of the widget tree.)
   `pushForResult<T>` await boundary (the same erase-then-recover model as
   `run<T>` / `completeFlow`).
 - **`pop` runs through the guard pipeline like every other mutation.** A
-  guard can prevent a pop (e.g. a form-dirty guard that asks "discard
-  changes?"); `pop` then returns `false`. Always check the boolean if you
-  care whether it happened.
+  guard can keep or rewrite the stack (for example a form-dirty guard that
+  asks "discard changes?"). `pop` still returns `true` in that case,
+  because the boolean only says whether there was anything to pop. To know
+  where you ended up, read `router.stack` after the `await`.
 
 ## maybePop
 
