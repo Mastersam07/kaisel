@@ -27,6 +27,7 @@ export 'src/kaisel_router.dart'
     show
         KaiselActiveFlow,
         KaiselNavigator,
+        KaiselNavigatorSet,
         KaiselRouter,
         KaiselTransitionCallback;
 export 'src/kaisel_stack_codec.dart';
