@@ -67,7 +67,17 @@ class KaiselRouteInformationParser<R extends KaiselRoute>
     RouteInformation routeInformation,
   ) async {
     final decoded = _codec.decode(routeInformation.uri);
-    if (decoded == null) return KaiselConfig<R>(mainStack: _fallback);
+    if (decoded == null) {
+      assert(() {
+        debugPrint(
+          'kaisel: decode returned null for ${routeInformation.uri}, '
+          'using the fallback stack $_fallback. If this URL should open a '
+          'screen, add a case for it to your codec.',
+        );
+        return true;
+      }());
+      return KaiselConfig<R>(mainStack: _fallback);
+    }
     return decoded;
   }
 
