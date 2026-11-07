@@ -1,3 +1,11 @@
+## Unreleased
+
+- `KaiselNavigator.set(stack)`: an alias for `restoreStack` on the type
+  erased navigator, so code that deliberately replaces a branch's stack
+  (for example `context.shell().current.set([...])` to send a tab back to
+  its root) reads as an assignment, not a restore. It runs the same type
+  checks and guards ([#73](https://github.com/Mastersam07/kaisel/issues/73)).
+
 ## 1.1.0
 
 Additive only — no breaking changes.
