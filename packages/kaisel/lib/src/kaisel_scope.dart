@@ -167,8 +167,16 @@ extension KaiselContextNavigation on BuildContext {
       _scopeForRoute(route).pushRouteForResult<T>(route);
 
   /// Pop the nearest kaisel router, optionally returning [result] to a
-  /// matching [pushForResult] awaiter. Returns `false` if it was already at
-  /// root.
+  /// matching [pushForResult] awaiter.
+  ///
+  /// On the **first screen of a modal flow** there is nothing left to pop, so
+  /// this completes the flow with [result] instead. That is what the system
+  /// back button already does there. That keeps a screen's contract identical whether
+  /// it was pushed with [pushForResult] or opened with [KaiselRouter.run], so
+  /// one widget can serve both without knowing which it is in.
+  ///
+  /// Returns `false` only when nothing could be popped or completed: the root
+  /// of the main stack.
   ///
   /// When called from inside an overlay you pushed imperatively
   /// ([showModalBottomSheet], [showDialog], …), that overlay is closed instead
@@ -190,8 +198,17 @@ extension KaiselContextNavigation on BuildContext {
       // that overlay's route, not the kaisel screen beneath it.
       final navigator? when boundary is RouterScope && navigator.canPop() =>
         navigator.maybePop(result),
-      _ => _nearestRouterScope().router.pop(result),
+      _ => _popOrCompleteFlow(result),
     };
+  }
+
+  Future<bool> _popOrCompleteFlow(Object? result) async {
+    if (await _nearestRouterScope().router.pop(result)) return true;
+    if (FlowScope.maybeOf(this) case final flow?) {
+      flow._complete(result);
+      return true;
+    }
+    return false;
   }
 
   /// Pop the way the system back button does: ask the [Navigator] first, and
