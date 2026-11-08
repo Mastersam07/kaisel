@@ -219,6 +219,30 @@ final result = await context.router<AppRoute>().run<String>(
 The flow's sub-router runs these on its own stack mutations. They
 don't see the main stack.
 
+What guards do and don't see around a flow:
+
+- **Main router guards don't run when a flow starts.** A flow opens on
+  top of the main stack without changing it, so there is no main stack
+  mutation to guard.
+- **`flowGuards` never see the flow's first route.** The sub-router starts
+  with that route already on its stack, and guards run on changes. To
+  stop a flow from opening, check before calling `run`.
+- **`reevaluateOn` doesn't reach flows.** It re-runs the main router's
+  guards against the main stack only. Call `reevaluate()` on a flow's
+  router (`router.activeFlows.last.router`) if a flow guard needs it.
+- **A main guard redirect leaves open flows on top.** If an auth guard
+  rewrites the main stack to `[Login]`, an open flow still covers it.
+  Close it next to the guard:
+
+  ```dart
+  auth.addListener(() {
+    if (!auth.signedIn && router.hasActiveFlow) router.dismissFlow();
+  });
+  ```
+
+  `dismissFlow` closes the topmost flow with `null`; with nested flows
+  open, repeat it for each.
+
 ## Re-running guards when the world changes
 
 Guards run on stack *mutations*. But the reason to re-check one is often that
@@ -268,6 +292,8 @@ dropping it on unlock.
   navigation is in flight.
 - This is kaisel's equivalent of auto_route's `reevaluateListenable` and
   go_router's `refreshListenable`.
+- It re-checks the main stack only, not active modal flows. See
+  [Per-flow guards](#per-flow-guards).
 
 ## Comparison with the source libraries
 

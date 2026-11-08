@@ -53,7 +53,8 @@ class RouterScope<R extends KaiselRoute> extends InheritedWidget {
   Future<void> setRoutes(List<KaiselRoute> routes) =>
       router.set(routes.cast<R>());
 
-  /// Run a modal [flow] on this scope's router; see [pushRoute].
+  /// Run a modal [flow] on this scope's router; see [pushRoute]. For
+  /// `flowGuards`, use [KaiselRouter.run] on [router].
   Future<T?> runFlow<T>(KaiselModalRoute<T> flow) => router.run<T>(flow);
 
   /// The nearest enclosing [RouterScope] of route type [R].
@@ -305,6 +306,10 @@ extension KaiselContextNavigation on BuildContext {
 
   /// Open [flow] as a modal on the nearest router that accepts it, awaiting
   /// its typed result.
+  ///
+  /// Takes no `flowGuards`: guards are typed to a router's route type, which
+  /// this type-erased form doesn't know. To guard the flow's stack, use
+  /// `context.router<R>().run(flow, flowGuards: [...])`.
   Future<T?> run<T>(KaiselModalRoute<T> flow) =>
       _scopeForRoute(flow).runFlow<T>(flow);
 
