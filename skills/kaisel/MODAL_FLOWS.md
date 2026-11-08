@@ -266,7 +266,8 @@ There are three ways a flow can end:
   (e.g. logout while a flow is open) you tear down the host, or
   `dismissFlow()` from the top down. A main router guard that
   redirects (say to `[Login]`) does **not** close open flows; dismiss
-  them from the same auth listener.
+  the flow from the same auth listener (see *Per-flow guards* in the
+  guards guide for nested flows).
 
 All of these resolve the `Future<T?>`. The caller should always handle
 `null` as a first-class outcome.

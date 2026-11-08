@@ -240,8 +240,10 @@ What guards do and don't see around a flow:
   });
   ```
 
-  `dismissFlow` closes the topmost flow with `null`; with nested flows
-  open, repeat it for each.
+  `dismissFlow` closes only the topmost flow, with `null`. The flow
+  beneath becomes topmost once that one has finished closing, so two
+  calls in a row close one flow, not two. With nested flows, call it
+  again after the top flow is gone.
 
 ## Re-running guards when the world changes
 
