@@ -108,6 +108,11 @@ form — it's compile-checked against the family. For brevity,
 `context.run<CardId>(flow)` drops the type parameter and resolves the
 nearest router that accepts the flow at runtime; the deliberate trade is
 that a wrong-family flow throws at runtime instead of failing to compile.
+It also has no `flowGuards` parameter, because guards are typed to the
+router's route type. To guard a flow's own stack, use the typed form:
+`context.router<AppRoute>().run<CardId>(flow, flowGuards: [...])`. See
+the guards guide, *Per-flow guards*, for what guards do and don't see
+around a flow.
 
 The `Future<T?>` carries the result. `null` is the dismissal signal —
 treat it as a real outcome, not an error.
@@ -259,7 +264,10 @@ There are three ways a flow can end:
   `run<T>` never hangs. There's no per-flow cancel API: `dismissFlow()`
   resolves the *topmost* flow, so to force a flow shut from outside
   (e.g. logout while a flow is open) you tear down the host, or
-  `dismissFlow()` from the top down.
+  `dismissFlow()` from the top down. A main router guard that
+  redirects (say to `[Login]`) does **not** close open flows; dismiss
+  the flow from the same auth listener (see *Per-flow guards* in the
+  guards guide for nested flows).
 
 All of these resolve the `Future<T?>`. The caller should always handle
 `null` as a first-class outcome.
