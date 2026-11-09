@@ -341,7 +341,17 @@ branch, each with a different `R`. From the chrome:
   router — it sits above the shell — so use it to push onto the root stack from
   the chrome.
 
-`context.router<BranchR>()` only resolves inside that branch's screens.
+`context.router<BranchR>()` only resolves inside that branch's screens. The
+same goes for the terse `context.push` / `replaceTop` / `set` / `run` with a
+branch route. To add a screen to the active branch from the chrome, go through
+the controller:
+
+```dart
+final current = context.shell().current;
+current.set([...current.stack, const ProductDetail('42')]);
+```
+
+Both lookups throw an error that points here when called from the chrome.
 
 ## Homogeneous shells (`KaiselShell`)
 

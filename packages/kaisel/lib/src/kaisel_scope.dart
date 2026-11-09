@@ -328,6 +328,16 @@ extension KaiselContextNavigation on BuildContext {
     switch (found) {
       case final scope?:
         return scope;
+      case _ when ShellChromeScope.maybeOf(this) != null:
+        throw FlutterError(
+          'No KaiselRouter above this context accepts a ${route.runtimeType}.\n'
+          'You are inside a shell chromeBuilder, where each branch installs '
+          'its router BELOW the chrome, so branch routes cannot be pushed '
+          'from here.\n'
+          'Use context.shell() for the active branch (switchTo, or '
+          'current.set([...current.stack, route]) to add to its stack), or '
+          'a route of your app root type to push onto the main stack.',
+        );
       case _:
         throw FlutterError(
           'No KaiselRouter above this context accepts a ${route.runtimeType}.\n'

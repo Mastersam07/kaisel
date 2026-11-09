@@ -30,6 +30,11 @@
   going idle on the others. State is unaffected, and custom
   `branchContentBuilder` containers are left as they are
   ([#92](https://github.com/Mastersam07/kaisel/issues/92)).
+- `context.push` / `replaceTop` / `pushOrReplaceTop` / `set` / `run` with a
+  branch route from inside a shell `chromeBuilder` now throw an error that
+  explains why and points at `context.shell()`, matching the existing message
+  for `context.router<BranchR>()`
+  ([#74](https://github.com/Mastersam07/kaisel/issues/74)).
 
 ## 1.1.0
 
