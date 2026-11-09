@@ -153,14 +153,14 @@ packages:
       path: "../../kaisel"
       relative: true
     source: path
-    version: "1.1.0"
+    version: "1.2.0"
   kaisel_core:
     dependency: "direct overridden"
     description:
       path: "../../kaisel_core"
       relative: true
     source: path
-    version: "1.1.0"
+    version: "1.2.0"
   kaisel_lint:
     dependency: "direct dev"
     description:

@@ -1,4 +1,4 @@
-## Unreleased
+## 1.2.0
 
 - `KaiselNavigator.set(stack)`: an alias for `restoreStack` on the type
   erased navigator, so code that deliberately replaces a branch's stack
