@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.2.0
+
+One behaviour change, `context.pop()` on the first screen of a modal flow;
+everything else is additive or a fix.
 
 - **Behaviour change:** `context.pop()` on the first screen of a modal flow
   now completes that flow with the result, instead of returning `false` and
