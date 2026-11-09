@@ -38,6 +38,7 @@ everything else is additive or a fix.
   explains why and points at `context.shell()`, matching the existing message
   for `context.router<BranchR>()`
   ([#74](https://github.com/Mastersam07/kaisel/issues/74)).
+- Requires `kaisel_core: ^1.2.0` (for `KaiselNavigator.set`).
 
 ## 1.1.0
 
