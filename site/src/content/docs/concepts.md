@@ -29,6 +29,12 @@ final class Product extends AppRoute {
 }
 ```
 
+:::tip[On Dart 3.13 or later?]
+Primary constructors shrink a variant to its header:
+`final class const Home() extends AppRoute;`. See
+[Getting started](/getting-started/) for the full form.
+:::
+
 Two consequences fall out immediately. Routes have **equality**
 (`Product('42') == Product('42')`), so the router can diff, dedupe, and
 restore them. And routes are **exhaustively matchable** — a `switch` over
