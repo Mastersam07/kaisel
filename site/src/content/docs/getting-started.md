@@ -13,7 +13,7 @@ your screens are an exhaustive `switch`, and the navigation stack is a plain
 flutter pub add kaisel
 ```
 
-kaisel supports Flutter 3.24+ and requires Dart 3.
+kaisel requires Dart 3.10 or later, which ships with Flutter 3.38.
 
 ## 1. Declare your route type
 
