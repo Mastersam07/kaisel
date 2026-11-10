@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MethodCall, StandardMethodCodec;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaisel/kaisel.dart';
 
@@ -94,53 +95,62 @@ Widget _cart(BuildContext context) => Scaffold(
   ),
 );
 
-KaiselRouterDelegate<_App> _delegate(KaiselRouter<_App> router) =>
-    KaiselRouterDelegate<_App>(
-      router: router,
-      builder: (context, route) => switch (route) {
-        _Home() => const Scaffold(body: Text('home')),
-        _Other() => const Scaffold(body: Text('other')),
-        _Group() => KaiselShell<_G>(
-          branchInitials: const [_Cart()],
-          chromeBuilder: (context, i, content, _) => content,
-          pageBuilder: (context, r) => switch (r) {
-            _Cart() => _cart(context),
-            _Pay() => Scaffold(appBar: AppBar(title: const Text('pay'))),
+KaiselRouterDelegate<_App> _delegate(
+  KaiselRouter<_App> router, {
+  bool predictive = false,
+}) => KaiselRouterDelegate<_App>(
+  router: router,
+  androidPredictiveBack: predictive,
+  builder: (context, route) => switch (route) {
+    _Home() => const Scaffold(body: Text('home')),
+    _Other() => const Scaffold(body: Text('other')),
+    _Group() => KaiselShell<_G>(
+      branchInitials: const [_Cart()],
+      chromeBuilder: (context, i, content, _) => content,
+      pageBuilder: (context, r) => switch (r) {
+        _Cart() => _cart(context),
+        _Pay() => Scaffold(appBar: AppBar(title: const Text('pay'))),
+      },
+    ),
+    _Tabs() => KaiselBranchedShell.specs(
+      branches: [
+        KaiselBranchSpec<_T>(
+          initial: const _Feed(),
+          builder: (context, r) => switch (r) {
+            _Feed() => Scaffold(
+              appBar: AppBar(title: const Text('feed')),
+              body: TextButton(
+                onPressed: () => context.push(const _Post()),
+                child: const Text('to-post'),
+              ),
+            ),
+            _Post() => Scaffold(appBar: AppBar(title: const Text('post'))),
+            _Profile() => const SizedBox(),
           },
         ),
-        _Tabs() => KaiselBranchedShell.specs(
-          branches: [
-            KaiselBranchSpec<_T>(
-              initial: const _Feed(),
-              builder: (context, r) => switch (r) {
-                _Feed() => Scaffold(
-                  appBar: AppBar(title: const Text('feed')),
-                  body: TextButton(
-                    onPressed: () => context.push(const _Post()),
-                    child: const Text('to-post'),
-                  ),
-                ),
-                _Post() => Scaffold(appBar: AppBar(title: const Text('post'))),
-                _Profile() => const SizedBox(),
-              },
-            ),
-            KaiselBranchSpec<_T>(
-              initial: const _Profile(),
-              builder: (context, r) =>
-                  Scaffold(appBar: AppBar(title: const Text('profile'))),
-            ),
-          ],
-          chromeBuilder: (context, i, content, switchTo) => content,
+        KaiselBranchSpec<_T>(
+          initial: const _Profile(),
+          builder: (context, r) =>
+              Scaffold(appBar: AppBar(title: const Text('profile'))),
         ),
-        _Module() => const KaiselModuleMount<_G>(module: _CheckoutModule()),
-      },
-    );
+      ],
+      chromeBuilder: (context, i, content, switchTo) => content,
+    ),
+    _Module() => const KaiselModuleMount<_G>(module: _CheckoutModule()),
+  },
+);
 
-Future<KaiselRouter<_App>> _pump(WidgetTester tester, List<_App> stack) async {
+Future<KaiselRouter<_App>> _pump(
+  WidgetTester tester,
+  List<_App> stack, {
+  bool predictive = false,
+}) async {
   final router = KaiselRouter<_App>(initial: stack.first);
   addTearDown(router.dispose);
   await tester.pumpWidget(
-    MaterialApp.router(routerDelegate: _delegate(router)),
+    MaterialApp.router(
+      routerDelegate: _delegate(router, predictive: predictive),
+    ),
   );
   await router.set(stack);
   await tester.pumpAndSettle();
@@ -149,6 +159,36 @@ Future<KaiselRouter<_App>> _pump(WidgetTester tester, List<_App> stack) async {
 
 Future<void> _systemBack(WidgetTester tester) async {
   await tester.binding.handlePopRoute();
+  await tester.pumpAndSettle();
+}
+
+// Android's predictive back arrives over the back gesture channel, not
+// handlePopRoute, and previews the pop while the finger moves.
+Future<void> _predictiveBack(WidgetTester tester) async {
+  const codec = StandardMethodCodec();
+  Future<void> send(MethodCall call) =>
+      tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+        'flutter/backgesture',
+        codec.encodeMethodCall(call),
+        (_) {},
+      );
+  await send(
+    const MethodCall('startBackGesture', <String, Object?>{
+      'touchOffset': <double>[5.0, 300.0],
+      'progress': 0.0,
+      'swipeEdge': 0,
+    }),
+  );
+  await tester.pump();
+  await send(
+    const MethodCall('updateBackGestureProgress', <String, Object?>{
+      'touchOffset': <double>[250.0, 300.0],
+      'progress': 0.9,
+      'swipeEdge': 0,
+    }),
+  );
+  await tester.pump(const Duration(milliseconds: 60));
+  await send(const MethodCall('commitBackGesture'));
   await tester.pumpAndSettle();
 }
 
@@ -272,5 +312,49 @@ void main() {
       await tester.pumpAndSettle();
       expect(router.stack, const [_Home()]);
     });
+  });
+
+  group('Android predictive back', () {
+    for (final predictive in [false, true]) {
+      final label = predictive ? 'with' : 'without';
+
+      testWidgets(
+        'leaves a KaiselShell from its first screen, $label preview pages',
+        (tester) async {
+          final router = await _pump(tester, const [
+            _Home(),
+            _Other(),
+            _Group(),
+          ], predictive: predictive);
+          expect(find.byType(BackButton), findsOneWidget);
+          await _predictiveBack(tester);
+          expect(router.stack, const [_Home(), _Other()]);
+          expect(find.text('other'), findsOneWidget);
+        },
+        variant: TargetPlatformVariant.only(TargetPlatform.android),
+      );
+
+      testWidgets(
+        'leaves a branched shell from a tab root, $label preview pages',
+        (tester) async {
+          final router = await _pump(tester, const [
+            _Home(),
+            _Other(),
+            _Tabs(),
+          ], predictive: predictive);
+          await tester.tap(find.text('to-post'));
+          await tester.pumpAndSettle();
+
+          await _predictiveBack(tester);
+          expect(find.text('feed'), findsOneWidget);
+          expect(router.stack, const [_Home(), _Other(), _Tabs()]);
+
+          await _predictiveBack(tester);
+          expect(router.stack, const [_Home(), _Other()]);
+          expect(find.text('other'), findsOneWidget);
+        },
+        variant: TargetPlatformVariant.only(TargetPlatform.android),
+      );
+    }
   });
 }
