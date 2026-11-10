@@ -141,8 +141,10 @@ KaiselRouterDelegate<_App> _delegate(
         ),
         KaiselBranchSpec<_T>(
           initial: const _Profile(),
-          builder: (context, r) =>
-              Scaffold(appBar: AppBar(title: const Text('profile'))),
+          builder: (context, r) => PopScope(
+            canPop: false,
+            child: Scaffold(appBar: AppBar(title: const Text('profile'))),
+          ),
         ),
       ],
       chromeBuilder: (context, i, content, switchTo) => content,
@@ -340,6 +342,19 @@ void main() {
       final router = await _pump(tester, const [_Home(), _Other(), _Tabs()]);
       await _systemBack(tester);
       expect(router.stack, const [_Home(), _Other()]);
+    });
+
+    testWidgets('a PopScope veto on a tab root keeps the shell', (
+      tester,
+    ) async {
+      final router = await _pump(tester, const [_Home(), _Tabs()]);
+      tester.element(find.text('feed')).shell().switchTo(1);
+      await tester.pumpAndSettle();
+      expect(find.text('profile'), findsOneWidget);
+
+      await _systemBack(tester);
+      expect(router.stack, const [_Home(), _Tabs()]);
+      expect(find.text('profile'), findsOneWidget);
     });
 
     testWidgets('system back pops inside the tab before leaving the shell', (

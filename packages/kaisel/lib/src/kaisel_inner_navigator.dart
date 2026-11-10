@@ -170,6 +170,9 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
 
   ModalRoute<Object?>? _parent;
 
+  // The first page's route, reported by its bridge.
+  ModalRoute<Object?>? _rootRoute;
+
   // AppBar picks a close button over a back arrow only when its own route is
   // a fullscreen dialog, so the first page mirrors a host opened as one.
   bool get _hostIsFullscreenDialog => switch (_parent) {
@@ -186,6 +189,7 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
       child: _ParentPopBridge(
         parent: parent,
         enabled: parent.impliesAppBarDismissal,
+        onRoute: (route) => _rootRoute = route,
         child: ctx.child,
       ),
       key: ctx.key,
@@ -278,14 +282,17 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
         },
       ),
     );
-    if (_parent?.impliesAppBarDismissal != true) return navigator;
     // The bridge's local history entry makes the Navigator claim it can handle
     // back even at its root. Hosts that intercept back on that claim (the
     // branched shell's NavigatorPopHandler) would then swallow a back that
-    // should leave the host, so report the router's own answer instead.
+    // should leave the host, so report what the Navigator would without the
+    // entry: the router can pop, or the first page vetoes with a PopScope.
     return NotificationListener<NavigationNotification>(
       onNotification: (notification) {
-        final canHandlePop = widget.router.canPop;
+        if (_parent?.impliesAppBarDismissal != true) return false;
+        final canHandlePop =
+            widget.router.canPop ||
+            _rootRoute?.popDisposition == RoutePopDisposition.doNotPop;
         if (notification.canHandlePop == canHandlePop) return false;
         NavigationNotification(canHandlePop: canHandlePop).dispatch(context);
         return true;
@@ -303,11 +310,13 @@ class _ParentPopBridge extends StatefulWidget {
   const _ParentPopBridge({
     required this.parent,
     required this.enabled,
+    required this.onRoute,
     required this.child,
   });
 
   final ModalRoute<Object?> parent;
   final bool enabled;
+  final ValueSetter<ModalRoute<Object?>?> onRoute;
   final Widget child;
 
   @override
@@ -326,6 +335,7 @@ class _ParentPopBridgeState extends State<_ParentPopBridge> {
     if (!identical(route, _route)) {
       _detach();
       _route = route;
+      widget.onRoute(route);
     }
     _sync();
   }
