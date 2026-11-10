@@ -122,6 +122,28 @@ final class ProductDetail extends AppRoute {
   unequal and the stack will treat them as distinct entries.
 - Sealed type at the root. Pattern matching downstream depends on
   exhaustiveness, which requires the base to be `sealed`.
+- Match the project's language version. Check the `environment: sdk:`
+  lower bound in the user's `pubspec.yaml`. At `^3.13.0` or higher, write
+  route variants with primary constructors; below that they fail to
+  compile, so use the classic form above. Don't mix the two forms in one
+  route file, and don't raise the user's SDK constraint just to use them.
+
+  ```dart
+  // sdk: ^3.13.0 or higher
+  final class const Home() extends AppRoute;
+
+  final class const ProductList({final String? category}) extends AppRoute {
+    @override
+    List<Object?> get props => [category];
+  }
+
+  final class const ProductDetail(final String id) extends AppRoute {
+    @override
+    List<Object?> get props => [id];
+  }
+  ```
+
+  Primary constructors don't generate `==`, so `props` is still required.
 
 ## 2. Wiring up the router
 
