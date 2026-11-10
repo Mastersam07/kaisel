@@ -265,6 +265,7 @@ class _KaiselModuleMountState<R extends KaiselRoute>
                 ? widget.module.buildAdaptivePage
                 : null,
             pageWrapper: widget.module.pageWrapper,
+            rootPopsParent: true,
           ),
         ),
       ),

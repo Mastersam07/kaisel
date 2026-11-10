@@ -331,6 +331,7 @@ class _KaiselBranchState<R extends KaiselRoute> extends State<KaiselBranch<R>> {
       pageBuilder: widget._pageBuilder,
       adaptivePageBuilder: widget._adaptivePageBuilder,
       pageWrapper: widget.pageWrapper,
+      rootPopsParent: true,
     );
     final scope = widget.scope;
     if (scope != null) {

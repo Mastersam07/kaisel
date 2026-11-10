@@ -38,6 +38,7 @@ class KaiselInnerNavigator<R extends KaiselRoute> extends StatefulWidget {
     this.pageWrapper,
     this.observers = const [],
     this.reportsScreen = true,
+    this.rootPopsParent = false,
   }) : assert(
          (pageBuilder == null) != (adaptivePageBuilder == null),
          'Provide exactly one of pageBuilder or adaptivePageBuilder',
@@ -75,6 +76,16 @@ class KaiselInnerNavigator<R extends KaiselRoute> extends StatefulWidget {
   /// root, but only one is on screen, so the shell reports the active branch's
   /// top instead.
   final bool reportsScreen;
+
+  /// Whether back on this navigator's first page leaves the page that hosts
+  /// it, the way it would if the first page sat directly on the parent stack.
+  ///
+  /// Shells and module mounts set this. Their first page has nothing below it
+  /// in its own [Navigator], so without it an [AppBar] there shows no back
+  /// arrow even though the system back button would leave the shell. When the
+  /// hosting page can be popped, the first page gets a back arrow, and tapping
+  /// it pops the hosting page.
+  final bool rootPopsParent;
 
   @override
   State<KaiselInnerNavigator<R>> createState() =>
@@ -157,7 +168,28 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
     super.dispose();
   }
 
-  Page<Object?> _wrapSimple(KaiselPageWrapperContext<R> ctx) {
+  ModalRoute<Object?>? _parent;
+
+  KaiselPageWrapperContext<R> _bridgeRoot(KaiselPageWrapperContext<R> ctx) {
+    final parent = _parent;
+    if (parent == null || ctx.position != 0) return ctx;
+    return KaiselPageWrapperContext<R>(
+      route: ctx.route,
+      child: _ParentPopBridge(
+        parent: parent,
+        enabled: parent.impliesAppBarDismissal,
+        child: ctx.child,
+      ),
+      key: ctx.key,
+      position: ctx.position,
+      stackLength: ctx.stackLength,
+      previous: ctx.previous,
+      isFlow: ctx.isFlow,
+    );
+  }
+
+  Page<Object?> _wrapSimple(KaiselPageWrapperContext<R> raw) {
+    final ctx = _bridgeRoot(raw);
     final wrapper = widget.pageWrapper;
     if (wrapper case final wrapper?) return wrapper(ctx);
     return kaiselDefaultPage(
@@ -167,7 +199,8 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
     );
   }
 
-  Page<Object?> _wrapAdaptive(KaiselPageWrapperContext<R> ctx) {
+  Page<Object?> _wrapAdaptive(KaiselPageWrapperContext<R> raw) {
+    final ctx = _bridgeRoot(raw);
     final wrapper = widget.pageWrapper;
     if (wrapper case final wrapper?) return wrapper(ctx);
     return kaiselDefaultPage(
@@ -179,6 +212,7 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
 
   @override
   Widget build(BuildContext context) {
+    _parent = widget.rootPopsParent ? ModalRoute.of(context) : null;
     final entries = widget.router.entries;
     final pages = switch (widget.adaptivePageBuilder) {
       final builder? => buildAdaptivePages<R>(
@@ -219,7 +253,7 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
       ],
     };
 
-    return HeroControllerScope(
+    final navigator = HeroControllerScope(
       controller: _heroController,
       child: Navigator(
         key: widget.navigatorKey,
@@ -234,7 +268,109 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
         },
       ),
     );
+    if (_parent?.impliesAppBarDismissal != true) return navigator;
+    // The bridge's local history entry makes the Navigator claim it can handle
+    // back even at its root. Hosts that intercept back on that claim (the
+    // branched shell's NavigatorPopHandler) would then swallow a back that
+    // should leave the host, so report the router's own answer instead.
+    return NotificationListener<NavigationNotification>(
+      onNotification: (notification) {
+        final canHandlePop = widget.router.canPop;
+        if (notification.canHandlePop == canHandlePop) return false;
+        NavigationNotification(canHandlePop: canHandlePop).dispatch(context);
+        return true;
+      },
+      child: navigator,
+    );
   }
+}
+
+// Gives the first page of a nested navigator a local history entry while its
+// hosting page can be popped. AppBar counts local history entries when deciding
+// whether to show a back arrow, and BackButton pops the entry first, so the
+// arrow appears and tapping it removes the entry, which pops the hosting page.
+class _ParentPopBridge extends StatefulWidget {
+  const _ParentPopBridge({
+    required this.parent,
+    required this.enabled,
+    required this.child,
+  });
+
+  final ModalRoute<Object?> parent;
+  final bool enabled;
+  final Widget child;
+
+  @override
+  State<_ParentPopBridge> createState() => _ParentPopBridgeState();
+}
+
+class _ParentPopBridgeState extends State<_ParentPopBridge> {
+  ModalRoute<Object?>? _route;
+  LocalHistoryEntry? _entry;
+  bool _added = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (!identical(route, _route)) {
+      _detach();
+      _route = route;
+    }
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_ParentPopBridge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _detach();
+    super.dispose();
+  }
+
+  void _sync() => widget.enabled ? _attach() : _detach();
+
+  void _attach() {
+    if (_entry != null) return;
+    late final LocalHistoryEntry entry;
+    entry = LocalHistoryEntry(
+      onRemove: () {
+        if (!identical(_entry, entry)) return;
+        _entry = null;
+        _added = false;
+        final parent = widget.parent;
+        if (parent.isCurrent) parent.navigator?.maybePop();
+      },
+    );
+    _entry = entry;
+    // Adding an entry rebuilds the route, which can't happen mid build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final route = _route;
+      if (!mounted || !identical(_entry, entry) || route == null) return;
+      if (!route.isActive) return;
+      route.addLocalHistoryEntry(entry);
+      _added = true;
+    });
+  }
+
+  void _detach() {
+    final entry = _entry;
+    final route = _route;
+    final added = _added;
+    _entry = null;
+    _added = false;
+    if (entry == null || !added || route == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (route.isActive) route.removeLocalHistoryEntry(entry);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Carries the restoration scope id for the [KaiselInnerNavigator] below it.
