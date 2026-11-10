@@ -1,3 +1,13 @@
+## Unreleased
+
+- **Behaviour change:** when a guard redirects a navigation and the main
+  stack changes as a result, `KaiselRouter` now closes every open modal flow,
+  topmost first, and each `run` resolves with `null`. Before, the flow stayed
+  on top and hid the screen the guard sent the user to (signing out mid flow
+  left the flow over Login). A guard that refuses a change leaves flows open,
+  and guards on a flow's own router never close flows
+  ([#90](https://github.com/Mastersam07/kaisel/issues/90)).
+
 ## 1.2.0
 
 - `KaiselNavigator.set(stack)`: an alias for `restoreStack` on the type
