@@ -230,20 +230,13 @@ What guards do and don't see around a flow:
 - **`reevaluateOn` doesn't reach flows.** It re-runs the main router's
   guards against the main stack only. Call `reevaluate()` on a flow's
   router (`router.activeFlows.last.router`) if a flow guard needs it.
-- **A main guard redirect leaves open flows on top.** If an auth guard
-  rewrites the main stack to `[Login]`, an open flow still covers it.
-  Close it next to the guard:
-
-  ```dart
-  auth.addListener(() {
-    if (!auth.signedIn && router.hasActiveFlow) router.dismissFlow();
-  });
-  ```
-
-  `dismissFlow` closes only the topmost flow, with `null`. The flow
-  beneath becomes topmost once that one has finished closing, so two
-  calls in a row close one flow, not two. With nested flows, call it
-  again after the top flow is gone.
+- **A main guard redirect closes open flows.** When a main router guard
+  rewrites a navigation and the main stack changes as a result (an auth
+  guard sending a signed out user to `[Login]`, a lock guard appending a
+  passcode screen), every open flow is closed, topmost first, and each
+  `run` resolves with `null`. Otherwise the flow would stay on top and hide
+  the screen the guard sent the user to. A guard that refuses a change
+  leaves flows open, and guards on a flow's own router never close flows.
 
 ## Re-running guards when the world changes
 

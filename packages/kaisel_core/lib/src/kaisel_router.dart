@@ -595,6 +595,12 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
   /// (a flow is its own transient state, not a navigation on the main
   /// stack). The sub-router has no guards by default; pass [flowGuards]
   /// if you need them.
+  ///
+  /// When a main router guard redirects a navigation and the stack changes
+  /// as a result (an auth guard sending a signed out user to `[Login]`),
+  /// every open flow is closed, topmost first, and each [run] resolves with
+  /// `null`. A guard that refuses a change leaves flows open, and guards on
+  /// a flow's own router never close flows.
   Future<T?> run<T>(
     KaiselModalRoute<T> flow, {
     List<KaiselGuard<R>> flowGuards = const [],
@@ -704,11 +710,28 @@ class KaiselRouter<R extends KaiselRoute> extends KaiselChangeNotifier
     // the current stack — not when a guard later collapses it.
     final proposedNoOp = recordNoOp && _sameRoutes(stack, proposed);
     final result = await _runGuards(stack, proposed);
+    final before = stack;
     _applyStack(
       result,
       recordNoOp: proposedNoOp,
       replacesHistory: replacesHistory,
     );
+    // A redirect moved the main stack somewhere the caller didn't ask for, so
+    // an open flow would sit on top of a screen it was never meant to cover
+    // (signing out mid flow leaves the flow over Login). A refusal leaves the
+    // stack where it was, so it keeps flows open.
+    if (_flowHost == null &&
+        _flows.isNotEmpty &&
+        !_sameRoutes(proposed, result) &&
+        !_sameRoutes(before, stack)) {
+      _closeAllFlows();
+    }
+  }
+
+  void _closeAllFlows() {
+    for (final flow in _flows.reversed.toList()) {
+      if (!flow.completer.isCompleted) flow.completer.complete(null);
+    }
   }
 
   Future<List<R>> _runGuards(List<R> current, List<R> proposed) async {

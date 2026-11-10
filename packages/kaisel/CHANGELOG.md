@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Behaviour change:** a main router guard that redirects the main stack
+  now closes open modal flows, so signing out mid flow shows Login instead of
+  leaving the flow on top. Each `run` resolves with `null`. Comes from
+  `kaisel_core` ([#90](https://github.com/Mastersam07/kaisel/issues/90)).
+
 ## 1.2.0
 
 One behaviour change, `context.pop()` on the first screen of a modal flow;

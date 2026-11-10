@@ -252,7 +252,7 @@ you open a card-entry sub-flow would be useless.
 
 ## Dismissal semantics
 
-There are three ways a flow can end:
+There are four ways a flow can end:
 
 - **Complete.** Caller of `run<T>` receives the value. Use
   `context.completeFlow<T>(value)`.
@@ -264,10 +264,11 @@ There are three ways a flow can end:
   `run<T>` never hangs. There's no per-flow cancel API: `dismissFlow()`
   resolves the *topmost* flow, so to force a flow shut from outside
   (e.g. logout while a flow is open) you tear down the host, or
-  `dismissFlow()` from the top down. A main router guard that
-  redirects (say to `[Login]`) does **not** close open flows; dismiss
-  the flow from the same auth listener (see *Per-flow guards* in the
-  guards guide for nested flows).
+  `dismissFlow()` from the top down.
+- **Redirect.** A main router guard that redirects the main stack (say
+  to `[Login]` on sign out) closes every open flow with `null`. A guard
+  that only refuses a change leaves flows open (see *Per-flow guards* in
+  the guards guide).
 
 All of these resolve the `Future<T?>`. The caller should always handle
 `null` as a first-class outcome.
