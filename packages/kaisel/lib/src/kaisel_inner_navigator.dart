@@ -170,6 +170,14 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
 
   ModalRoute<Object?>? _parent;
 
+  // AppBar picks a close button over a back arrow only when its own route is
+  // a fullscreen dialog, so the first page mirrors a host opened as one.
+  bool get _hostIsFullscreenDialog => switch (_parent) {
+    final PageRoute<Object?> host =>
+      host.fullscreenDialog && host.impliesAppBarDismissal,
+    _ => false,
+  };
+
   KaiselPageWrapperContext<R> _bridgeRoot(KaiselPageWrapperContext<R> ctx) {
     final parent = _parent;
     if (parent == null || ctx.position != 0) return ctx;
@@ -196,6 +204,7 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
       ctx,
       transition: _webTransition,
       androidPredictiveBack: _androidPredictiveBack,
+      fullscreenDialog: ctx.position == 0 && _hostIsFullscreenDialog,
     );
   }
 
@@ -207,6 +216,7 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
       ctx,
       transition: _webTransition,
       androidPredictiveBack: _androidPredictiveBack,
+      fullscreenDialog: ctx.position == 0 && _hostIsFullscreenDialog,
     );
   }
 

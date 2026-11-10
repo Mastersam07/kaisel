@@ -99,8 +99,16 @@ KaiselRouterDelegate<_App> _delegate(
   KaiselRouter<_App> router, {
   bool predictive = false,
   bool rootBackArrow = true,
+  bool shellAsDialog = false,
 }) => KaiselRouterDelegate<_App>(
   router: router,
+  pageWrapper: shellAsDialog
+      ? (ctx) => MaterialPage<Object?>(
+          key: ctx.key,
+          fullscreenDialog: ctx.route is _Group,
+          child: ctx.child,
+        )
+      : null,
   androidPredictiveBack: predictive,
   builder: (context, route) => switch (route) {
     _Home() => const Scaffold(body: Text('home')),
@@ -151,6 +159,7 @@ Future<KaiselRouter<_App>> _pump(
   List<_App> stack, {
   bool predictive = false,
   bool rootBackArrow = true,
+  bool shellAsDialog = false,
 }) async {
   final router = KaiselRouter<_App>(initial: stack.first);
   addTearDown(router.dispose);
@@ -160,6 +169,7 @@ Future<KaiselRouter<_App>> _pump(
         router,
         predictive: predictive,
         rootBackArrow: rootBackArrow,
+        shellAsDialog: shellAsDialog,
       ),
     ),
   );
@@ -216,6 +226,44 @@ void main() {
 
       expect(router.stack, const [_Home(), _Other()]);
       expect(find.text('other'), findsOneWidget);
+    });
+
+    testWidgets('a shell opened as a fullscreen dialog gets a close button', (
+      tester,
+    ) async {
+      final router = await _pump(tester, const [
+        _Home(),
+        _Group(),
+      ], shellAsDialog: true);
+      expect(find.byType(CloseButton), findsOneWidget);
+      expect(find.byType(BackButton), findsNothing);
+
+      await tester.tap(find.byType(CloseButton));
+      await tester.pumpAndSettle();
+      expect(router.stack, const [_Home()]);
+    });
+
+    testWidgets('pop APIs on the first screen', (tester) async {
+      final router = await _pump(tester, const [_Home(), _Group()]);
+      final context = tester.element(find.text('cart'));
+
+      expect(Navigator.canPop(context), isTrue);
+      expect(await context.pop(), isFalse);
+      await tester.pumpAndSettle();
+      expect(router.stack, const [_Home(), _Group()]);
+
+      expect(await context.maybePop(), isTrue);
+      await tester.pumpAndSettle();
+      expect(router.stack, const [_Home()]);
+    });
+
+    testWidgets('Navigator.maybePop leaves the shell', (tester) async {
+      final router = await _pump(tester, const [_Home(), _Group()]);
+      final context = tester.element(find.text('cart'));
+
+      expect(await Navigator.maybePop(context), isTrue);
+      await tester.pumpAndSettle();
+      expect(router.stack, const [_Home()]);
     });
 
     testWidgets('no back arrow when the shell is the bottom page', (

@@ -39,6 +39,7 @@ Page<Object?> kaiselDefaultPage<R extends KaiselRoute>(
   required KaiselWebTransition transition,
   bool isWeb = kIsWeb,
   bool androidPredictiveBack = false,
+  bool fullscreenDialog = false,
 }) {
   if (isWeb) {
     if (transition == KaiselWebTransition.platform) {
@@ -47,6 +48,7 @@ Page<Object?> kaiselDefaultPage<R extends KaiselRoute>(
         name: ctx.route.routeName,
         arguments: ctx.route,
         restorationId: ctx.route.restorationId,
+        fullscreenDialog: fullscreenDialog,
         child: ctx.child,
       );
     }
@@ -56,6 +58,7 @@ Page<Object?> kaiselDefaultPage<R extends KaiselRoute>(
       arguments: ctx.route,
       restorationId: ctx.route.restorationId,
       fade: transition == KaiselWebTransition.fade,
+      fullscreenDialog: fullscreenDialog,
       child: ctx.child,
     );
   }
@@ -65,6 +68,7 @@ Page<Object?> kaiselDefaultPage<R extends KaiselRoute>(
     arguments: ctx.route,
     restorationId: ctx.route.restorationId,
     androidPredictiveBack: androidPredictiveBack,
+    fullscreenDialog: fullscreenDialog,
     child: ctx.child,
   );
 }
@@ -77,6 +81,7 @@ class _KaiselMaterialPage<T> extends MaterialPage<T> {
     super.name,
     super.arguments,
     super.restorationId,
+    super.fullscreenDialog,
   });
 
   final bool androidPredictiveBack;
@@ -150,6 +155,7 @@ class _WebTransitionPage<T> extends Page<T> {
   const _WebTransitionPage({
     required this.child,
     required this.fade,
+    this.fullscreenDialog = false,
     super.key,
     super.name,
     super.arguments,
@@ -159,6 +165,8 @@ class _WebTransitionPage<T> extends Page<T> {
   final Widget child;
 
   final bool fade;
+
+  final bool fullscreenDialog;
 
   @override
   Route<T> createRoute(BuildContext context) => _WebTransitionRoute<T>(this);
@@ -194,6 +202,9 @@ class _WebTransitionRoute<T> extends PageRoute<T> {
 
   @override
   bool get maintainState => true;
+
+  @override
+  bool get fullscreenDialog => _page.fullscreenDialog;
 
   @override
   Widget buildPage(
