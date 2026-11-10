@@ -460,6 +460,9 @@ the whole group when the order is placed.
 Back works as it would on the main stack. The group's first screen gets an
 `AppBar` back arrow whenever there's a page below the shell, and tapping it
 leaves the group. System back pops within the group first, then leaves it.
+Pass `rootBackArrow: false` to a shell (or `KaiselModuleMount`) to keep its
+first screens without the implied arrow, for example tab roots whose chrome
+already offers a way out.
 
 Trade-offs: the group enters and leaves as one page, and pushes inside it
 animate within the shell. Deep links into the middle of the group need the

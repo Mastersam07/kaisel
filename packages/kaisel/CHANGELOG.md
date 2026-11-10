@@ -10,7 +10,8 @@
   or a `KaiselModuleMount` now shows an `AppBar` back arrow when there's a
   page below the shell, and tapping it pops the shell. Before, the arrow was
   missing there even though system back already left the shell. System back
-  is unchanged. This makes a single branch shell a clean way to share a
+  is unchanged. Pass `rootBackArrow: false` to opt out per shell or module
+  mount. This makes a single branch shell a clean way to share a
   provider across a group of screens; the shells guide shows how
   ([#91](https://github.com/Mastersam07/kaisel/issues/91)).
 

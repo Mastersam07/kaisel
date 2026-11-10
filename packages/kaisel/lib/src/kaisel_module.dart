@@ -166,10 +166,20 @@ class _ModuleHandle<R extends KaiselRoute> implements KaiselNestedHandle {
 /// `KaiselBranch`.
 class KaiselModuleMount<R extends KaiselRoute> extends StatefulWidget {
   /// Create a mount around [module].
-  const KaiselModuleMount({super.key, required this.module});
+  const KaiselModuleMount({
+    super.key,
+    required this.module,
+    this.rootBackArrow = true,
+  });
 
   /// The module to mount.
   final RouteModule<R> module;
+
+  /// Whether the module's first screen shows an `AppBar` back arrow that
+  /// leaves the module when there's a page below it. Defaults to true, so the
+  /// arrow matches what system back does. Pass false to keep the first screen
+  /// without an implied back arrow.
+  final bool rootBackArrow;
 
   @override
   State<KaiselModuleMount<R>> createState() => _KaiselModuleMountState<R>();
@@ -265,7 +275,7 @@ class _KaiselModuleMountState<R extends KaiselRoute>
                 ? widget.module.buildAdaptivePage
                 : null,
             pageWrapper: widget.module.pageWrapper,
-            rootPopsParent: true,
+            rootPopsParent: widget.rootBackArrow,
           ),
         ),
       ),

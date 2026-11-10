@@ -98,6 +98,7 @@ Widget _cart(BuildContext context) => Scaffold(
 KaiselRouterDelegate<_App> _delegate(
   KaiselRouter<_App> router, {
   bool predictive = false,
+  bool rootBackArrow = true,
 }) => KaiselRouterDelegate<_App>(
   router: router,
   androidPredictiveBack: predictive,
@@ -105,6 +106,7 @@ KaiselRouterDelegate<_App> _delegate(
     _Home() => const Scaffold(body: Text('home')),
     _Other() => const Scaffold(body: Text('other')),
     _Group() => KaiselShell<_G>(
+      rootBackArrow: rootBackArrow,
       branchInitials: const [_Cart()],
       chromeBuilder: (context, i, content, _) => content,
       pageBuilder: (context, r) => switch (r) {
@@ -113,6 +115,7 @@ KaiselRouterDelegate<_App> _delegate(
       },
     ),
     _Tabs() => KaiselBranchedShell.specs(
+      rootBackArrow: rootBackArrow,
       branches: [
         KaiselBranchSpec<_T>(
           initial: const _Feed(),
@@ -136,7 +139,10 @@ KaiselRouterDelegate<_App> _delegate(
       ],
       chromeBuilder: (context, i, content, switchTo) => content,
     ),
-    _Module() => const KaiselModuleMount<_G>(module: _CheckoutModule()),
+    _Module() => KaiselModuleMount<_G>(
+      module: const _CheckoutModule(),
+      rootBackArrow: rootBackArrow,
+    ),
   },
 );
 
@@ -144,12 +150,17 @@ Future<KaiselRouter<_App>> _pump(
   WidgetTester tester,
   List<_App> stack, {
   bool predictive = false,
+  bool rootBackArrow = true,
 }) async {
   final router = KaiselRouter<_App>(initial: stack.first);
   addTearDown(router.dispose);
   await tester.pumpWidget(
     MaterialApp.router(
-      routerDelegate: _delegate(router, predictive: predictive),
+      routerDelegate: _delegate(
+        router,
+        predictive: predictive,
+        rootBackArrow: rootBackArrow,
+      ),
     ),
   );
   await router.set(stack);
@@ -355,6 +366,27 @@ void main() {
         },
         variant: TargetPlatformVariant.only(TargetPlatform.android),
       );
+    }
+  });
+
+  group('rootBackArrow: false', () {
+    for (final (name, host) in const [
+      ('KaiselShell', _Group()),
+      ('KaiselBranchedShell', _Tabs()),
+      ('KaiselModuleMount', _Module()),
+    ]) {
+      testWidgets('$name keeps its first screen without an arrow', (
+        tester,
+      ) async {
+        final router = await _pump(tester, [
+          const _Home(),
+          host,
+        ], rootBackArrow: false);
+        expect(find.byType(BackButton), findsNothing);
+
+        await _systemBack(tester);
+        expect(router.stack, const [_Home()]);
+      });
     }
   });
 }

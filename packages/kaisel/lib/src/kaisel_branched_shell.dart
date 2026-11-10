@@ -331,7 +331,7 @@ class _KaiselBranchState<R extends KaiselRoute> extends State<KaiselBranch<R>> {
       pageBuilder: widget._pageBuilder,
       adaptivePageBuilder: widget._adaptivePageBuilder,
       pageWrapper: widget.pageWrapper,
-      rootPopsParent: true,
+      rootPopsParent: _RootBackArrowScope.enabledOf(context),
     );
     final scope = widget.scope;
     if (scope != null) {
@@ -554,6 +554,7 @@ class KaiselBranchedShell extends StatefulWidget {
     required List<Widget> this.branches,
     required this.chromeBuilder,
     this.branchContentBuilder,
+    this.rootBackArrow = true,
   }) : specs = null,
        initialBranch = 0,
        lazy = false,
@@ -572,6 +573,7 @@ class KaiselBranchedShell extends StatefulWidget {
     this.branchContentBuilder,
     this.lazyBranchContentBuilder,
     this.lazy = false,
+    this.rootBackArrow = true,
   }) : assert(
          !lazy || branchContentBuilder == null,
          'lazy: true has no pre-built branch list; pass a '
@@ -597,6 +599,12 @@ class KaiselBranchedShell extends StatefulWidget {
 
   /// The branch shown first (specs mode).
   final int initialBranch;
+
+  /// Whether the first screen of each branch shows an `AppBar` back arrow
+  /// that leaves the shell when there's a page below it. Defaults to true, so
+  /// the arrow matches what system back does. Pass false to keep the first
+  /// screens without an implied back arrow.
+  final bool rootBackArrow;
 
   /// Build branches on first activation instead of all up front, keeping built
   /// ones alive (specs mode). Defaults to `false` — the eager [IndexedStack].
@@ -791,6 +799,13 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
 
   @override
   Widget build(BuildContext context) {
+    return _RootBackArrowScope(
+      enabled: widget.rootBackArrow,
+      child: _buildShell(context),
+    );
+  }
+
+  Widget _buildShell(BuildContext context) {
     return KaiselShellScope(
       controller: _shell,
       child: ShellChromeScope(
@@ -961,4 +976,22 @@ class _DeferredBranchState extends State<_DeferredBranch> {
     }
     return _loaded ? widget.child : widget.placeholder;
   }
+}
+
+// Carries the shell's rootBackArrow down to its KaiselBranch widgets, which the
+// explicit constructor lets callers build themselves.
+class _RootBackArrowScope extends InheritedWidget {
+  const _RootBackArrowScope({required this.enabled, required super.child});
+
+  final bool enabled;
+
+  static bool enabledOf(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<_RootBackArrowScope>()
+          ?.enabled ??
+      true;
+
+  @override
+  bool updateShouldNotify(_RootBackArrowScope oldWidget) =>
+      oldWidget.enabled != enabled;
 }
