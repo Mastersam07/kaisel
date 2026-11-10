@@ -76,4 +76,6 @@ Appears and works with zero configuration. `AppBar` shows its inferred
 back button whenever the current route can pop — and since kaisel pages
 are ordinary `ModalRoute`s, `AppBar` can't tell kaisel is involved at
 all. Inside [shells](/guides/shells/), system back pops the active tab's
-own stack first, then falls through — also automatic.
+own stack first, then falls through — also automatic. A shell's first
+screen shows the arrow too when there's a page below the shell, and
+tapping it leaves the shell.

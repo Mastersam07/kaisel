@@ -420,6 +420,57 @@ route into the "home" tab. When tabs need **different** route types (and
 that compile-time guard), use `KaiselBranchedShell` with per-branch
 sealed types.
 
+## Sharing a provider across a group of screens
+
+A few screens on the main stack that share one piece of state (a checkout's
+`CheckoutBloc` across Cart, Address and Payment) have no common parent: they
+are siblings in one `Navigator`. Give them one with a single branch
+`KaiselShell`, and put the provider around it. It is created when the group
+opens and disposed when the group's page leaves, after its exit animation.
+
+```dart
+sealed class CheckoutRoute extends KaiselRoute { const CheckoutRoute(); }
+final class Cart extends CheckoutRoute { const Cart(); }
+final class Address extends CheckoutRoute { const Address(); }
+final class Payment extends CheckoutRoute { const Payment(); }
+
+// One marker route on the main stack opens the whole group.
+final class Checkout extends AppRoute { const Checkout(); }
+
+// In the main builder:
+Checkout() => BlocProvider(
+  create: (_) => CheckoutBloc(),
+  child: KaiselShell<CheckoutRoute>(
+    branchInitials: const [Cart()],
+    pageBuilder: (context, route) => switch (route) {
+      Cart() => const CartScreen(),
+      Address() => const AddressScreen(),
+      Payment() => const PaymentScreen(),
+    },
+    chromeBuilder: (context, _, content, _) => content,
+  ),
+),
+```
+
+Open it with `context.push(const Checkout())`. Inside the group,
+`context.push(const Address())` moves within it, and
+`context.router<AppRoute>()` reaches the main stack, for example to leave
+the whole group when the order is placed.
+
+Back works as it would on the main stack. The group's first screen gets an
+`AppBar` back arrow whenever there's a page below the shell (a close button
+if the shell was opened as a fullscreen dialog), and tapping it leaves the
+group. System back pops within the group first, then leaves it.
+Pass `rootBackArrow: false` to a shell (or `KaiselModuleMount`) to keep its
+first screens without the implied arrow, for example tab roots whose chrome
+already offers a way out.
+
+Trade-offs: the group enters and leaves as one page, and pushes inside it
+animate within the shell. Deep links into the middle of the group need the
+shell's nested state in your codec (see the codec guide). Screens that need
+the provider only for a single result are often simpler as a modal flow,
+with the provider in `modalBuilder`.
+
 ## Observers and tab switches
 
 The app-level `observers:` builder is invoked fresh for every navigator,

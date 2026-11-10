@@ -118,6 +118,7 @@ class KaiselShell<R extends KaiselRoute> extends StatefulWidget {
     this.guards = const [],
     this.branchScope,
     this.pageWrapper,
+    this.rootBackArrow = true,
   }) : _pageBuilder = pageBuilder,
        _adaptivePageBuilder = null;
 
@@ -139,6 +140,7 @@ class KaiselShell<R extends KaiselRoute> extends StatefulWidget {
     this.guards = const [],
     this.branchScope,
     this.pageWrapper,
+    this.rootBackArrow = true,
   }) : _pageBuilder = null,
        _adaptivePageBuilder = pageBuilder;
 
@@ -164,6 +166,12 @@ class KaiselShell<R extends KaiselRoute> extends StatefulWidget {
 
   /// Optional page wrapper. Defaults to [MaterialPage].
   final KaiselPageWrapper<R>? pageWrapper;
+
+  /// Whether the first screen of each branch shows an `AppBar` back arrow
+  /// that leaves the shell when there's a page below it. Defaults to true, so
+  /// the arrow matches what system back does. Pass false to keep the first
+  /// screens without an implied back arrow.
+  final bool rootBackArrow;
 
   @override
   State<KaiselShell<R>> createState() => _KaiselShellState<R>();
@@ -291,6 +299,7 @@ class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
       pageBuilder: widget._pageBuilder,
       adaptivePageBuilder: widget._adaptivePageBuilder,
       pageWrapper: widget.pageWrapper,
+      rootPopsParent: widget.rootBackArrow,
     );
     final scope = widget.branchScope;
     if (scope != null) {

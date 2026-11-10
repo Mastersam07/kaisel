@@ -6,6 +6,18 @@
   now closes open modal flows, so signing out mid flow shows Login instead of
   leaving the flow on top. Each `run` resolves with `null`. Comes from
   `kaisel_core` ([#90](https://github.com/Mastersam07/kaisel/issues/90)).
+- **Behaviour change:** the first screen inside a shell (`KaiselShell`,
+  `KaiselBranchedShell`) or a `KaiselModuleMount` now acts like a pushed page
+  when there's a page below the shell. Its `AppBar` shows a back arrow (a
+  close button when the shell was opened as a fullscreen dialog), and tapping
+  it pops the shell. System back already did this and is unchanged. On that
+  screen `Navigator.canPop(context)` now returns true, and
+  `Navigator.maybePop(context)` and `context.maybePop()` now leave the shell;
+  `context.pop()` still returns false there, since the shell's own stack is at
+  its root. Pass `rootBackArrow: false` to keep the old behaviour per shell or
+  module mount. This makes a single branch shell a clean way to share a
+  provider across a group of screens; the shells guide shows how
+  ([#91](https://github.com/Mastersam07/kaisel/issues/91)).
 
 ## 1.2.0
 
