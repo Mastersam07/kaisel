@@ -30,7 +30,7 @@ final class Product extends AppRoute {
 ```
 
 :::tip[On Dart 3.13 or later?]
-With primary constructors the value reads even more like a value:
+Primary constructors shrink a variant to its header:
 `final class const Home() extends AppRoute;`. See
 [Getting started](/getting-started/) for the full form.
 :::

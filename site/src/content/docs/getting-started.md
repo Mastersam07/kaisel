@@ -37,8 +37,9 @@ No-field variants get equality automatically (`Home() == Home()`). Variants
 with fields override `props`.
 
 :::tip[On Dart 3.13 or later?]
-Primary constructors make each variant a one-liner. Set your package's SDK
-constraint to `^3.13.0` and the same routes read:
+Primary constructors fold the constructor and its fields into the class
+header. If your package's SDK constraint is `^3.13.0` or higher, the same
+routes can read:
 
 ```dart
 final class const Home() extends AppRoute;
