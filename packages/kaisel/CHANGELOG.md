@@ -6,6 +6,13 @@
   now closes open modal flows, so signing out mid flow shows Login instead of
   leaving the flow on top. Each `run` resolves with `null`. Comes from
   `kaisel_core` ([#90](https://github.com/Mastersam07/kaisel/issues/90)).
+- Fix: the first screen inside a shell (`KaiselShell`, `KaiselBranchedShell`)
+  or a `KaiselModuleMount` now shows an `AppBar` back arrow when there's a
+  page below the shell, and tapping it pops the shell. Before, the arrow was
+  missing there even though system back already left the shell. System back
+  is unchanged. This makes a single branch shell a clean way to share a
+  provider across a group of screens; the shells guide shows how
+  ([#91](https://github.com/Mastersam07/kaisel/issues/91)).
 
 ## 1.2.0
 
