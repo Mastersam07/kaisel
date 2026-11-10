@@ -36,6 +36,22 @@ final class ProductDetail extends AppRoute {
 No-field variants get equality automatically (`Home() == Home()`). Variants
 with fields override `props`.
 
+:::tip[On Dart 3.13 or later?]
+Primary constructors make each variant a one-liner. Set your package's SDK
+constraint to `^3.13.0` and the same routes read:
+
+```dart
+final class const Home() extends AppRoute;
+
+final class const ProductDetail(final String id) extends AppRoute {
+  @override
+  List<Object?> get props => [id];
+}
+```
+
+kaisel needs nothing extra for this. Equality still comes from `props`.
+:::
+
 ## 2. Wire it up
 
 Bundle the router into a `KaiselRouterConfig` and hand it to
