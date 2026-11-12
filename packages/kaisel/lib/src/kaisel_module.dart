@@ -258,7 +258,7 @@ class _KaiselModuleMountState<R extends KaiselRoute>
       // back falls through to the host router.
       canPop: !_router.canPop,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
+        if (didPop || kaiselHasOpenOverlay(_router)) return;
         if (_router.canPop) _router.pop();
       },
       child: KaiselRestorationScope(
@@ -276,7 +276,7 @@ class _KaiselModuleMountState<R extends KaiselRoute>
                 : null,
             pageWrapper: widget.module.pageWrapper,
             rootPopsParent: widget.rootBackArrow,
-            closesRootOverlays: true,
+            closesOverlaysOnBack: true,
           ),
         ),
       ),

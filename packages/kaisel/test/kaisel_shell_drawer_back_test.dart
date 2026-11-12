@@ -39,10 +39,20 @@ final class _Other extends _S {
   const _Other();
 }
 
+final class _Deep extends _S {
+  const _Deep();
+}
+
 Widget _screen(String title) => Scaffold(
   appBar: AppBar(title: Text(title)),
   drawer: const Drawer(child: Text('drawer')),
 );
+
+Widget _page(BuildContext context, _S route) => switch (route) {
+  _Feed() => _screen('feed'),
+  _Other() => _screen('other'),
+  _Deep() => _screen('deep'),
+};
 
 class _Mod extends RouteModule<_S> {
   const _Mod();
@@ -51,7 +61,7 @@ class _Mod extends RouteModule<_S> {
   List<_S> get initialStack => const [_Feed()];
 
   @override
-  Widget buildPage(BuildContext context, _S route) => _screen('feed');
+  Widget buildPage(BuildContext context, _S route) => _page(context, route);
 }
 
 Future<KaiselRouter<_App>> _pump(
@@ -71,19 +81,13 @@ Future<KaiselRouter<_App>> _pump(
             rootBackArrow: rootBackArrow,
             branchInitials: const [_Feed()],
             chromeBuilder: (context, i, content, _) => content,
-            pageBuilder: (context, r) => _screen('feed'),
+            pageBuilder: _page,
           ),
           _Tabs() => KaiselBranchedShell.specs(
             rootBackArrow: rootBackArrow,
             branches: [
-              KaiselBranchSpec<_S>(
-                initial: const _Feed(),
-                builder: (context, r) => _screen('feed'),
-              ),
-              KaiselBranchSpec<_S>(
-                initial: const _Other(),
-                builder: (context, r) => _screen('other'),
-              ),
+              const KaiselBranchSpec<_S>(initial: _Feed(), builder: _page),
+              const KaiselBranchSpec<_S>(initial: _Other(), builder: _page),
             ],
             chromeBuilder: (context, i, content, _) => content,
           ),
@@ -187,6 +191,43 @@ void main() {
         await _predictiveBack(tester);
         expect(router.stack, const [_Home()]);
       }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
+      testWidgets('on a deeper screen, back closes the drawer first', (
+        tester,
+      ) async {
+        final router = await _pump(tester, [const _Home(), host]);
+        await tester.element(find.text('feed')).push(const _Deep());
+        await tester.pumpAndSettle();
+        await _openDrawer(tester, 'deep');
+
+        await _systemBack(tester);
+        expect(find.text('drawer'), findsNothing);
+        expect(find.text('deep'), findsOneWidget);
+
+        await _systemBack(tester);
+        expect(find.text('feed'), findsOneWidget);
+        expect(find.text('deep'), findsNothing);
+        expect(router.stack, [const _Home(), host]);
+      });
+
+      testWidgets(
+        'on a deeper screen, predictive back closes the drawer first',
+        (tester) async {
+          await _pump(tester, [const _Home(), host]);
+          await tester.element(find.text('feed')).push(const _Deep());
+          await tester.pumpAndSettle();
+          await _openDrawer(tester, 'deep');
+
+          await _predictiveBack(tester);
+          expect(find.text('drawer'), findsNothing);
+          expect(find.text('deep'), findsOneWidget);
+
+          await _predictiveBack(tester);
+          expect(find.text('feed'), findsOneWidget);
+          expect(find.text('deep'), findsNothing);
+        },
+        variant: TargetPlatformVariant.only(TargetPlatform.android),
+      );
 
       testWidgets('rootBackArrow: false still closes the drawer', (
         tester,

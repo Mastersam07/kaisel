@@ -332,7 +332,7 @@ class _KaiselBranchState<R extends KaiselRoute> extends State<KaiselBranch<R>> {
       adaptivePageBuilder: widget._adaptivePageBuilder,
       pageWrapper: widget.pageWrapper,
       rootPopsParent: _RootBackArrowScope.enabledOf(context),
-      closesRootOverlays: true,
+      closesOverlaysOnBack: true,
     );
     final scope = widget.scope;
     if (scope != null) {
@@ -791,9 +791,9 @@ class _KaiselBranchedShellState extends State<KaiselBranchedShell> {
       NavigatorPopHandler<Object?>(
         enabled: index == _shell.activeBranch,
         onPopWithResult: (_) {
-          if (index == _shell.activeBranch && _shell.currentCanPop) {
-            _shell.popCurrent();
-          }
+          if (index != _shell.activeBranch || !_shell.currentCanPop) return;
+          if (kaiselHasOpenOverlay(_shell.current)) return;
+          _shell.popCurrent();
         },
         child: branch,
       );

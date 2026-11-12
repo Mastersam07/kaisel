@@ -41,7 +41,7 @@ class KaiselInnerNavigator<R extends KaiselRoute> extends StatefulWidget {
     this.observers = const [],
     this.reportsScreen = true,
     this.rootPopsParent = false,
-    this.closesRootOverlays = false,
+    this.closesOverlaysOnBack = false,
   }) : assert(
          (pageBuilder == null) != (adaptivePageBuilder == null),
          'Provide exactly one of pageBuilder or adaptivePageBuilder',
@@ -91,13 +91,13 @@ class KaiselInnerNavigator<R extends KaiselRoute> extends StatefulWidget {
   final bool rootPopsParent;
 
   /// Whether system back first closes a drawer or other local history entry
-  /// open on this navigator's first page, before the hosting page is popped.
+  /// open on this navigator's top page, before anything is popped.
   ///
   /// Shells and module mounts set this. System back reaches the hosting page,
-  /// not this navigator, so without it an open drawer on the first page is
-  /// ignored. Only kaisel's default pages report open drawers; a custom
-  /// `pageWrapper` keeps the old behaviour.
-  final bool closesRootOverlays;
+  /// not this navigator, so without it an open drawer is skipped and the page
+  /// under it (or the whole host) is popped. Only kaisel's default pages
+  /// report open drawers; a custom `pageWrapper` keeps the old behaviour.
+  final bool closesOverlaysOnBack;
 
   @override
   State<KaiselInnerNavigator<R>> createState() =>
@@ -121,6 +121,13 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
   void initState() {
     super.initState();
     widget.router.addListener(_onChange);
+    _registerProbe();
+  }
+
+  void _registerProbe() {
+    if (widget.closesOverlaysOnBack) {
+      _overlayProbes[widget.router] = () => _overlayOpen;
+    }
   }
 
   KaiselWebTransition _webTransition = KaiselWebTransition.fade;
@@ -170,54 +177,67 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
     if (!identical(oldWidget.router, widget.router)) {
       oldWidget.router.removeListener(_onChange);
       widget.router.addListener(_onChange);
+      _overlayProbes[oldWidget.router] = null;
     }
+    _registerProbe();
     if (!listEquals(oldWidget.observers, widget.observers)) _mergeObservers();
   }
 
   @override
   void dispose() {
     widget.router.removeListener(_onChange);
-    _rootOverlays?.removeListener(_onRootOverlaysChanged);
+    _topOverlays?.removeListener(_onOverlaysChanged);
+    if (widget.closesOverlaysOnBack) _overlayProbes[widget.router] = null;
     super.dispose();
   }
 
   ModalRoute<Object?>? _parent;
 
-  // The first page's route, reported by its bridge.
+  // Each page reports its route; the first page's is checked for a PopScope
+  // veto and the top page's for an open drawer.
   ModalRoute<Object?>? _rootRoute;
-  ValueListenable<int>? _rootOverlays;
+  final Map<LocalKey, ModalRoute<Object?>> _routes = {};
+  LocalKey? _topKey;
+  ValueListenable<int>? _topOverlays;
 
-  void _setRootRoute(ModalRoute<Object?>? route) {
-    _rootRoute = route;
-    final overlays = switch (route) {
+  void _reportRoute(LocalKey key, int position, ModalRoute<Object?>? route) {
+    if (route == null) {
+      final gone = _routes.remove(key);
+      if (position == 0 && identical(gone, _rootRoute)) _rootRoute = null;
+    } else {
+      _routes[key] = route;
+      if (position == 0) _rootRoute = route;
+    }
+    _followTop();
+  }
+
+  void _followTop() {
+    final overlays = switch (_routes[_topKey]) {
       final KaiselLocalHistoryTracker tracker => tracker.foreignLocalHistory,
       _ => null,
     };
-    if (identical(overlays, _rootOverlays)) return;
-    _rootOverlays?.removeListener(_onRootOverlaysChanged);
-    _rootOverlays = overlays?..addListener(_onRootOverlaysChanged);
+    if (identical(overlays, _topOverlays)) return;
+    _topOverlays?.removeListener(_onOverlaysChanged);
+    _topOverlays = overlays?..addListener(_onOverlaysChanged);
   }
 
-  bool get _rootOverlayOpen =>
-      !widget.router.canPop && (_rootOverlays?.value ?? 0) > 0;
+  bool get _overlayOpen => (_topOverlays?.value ?? 0) > 0;
 
   bool get _canHandlePop {
     final veto = _rootRoute?.popDisposition == RoutePopDisposition.doNotPop;
     if (_parent?.impliesAppBarDismissal == true) {
-      return widget.router.canPop || veto || _rootOverlayOpen;
+      return widget.router.canPop || veto || _overlayOpen;
     }
     return (widget.navigatorKey.currentState?.canPop() ?? false) || veto;
   }
 
   // Opening a drawer sends no NavigationNotification, so rebuild the PopScope
   // and tell hosts that back can now be handled here.
-  void _onRootOverlaysChanged() {
+  void _onOverlaysChanged() {
     if (!mounted) return;
     if (SchedulerBinding.instance.schedulerPhase ==
         SchedulerPhase.persistentCallbacks) {
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _onRootOverlaysChanged(),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) => _onOverlaysChanged());
       return;
     }
     setState(() {});
@@ -237,15 +257,22 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
 
   KaiselPageWrapperContext<R> _bridgeRoot(KaiselPageWrapperContext<R> ctx) {
     final parent = _parent;
-    if (ctx.position != 0) return ctx;
-    if (parent == null && !widget.closesRootOverlays) return ctx;
+    if (parent == null && !widget.closesOverlaysOnBack) return ctx;
+    Widget child = ctx.child;
+    if (parent != null && ctx.position == 0) {
+      child = _ParentPopBridge(
+        parent: parent,
+        enabled: parent.impliesAppBarDismissal,
+        child: child,
+      );
+    }
     return KaiselPageWrapperContext<R>(
       route: ctx.route,
-      child: _ParentPopBridge(
-        parent: parent,
-        enabled: parent?.impliesAppBarDismissal ?? false,
-        onRoute: _setRootRoute,
-        child: ctx.child,
+      child: _RouteReporter(
+        pageKey: ctx.key,
+        position: ctx.position,
+        onRoute: _reportRoute,
+        child: child,
       ),
       key: ctx.key,
       position: ctx.position,
@@ -321,6 +348,8 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
           ),
       ],
     };
+    _topKey = pages.isEmpty ? null : pages.last.key;
+    _followTop();
 
     final navigator = HeroControllerScope(
       controller: _heroController,
@@ -352,20 +381,83 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
       },
       child: navigator,
     );
-    if (!widget.closesRootOverlays) return reported;
+    if (!widget.closesOverlaysOnBack) return reported;
     // Registers on the hosting page's route, which is where system back lands.
-    // Only the visible branch of a shell takes part.
-    final closing = _rootOverlayOpen && TickerMode.valuesOf(context).enabled;
+    // Only the visible branch of a shell takes part. Hosts check
+    // [kaiselHasOpenOverlay] so they don't also pop the page under the drawer.
+    final closing = _overlayOpen && TickerMode.valuesOf(context).enabled;
     return PopScope<Object?>(
       canPop: !closing,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop || !_rootOverlayOpen) return;
+        if (didPop || !_overlayOpen) return;
         if (!TickerMode.valuesOf(context).enabled) return;
         widget.navigatorKey.currentState?.maybePop();
       },
       child: reported,
     );
   }
+}
+
+final Expando<bool Function()> _overlayProbes = Expando<bool Function()>(
+  'kaisel open overlay',
+);
+
+/// Whether the navigator driven by [router] has a drawer or other local
+/// history entry open on its top page, which back should close first.
+///
+/// Framework-facing: shells and module mounts check it before popping their
+/// router on back, so the page under an open drawer stays.
+bool kaiselHasOpenOverlay(Object router) =>
+    _overlayProbes[router]?.call() ?? false;
+
+// Reports the route a page's content sits in, so the navigator can find the
+// first page's route (for PopScope vetoes) and the top page's (for drawers).
+class _RouteReporter extends StatefulWidget {
+  const _RouteReporter({
+    required this.pageKey,
+    required this.position,
+    required this.onRoute,
+    required this.child,
+  });
+
+  final LocalKey pageKey;
+  final int position;
+  final void Function(LocalKey key, int position, ModalRoute<Object?>? route)
+  onRoute;
+  final Widget child;
+
+  @override
+  State<_RouteReporter> createState() => _RouteReporterState();
+}
+
+class _RouteReporterState extends State<_RouteReporter> {
+  ModalRoute<Object?>? _route;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (identical(route, _route)) return;
+    _route = route;
+    widget.onRoute(widget.pageKey, widget.position, route);
+  }
+
+  @override
+  void didUpdateWidget(_RouteReporter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.position != widget.position) {
+      widget.onRoute(widget.pageKey, widget.position, _route);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.onRoute(widget.pageKey, widget.position, null);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 // Gives the first page of a nested navigator a local history entry while its
@@ -376,13 +468,11 @@ class _ParentPopBridge extends StatefulWidget {
   const _ParentPopBridge({
     required this.parent,
     required this.enabled,
-    required this.onRoute,
     required this.child,
   });
 
-  final ModalRoute<Object?>? parent;
+  final ModalRoute<Object?> parent;
   final bool enabled;
-  final ValueSetter<ModalRoute<Object?>?> onRoute;
   final Widget child;
 
   @override
@@ -401,7 +491,6 @@ class _ParentPopBridgeState extends State<_ParentPopBridge> {
     if (!identical(route, _route)) {
       _detach();
       _route = route;
-      widget.onRoute(route);
     }
     _sync();
   }
@@ -429,7 +518,7 @@ class _ParentPopBridgeState extends State<_ParentPopBridge> {
         _entry = null;
         _added = false;
         final parent = widget.parent;
-        if (parent != null && parent.isCurrent) parent.navigator?.maybePop();
+        if (parent.isCurrent) parent.navigator?.maybePop();
       },
     );
     _entry = entry;
