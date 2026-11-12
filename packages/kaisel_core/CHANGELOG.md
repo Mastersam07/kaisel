@@ -1,4 +1,4 @@
-## Unreleased
+## 1.3.1
 
 - Docs: `KaiselGuard` no longer claims that synchronous guards make a
   navigation synchronous. Navigation is always asynchronous; await it when
