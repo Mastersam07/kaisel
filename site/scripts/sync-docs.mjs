@@ -27,6 +27,7 @@ const pages = [
     ['CODEC.md', 'urls-and-deep-linking'],
     ['MODULES.md', 'modules'],
     ['TRANSITIONS.md', 'transitions'],
+    ['RESTORATION.md', 'state-restoration'],
   ].map(([file, slug]) => [`skills/kaisel/${file}`, `guides/${slug}.md`]),
   ...[
     ['README.md', 'index'],

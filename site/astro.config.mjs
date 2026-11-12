@@ -119,6 +119,7 @@ export default defineConfig({
             { label: 'URLs & deep linking', slug: 'guides/urls-and-deep-linking' },
             { label: 'Modules', slug: 'guides/modules' },
             { label: 'Transitions', slug: 'guides/transitions' },
+            { label: 'State restoration', slug: 'guides/state-restoration' },
           ],
         },
         {
