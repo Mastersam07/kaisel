@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.1
 
 - **Behaviour change:** `KaiselShell` now reports its active branch to the
   URL like `KaiselBranchedShell`, so a codec can deep link into it and its
