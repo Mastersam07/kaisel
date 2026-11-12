@@ -135,6 +135,12 @@ the module's sub-router — pushing a `ShopRoute` typechecks; pushing an
 `AppRoute` is a compile error. `context.router<AppRoute>().pop()` pops
 the `ShopMount` off the host stack, which is how the module exits itself.
 
+Back behaves as if the module's screens sat on the host stack. When a page
+sits below the mount, the module's first screen gets an `AppBar` back arrow
+that pops the mount, and system back pops within the module before leaving
+it. An open drawer closes first. Pass `rootBackArrow: false` to
+`KaiselModuleMount` to keep the first screen without the implied arrow.
+
 URL composition is done by **constructing** a `ConfigCodecWithModules`
 (it's a concrete codec, not a base class to extend) from the host's base
 codec plus one `ModuleMount` per module:
