@@ -232,10 +232,8 @@ void main() {
       testWidgets('rootBackArrow: false still closes the drawer', (
         tester,
       ) async {
-        final router = await _pump(tester, [
-          const _Home(),
-          host,
-        ], rootBackArrow: false);
+        final stack = [const _Home(), host];
+        final router = await _pump(tester, stack, rootBackArrow: false);
         await _openDrawer(tester, 'feed');
 
         await _systemBack(tester);
