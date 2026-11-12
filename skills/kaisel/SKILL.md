@@ -14,7 +14,8 @@ description: >
   KaiselPageWrapper, KaiselPageWrapperContext, KaiselStackContext,
   BranchedShellRouter, ShellRouter, RouteModule, ModuleStackCodec,
   package:kaisel, push, pushForResult, pop, back, historyGo, pushOrReplaceTop, replaceTop, set, run,
-  pageWrapper, modalBuilder, chromeBuilder, sealed route, codec,
+  pageWrapper, modalBuilder, chromeBuilder, rootBackArrow, KaiselInnerNavigator,
+  sealed route, codec,
   route guard, modal flow, branched shell, adaptive layout,
   master-detail, route transition, deep link.
 ---
@@ -59,7 +60,7 @@ Read these only when the topic at hand demands the depth.
 | File | When to read |
 |:-----|:-------------|
 | [NAVIGATION.md](./NAVIGATION.md) | Choosing between `push`, `pushForResult`, `pop`, `back` / `historyGo`, `set`, `replaceTop`, `pushOrReplaceTop`, `run` |
-| [SHELLS.md](./SHELLS.md) | Branched shells with per-branch typing; single-branch shells; chrome builders |
+| [SHELLS.md](./SHELLS.md) | Branched shells with per-branch typing; single-branch shells; chrome builders; sharing a provider across a group of screens; back behaviour inside shells |
 | [ADAPTIVE.md](./ADAPTIVE.md) | Adaptive page builders, absorbing pages, master-detail layouts |
 | [MODAL_FLOWS.md](./MODAL_FLOWS.md) | Typed modal flows via `router.run<T>(...)`, nested flows, dismissal |
 | [TRANSITIONS.md](./TRANSITIONS.md) | Page transitions via `pageWrapper`; route-pair pattern matching |
@@ -82,6 +83,9 @@ Read these only when the topic at hand demands the depth.
 | `KaiselGuard<R>` | `FutureOr<List<R>> Function(List<R> current, List<R> proposed)`. Filters every stack mutation. |
 | `KaiselConfigCodec<R>` | URL ↔ `KaiselConfig<R>` mapping. The single place strings live. |
 | `KaiselBranchedShell` | A shell with N branches, each with its own typed `KaiselRouter`. Per-branch state preserved by default. |
+| `KaiselShell<R>` | A shell whose branches share one route type `R`. A single-branch `KaiselShell` wrapped in a provider is how a group of screens shares state. |
+| `KaiselModuleMount<R>` | Mounts a `RouteModule<R>` (its own typed sub-router) at a marker route on the host stack. |
+| `KaiselInnerNavigator<R>` | The nested `Navigator` the built-in shells embed. Use it directly only for a nested stack inside a custom layout; see [SHELLS.md](./SHELLS.md). |
 | `KaiselBranch<R>` | One branch inside a `KaiselBranchedShell`. Pass `KaiselBranch.adaptive` for absorbing pages. |
 | `KaiselBranchSpec<R>` | Declarative branch for `KaiselBranchedShell.specs`. `lazy: true` builds branches on first visit (kept alive); `KaiselBranchSpec.deferred(loadLibrary:, placeholder:, errorBuilder:)` code-splits a branch behind a `deferred as` import. |
 | `KaiselModalRoute<T>` | Abstract base for routes used with `run<T>`. Carries the typed completion contract. |
@@ -327,4 +331,7 @@ See each package's `CHANGELOG.md` for current status.
 | Using `is` checks inside a switch arm instead of pattern destructuring | Replace `if (route is ProductDetail) { route.id }` with `case ProductDetail(:final id):`. The compiler enforces exhaustiveness when you do this. |
 | Calling `context.router<AppRoute>()` from inside a shell branch and expecting the branch's router | The resolver returns the *nearest* router. From inside a branch, pass the branch's specific type: `context.router<ProductRoute>()`. |
 | Holding stale references to routers after the shell disposes | Don't store `KaiselRouter` instances outside their owning `StatefulWidget`'s state. The shell's `dispose` cleans them up; references held elsewhere become stale notifiers. |
+| Adding `leading: BackButton(...)` to a shell's first screen so it can leave the shell | Not needed: when a page sits below a shell or module mount, its first screen already gets an `AppBar` back arrow that leaves it. Pass `rootBackArrow: false` to hide it. See [SHELLS.md](./SHELLS.md). |
+| Dismissing open flows from an auth listener next to a redirecting guard | Not needed: when a main-stack guard redirects, open flows close and each `run<T>` resolves with `null`. See [GUARDS.md](./GUARDS.md). |
+| Putting a provider at the app root because a few screens share it | Give those screens a sealed type, render them in a single-branch `KaiselShell` behind one marker route, and wrap the shell in the provider. See [SHELLS.md](./SHELLS.md). |
 | Trying to compose two `MaterialApp.router`s side-by-side to migrate incrementally from another router | Don't. The migration is big-bang. See `packages/kaisel/doc/migration/README.md`. |

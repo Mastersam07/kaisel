@@ -342,6 +342,9 @@ const appCodec = ConfigCodecWithModules<AppRoute>(
 final _config = KaiselRouterConfig<AppRoute>(
   initial: const Splash(),
   guards: [splashRedirectGuard(auth), authGuard(auth)],
+  // Signing out re-runs the guards, so authGuard sends the user to Login
+  // and any open modal flow closes with it.
+  reevaluateOn: auth,
   builder: _buildMainPage,
   modalBuilder: _buildModal,
   codec: appCodec,
@@ -350,9 +353,6 @@ final _config = KaiselRouterConfig<AppRoute>(
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  auth.addListener(() {
-    if (!auth.value) _config.router.set(const [Login()]);
-  });
 
   runApp(
     MaterialApp.router(

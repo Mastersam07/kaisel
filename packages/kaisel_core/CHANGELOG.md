@@ -1,4 +1,4 @@
-## Unreleased
+## 1.3.0
 
 - **Behaviour change:** when a guard redirects a navigation and the main
   stack changes as a result, `KaiselRouter` now closes every open modal flow,

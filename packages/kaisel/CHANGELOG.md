@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.3.0
+
+Two behaviour changes: open flows close when a guard redirects, and a
+shell's first screen gets a back arrow. The rest are fixes to back handling
+inside shells.
 
 - **Behaviour change:** a main router guard that redirects the main stack
   now closes open modal flows, so signing out mid flow shows Login instead of
@@ -30,7 +34,10 @@
   (`CupertinoPage`, `MaterialPage`). Other back presses still go through the
   shell's router, so its guards still run. Android's predictive back gesture
   on custom pages is unchanged, since kaisel can't see their drawers before
-  the gesture starts.
+  the gesture starts ([#103](https://github.com/Mastersam07/kaisel/issues/103)).
+- Requires Flutter 3.38 or later, matching the existing Dart `^3.10.0`
+  constraint.
+- Requires `kaisel_core: ^1.3.0` (for closing flows on a redirect).
 
 ## 1.2.0
 
