@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:kaisel_core/kaisel_core.dart';
+import 'package:kaisel_core/framework.dart';
 
 import 'kaisel_adaptive.dart';
 import 'kaisel_inner_navigator.dart';
+import 'kaisel_module.dart';
 import 'kaisel_page_wrapper.dart';
 import 'kaisel_router_delegate.dart';
 import 'kaisel_screen_signal.dart';
@@ -16,7 +17,7 @@ import 'kaisel_scope.dart';
 /// which tab" through your pattern-matched [KaiselPageBuilder] and your
 /// own discipline. For per-branch typed routes, see [KaiselBranchedShell].
 class ShellRouter<R extends KaiselRoute> extends ChangeNotifier
-    implements KaiselShellController {
+    implements KaiselNestedHandle, KaiselShellController {
   /// Create a shell with one router per [branchInitials].
   ShellRouter({
     required List<R> branchInitials,
@@ -35,13 +36,30 @@ class ShellRouter<R extends KaiselRoute> extends ChangeNotifier
            KaiselRouter<R>(initial: initial, guards: guards),
        ],
        _activeBranch = initialBranch {
-    for (final branch in _branches) {
-      branch.addListener(notifyListeners);
+    for (var i = 0; i < _branches.length; i++) {
+      void listener() => _onBranchChanged(i);
+      _branchListeners.add(listener);
+      _branches[i].addListener(listener);
     }
   }
 
   final List<KaiselRouter<R>> _branches;
+  final List<VoidCallback> _branchListeners = [];
   int _activeBranch;
+  bool _replacesHistoryEntry = false;
+
+  void _onBranchChanged(int i) {
+    if (i == _activeBranch) {
+      _replacesHistoryEntry = current.replacesHistoryEntry;
+    }
+    notifyListeners();
+  }
+
+  /// Whether the active branch's most recent change should overwrite the
+  /// browser history entry rather than add one. A branch switch resets it to
+  /// `false` (selecting a tab adds an entry).
+  @override
+  bool get replacesHistoryEntry => _replacesHistoryEntry;
 
   /// Read-only view of the branch routers.
   List<KaiselRouter<R>> get branches => List.unmodifiable(_branches);
@@ -66,14 +84,50 @@ class ShellRouter<R extends KaiselRoute> extends ChangeNotifier
     }
     if (branch == _activeBranch) return;
     _activeBranch = branch;
+    _replacesHistoryEntry = false;
     notifyListeners();
   }
 
   @override
+  Type get configType => KaiselShellConfig;
+
+  @override
+  KaiselShellConfig captureConfig() => KaiselShellConfig(
+    activeBranch: _activeBranch,
+    activeBranchStack: current.stack,
+  );
+
+  @override
+  Future<void> restoreFromConfig(KaiselNestedConfig config) async {
+    if (config is! KaiselShellConfig) return;
+    // A restored config is external input: a deep link can name a branch this
+    // build doesn't mount. Skip it rather than throw.
+    if (config.activeBranch < 0 || config.activeBranch >= _branches.length) {
+      assert(() {
+        debugPrint(
+          'kaisel: ignoring restored shell branch ${config.activeBranch} — '
+          'this shell mounts ${_branches.length} '
+          'branch${_branches.length == 1 ? '' : 'es'} '
+          '(0..${_branches.length - 1}). The deep link or codec targets a '
+          'branch that does not exist on this build.',
+        );
+        return true;
+      }());
+      return;
+    }
+    await _branches[config.activeBranch].restoreStack(config.activeBranchStack);
+    if (config.activeBranch != _activeBranch) {
+      _activeBranch = config.activeBranch;
+      notifyListeners();
+    }
+  }
+
+  @override
   void dispose() {
-    for (final branch in _branches) {
-      branch.removeListener(notifyListeners);
-      branch.dispose();
+    for (var i = 0; i < _branches.length; i++) {
+      _branches[i]
+        ..removeListener(_branchListeners[i])
+        ..dispose();
     }
     super.dispose();
   }
@@ -177,9 +231,23 @@ class KaiselShell<R extends KaiselRoute> extends StatefulWidget {
   State<KaiselShell<R>> createState() => _KaiselShellState<R>();
 }
 
+bool _nestedUnderAnotherRouter(BuildContext context) {
+  var nested = false;
+  context.visitAncestorElements((element) {
+    final widget = element.widget;
+    nested =
+        widget is KaiselShellScope ||
+        widget is FlowScope ||
+        widget is KaiselModuleMount;
+    return !nested;
+  });
+  return nested;
+}
+
 class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
   late final ShellRouter<R> _shell;
   late final List<GlobalKey<NavigatorState>> _navKeys;
+  KaiselNestedHost? _host;
 
   @override
   void initState() {
@@ -230,6 +298,18 @@ class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Registering lets the URL and restoration carry the active branch's
+    // stack, as KaiselBranchedShell does. The URL holds one nested router, so
+    // a shell under another shell, a module or a flow stays out of it and
+    // leaves the URL to the router it sits in.
+    final host = _nestedUnderAnotherRouter(context)
+        ? null
+        : KaiselNestedHostScope.maybeOf(context);
+    if (!identical(host, _host)) {
+      _host?.unregisterNested(_shell);
+      _host = host;
+      _host?.registerNested(_shell);
+    }
     final builder = KaiselObserverScope.of(context);
     if (!identical(builder, _switchObserversBuilder)) {
       _switchObserversBuilder = builder;
@@ -241,6 +321,7 @@ class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
 
   @override
   void dispose() {
+    _host?.unregisterNested(_shell);
     _shell
       ..removeListener(_onShellChange)
       ..dispose();
