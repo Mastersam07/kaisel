@@ -14,7 +14,8 @@ description: >
   KaiselPageWrapper, KaiselPageWrapperContext, KaiselStackContext,
   BranchedShellRouter, ShellRouter, RouteModule, ModuleStackCodec,
   package:kaisel, push, pushForResult, pop, back, historyGo, pushOrReplaceTop, replaceTop, set, run,
-  pageWrapper, modalBuilder, chromeBuilder, rootBackArrow, sealed route, codec,
+  pageWrapper, modalBuilder, chromeBuilder, rootBackArrow, KaiselInnerNavigator,
+  sealed route, codec,
   route guard, modal flow, branched shell, adaptive layout,
   master-detail, route transition, deep link.
 ---
@@ -84,6 +85,7 @@ Read these only when the topic at hand demands the depth.
 | `KaiselBranchedShell` | A shell with N branches, each with its own typed `KaiselRouter`. Per-branch state preserved by default. |
 | `KaiselShell<R>` | A shell whose branches share one route type `R`. A single-branch `KaiselShell` wrapped in a provider is how a group of screens shares state. |
 | `KaiselModuleMount<R>` | Mounts a `RouteModule<R>` (its own typed sub-router) at a marker route on the host stack. |
+| `KaiselInnerNavigator<R>` | The nested `Navigator` the built-in shells embed. Use it directly only for a nested stack inside a custom layout; see [SHELLS.md](./SHELLS.md). |
 | `KaiselBranch<R>` | One branch inside a `KaiselBranchedShell`. Pass `KaiselBranch.adaptive` for absorbing pages. |
 | `KaiselBranchSpec<R>` | Declarative branch for `KaiselBranchedShell.specs`. `lazy: true` builds branches on first visit (kept alive); `KaiselBranchSpec.deferred(loadLibrary:, placeholder:, errorBuilder:)` code-splits a branch behind a `deferred as` import. |
 | `KaiselModalRoute<T>` | Abstract base for routes used with `run<T>`. Carries the typed completion contract. |

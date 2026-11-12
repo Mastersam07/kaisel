@@ -478,6 +478,101 @@ shell's nested state in your codec (see the codec guide). Screens that need
 the provider only for a single result are often simpler as a modal flow,
 with the provider in `modalBuilder`.
 
+## Building your own container (`KaiselInnerNavigator`)
+
+`KaiselShell`, `KaiselBranchedShell` and `KaiselModuleMount` cover tabs,
+groups of screens and feature modules. Reach for `KaiselInnerNavigator`
+only when you need a nested stack inside a layout of your own that those
+don't give you, such as a checkout frame with a progress header that stays
+put while the steps below it push and pop. It is the `Navigator` the
+built-in shells embed, driven by a `KaiselRouter` you own.
+
+```dart
+sealed class CheckoutRoute extends KaiselRoute { const CheckoutRoute(); }
+final class Cart extends CheckoutRoute { const Cart(); }
+final class Payment extends CheckoutRoute { const Payment(); }
+
+class CheckoutFrame extends StatefulWidget {
+  const CheckoutFrame({super.key});
+
+  @override
+  State<CheckoutFrame> createState() => _CheckoutFrameState();
+}
+
+class _CheckoutFrameState extends State<CheckoutFrame> {
+  final _router = KaiselRouter<CheckoutRoute>(initial: const Cart());
+  final _navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  void dispose() {
+    _router.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return KaiselListenableBuilder<CheckoutRoute>(
+      router: _router,
+      // System back lands on the page hosting this frame. Pop the inner
+      // stack first, and let the host pop the frame once it's at its root.
+      builder: (context, child) => PopScope(
+        canPop: !_router.canPop,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && _router.canPop) _router.pop();
+        },
+        child: child!,
+      ),
+      child: Column(
+        children: [
+          const CheckoutProgress(),
+          Expanded(
+            child: RouterScope<CheckoutRoute>(
+              router: _router,
+              child: KaiselInnerNavigator<CheckoutRoute>(
+                router: _router,
+                navigatorKey: _navigatorKey,
+                pageBuilder: (context, route) => switch (route) {
+                  Cart() => const CartScreen(),
+                  Payment() => const PaymentScreen(),
+                },
+                rootPopsParent: true,
+                closesOverlaysOnBack: true,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+What each piece does:
+
+- **Own the router and the key.** Create the `KaiselRouter` and the
+  `GlobalKey<NavigatorState>` once in `State`, never in `build`, and
+  dispose the router. A new key every build throws away the navigator.
+- **`RouterScope<R>`** makes `context.router<CheckoutRoute>()` and
+  `context.push(...)` inside the frame resolve to this router.
+- **The `PopScope`** is yours to add: the built-in shells install the same
+  one. `KaiselListenableBuilder` rebuilds it as the stack changes, since a
+  `KaiselRouter` isn't a Flutter `Listenable`.
+- **Exactly one of `pageBuilder` or `adaptivePageBuilder`.** The adaptive one
+  takes a `KaiselStackContext` and can return `KaiselAbsorbingPage`, as in
+  the adaptive guide. `pageWrapper` and `observers` work as on the delegate.
+- **`rootPopsParent: true`** gives the first screen an `AppBar` back arrow,
+  or a close button if the hosting page is a fullscreen dialog, that pops the
+  hosting page whenever a page sits below it. Default `false`.
+- **`closesOverlaysOnBack: true`** makes back close a drawer open on any
+  screen in the frame before anything is popped, including Android's
+  predictive back gesture on kaisel's default pages. Default `false`.
+- **`reportsScreen`** (default `true`) feeds the app's `onScreenChanged`.
+  Set it `false` for stacks that are mounted but not visible, as the
+  branched shell does for inactive tabs.
+
+The frame doesn't take part in URLs: deep links can't address its inner
+stack. When you need that, use a `RouteModule`, which brings its own codec.
+
 ## Observers and tab switches
 
 The app-level `observers:` builder is invoked fresh for every navigator,
