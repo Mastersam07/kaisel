@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- `require_route_props` now sees fields declared through a primary
+  constructor (`final class const Detail(final String id) extends
+  KaiselRoute;`, Dart 3.13 and later). Before, such a route with no `props`
+  passed silently. The "Add props override" fix and assist give a bodyless
+  class a body for the getter.
+
 ## 0.5.1
 
 ### Fixed
