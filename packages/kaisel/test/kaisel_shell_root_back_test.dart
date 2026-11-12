@@ -5,8 +5,7 @@ import 'package:kaisel/kaisel.dart';
 
 // The first page of a shell (or module) sits alone in its own Navigator, so
 // AppBar used to hide the back arrow there even though system back left the
-// shell. These cover the arrow appearing, what tapping it pops, and that
-// system back still pops exactly once.
+// shell.
 
 sealed class _App extends KaiselRoute {
   const _App();

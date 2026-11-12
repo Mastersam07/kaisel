@@ -193,8 +193,6 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
 
   ModalRoute<Object?>? _parent;
 
-  // Each page reports its route; the first page's is checked for a PopScope
-  // veto and the top page's for an open drawer.
   ModalRoute<Object?>? _rootRoute;
   final Map<LocalKey, ModalRoute<Object?>> _routes = {};
   LocalKey? _topKey;
@@ -366,11 +364,9 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
         },
       ),
     );
-    // The bridge's local history entry makes the Navigator claim it can handle
-    // back even at its root. Hosts that intercept back on that claim (the
-    // branched shell's NavigatorPopHandler) would then swallow a back that
-    // should leave the host, so report what the Navigator would without the
-    // entry: the router can pop, or the first page vetoes with a PopScope.
+    // The bridge's entry makes the Navigator claim it can handle back even at
+    // its root, which would make the branched shell swallow a back that should
+    // leave it. Report the answer without that entry.
     final reported = NotificationListener<NavigationNotification>(
       onNotification: (notification) {
         if (_parent?.impliesAppBarDismissal != true) return false;
@@ -382,9 +378,9 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
       child: navigator,
     );
     if (!widget.closesOverlaysOnBack) return reported;
-    // Registers on the hosting page's route, which is where system back lands.
-    // Only the visible branch of a shell takes part. Hosts check
-    // [kaiselHasOpenOverlay] so they don't also pop the page under the drawer.
+    // This sits above the Navigator, so it registers on the hosting page's
+    // route, where system back lands. Hosts check [kaiselHasOpenOverlay] so they
+    // don't also pop the page under the drawer.
     final closing = _overlayOpen && TickerMode.valuesOf(context).enabled;
     return PopScope<Object?>(
       canPop: !closing,
@@ -410,8 +406,6 @@ final Expando<bool Function()> _overlayProbes = Expando<bool Function()>(
 bool kaiselHasOpenOverlay(Object router) =>
     _overlayProbes[router]?.call() ?? false;
 
-// Reports the route a page's content sits in, so the navigator can find the
-// first page's route (for PopScope vetoes) and the top page's (for drawers).
 class _RouteReporter extends StatefulWidget {
   const _RouteReporter({
     required this.pageKey,
@@ -460,10 +454,9 @@ class _RouteReporterState extends State<_RouteReporter> {
   Widget build(BuildContext context) => widget.child;
 }
 
-// Gives the first page of a nested navigator a local history entry while its
-// hosting page can be popped. AppBar counts local history entries when deciding
-// whether to show a back arrow, and BackButton pops the entry first, so the
-// arrow appears and tapping it removes the entry, which pops the hosting page.
+// AppBar shows a back arrow for a route with a local history entry, and
+// BackButton removes the entry first, so an entry on the first page gives it an
+// arrow whose tap pops the hosting page instead.
 class _ParentPopBridge extends StatefulWidget {
   const _ParentPopBridge({
     required this.parent,
