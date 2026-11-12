@@ -359,11 +359,9 @@ void main() {
         await delegate.popRoute();
         await tester.pumpAndSettle();
 
-        expect(
-          router.stack,
-          [const _ProductList()],
-          reason: 'pop should remove the top entry, not the absorbed one',
-        );
+        expect(router.stack, [
+          const _ProductList(),
+        ], reason: 'pop should remove the top entry, not the absorbed one');
       },
     );
   });
