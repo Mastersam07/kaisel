@@ -695,7 +695,7 @@ Survive an OS process-kill (iOS background-kill, Android low-memory) and relaunc
 MaterialApp.router(routerConfig: _config, restorationScopeId: 'app');
 ```
 
-**Stack restoration — URL/codec apps.** If you pass a `codec`, the main stack (plus the active `KaiselBranchedShell` branch or module stack your codec encodes as `nestedState`) restores through Flutter's `Router` for free — the app `restorationScopeId` above is all you need. The codec is just a serializer: on mobile its `Uri` is internal, never shown. `KaiselShell` branch stacks, open modal flows and pending `pushForResult` results don't restore; see the [state restoration guide](https://kaisel.dev/guides/state-restoration/).
+**Stack restoration — URL/codec apps.** If you pass a `codec`, the main stack (plus the active `KaiselBranchedShell` branch your codec writes as `nestedState`, and module stacks through their `ModuleStackCodec`) restores through Flutter's `Router` for free — the app `restorationScopeId` above is all you need. The codec is just a serializer: on mobile its `Uri` is internal, never shown. `KaiselShell` branch stacks, open modal flows and pending `pushForResult` results don't restore; see the [state restoration guide](https://kaisel.dev/guides/state-restoration/).
 
 **Within-page state** (scroll offset, text fields via `RestorationMixin`). Give the navigators a restoration scope and the pages an id:
 

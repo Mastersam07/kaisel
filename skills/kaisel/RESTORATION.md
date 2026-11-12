@@ -42,7 +42,10 @@ never sees it.
 
 The codec decides what comes back. Anything it doesn't encode is lost,
 including a shell's branch stack unless the codec writes `nestedState`
-(see [CODEC.md](./CODEC.md) and section 5).
+(see [CODEC.md](./CODEC.md) and section 5). A module's stack comes back
+through its `ModuleStackCodec` when the app's codec is a
+`ConfigCodecWithModules` (see [MODULES.md](./MODULES.md)); routes the URL
+doesn't record, such as the screens under the module's mount, don't.
 
 ## 3. The stack, without a codec
 
