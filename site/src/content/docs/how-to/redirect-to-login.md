@@ -109,8 +109,12 @@ _intended = null;
 
 - Guards don't run on system back (the pop has already animated by the
   time the router hears about it). For "force back to login on logout,"
-  listen to your auth state and call `router.set(const [Login()])`
-  directly.
+  pass your auth notifier as `reevaluateOn`, so the same guard redirects
+  when the user signs out.
+- A guard redirect also closes any open modal flow, so signing out
+  mid checkout lands on Login rather than under the flow. A direct
+  `router.set(const [Login()])` doesn't count as a redirect and leaves the
+  flow open.
 - The guard is a pure function — unit test it with two lists and no
   widgets. See the [guards reference](/guides/guards/).
 - Runnable version:

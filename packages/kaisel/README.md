@@ -134,7 +134,7 @@ Each guard either allows (return `proposed`), redirects (return something differ
 
 To **redirect to login and then continue** to where the user was headed, stash the `proposed` stack before redirecting and replay it with `router.set` after login — the intended destination is plain `List<R>` data, so the *whole* intended stack (Cart under Payment, back and all) is reconstructed, not just the final screen. The same guard handles deep links into protected routes. See [`example/lib/main_auth_redirect.dart`](example/lib/main_auth_redirect.dart).
 
-Guards do **not** run on system back — the pop has already animated by the time we hear about it. State-driven redirects (e.g. force back to login on logout) should be app-state listeners that call `router.set` directly.
+Guards do **not** run on system back — the pop has already animated by the time we hear about it. For state-driven redirects (e.g. force back to login on logout), pass your auth notifier as `reevaluateOn` so the same guard redirects. When a guard redirects the main stack, open modal flows close and each `run<T>` resolves with `null`; a direct `router.set` leaves them open.
 
 ### 4. Shells (bottom-nav with per-tab state)
 
@@ -249,7 +249,7 @@ context.shell().switchTo(2);                                  // change tab
 context.push(const ProductDetail('42'));
 ```
 
-`RouterScope` lookup is by exact generic type, so `context.router<HomeRoute>()` and `context.router<AppRoute>()` don't collide. Each branch keeps its own back stack (via `IndexedStack`); Android back unwinds the active branch first, falling through to the parent router only at branch root.
+`RouterScope` lookup is by exact generic type, so `context.router<HomeRoute>()` and `context.router<AppRoute>()` don't collide. Each branch keeps its own back stack (via `IndexedStack`); Android back unwinds the active branch first, falling through to the parent router only at branch root. An open drawer closes before anything is popped. When a page sits below the shell, each branch's first screen gets an `AppBar` back arrow that leaves the shell; pass `rootBackArrow: false` to hide it. A single-branch `KaiselShell` wrapped in a provider is also how a group of screens shares state.
 
 > **Inside the `chromeBuilder`, `context.router<BranchRoute>()` does not resolve** — each branch's `RouterScope` is installed *below* the chrome, and lookups only walk up. Use the `activeBranch`/`switchBranch` arguments or `context.shell()` to drive the shell, and `context.router<AppRoute>()` for the root router. The typed branch router is only reachable from that branch's own screens.
 
