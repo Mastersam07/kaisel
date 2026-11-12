@@ -254,7 +254,7 @@ void main() {
       expect(router.stack, const [_Cart(), _Shipping()]);
 
       final popScope = tester.widget<PopScope<Object?>>(
-        find.byWidgetPredicate((w) => w is PopScope<Object?>),
+        find.byWidgetPredicate((w) => w is PopScope<Object?>).first,
       );
       final cb = popScope.onPopInvokedWithResult;
       expect(cb, isNotNull);

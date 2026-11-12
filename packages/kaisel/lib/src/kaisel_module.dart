@@ -276,6 +276,7 @@ class _KaiselModuleMountState<R extends KaiselRoute>
                 : null,
             pageWrapper: widget.module.pageWrapper,
             rootPopsParent: widget.rootBackArrow,
+            closesRootOverlays: true,
           ),
         ),
       ),

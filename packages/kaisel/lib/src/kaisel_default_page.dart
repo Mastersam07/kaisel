@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show ValueListenable, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:kaisel_core/kaisel_core.dart';
 
@@ -73,6 +73,64 @@ Page<Object?> kaiselDefaultPage<R extends KaiselRoute>(
   );
 }
 
+/// The local history entry a nested navigator's first page uses for its back
+/// arrow. Tracking ignores it, so it can tell a drawer apart from the arrow.
+class KaiselParentPopEntry extends LocalHistoryEntry {
+  /// Create the entry; [onRemove] runs when back removes it.
+  KaiselParentPopEntry({super.onRemove});
+}
+
+/// A route that reports how many local history entries (an open drawer, an
+/// expanded sheet) it holds, not counting [KaiselParentPopEntry].
+abstract interface class KaiselLocalHistoryTracker {
+  /// The number of open entries other than the back arrow's.
+  ValueListenable<int> get foreignLocalHistory;
+}
+
+// Flutter doesn't say when a drawer opens on a route, so a shell can't tell
+// that system back should close it. kaisel's own routes keep count instead.
+mixin _TrackedLocalHistory<T> on ModalRoute<T>
+    implements KaiselLocalHistoryTracker {
+  final List<LocalHistoryEntry> _tracked = <LocalHistoryEntry>[];
+  final ValueNotifier<int> _foreign = ValueNotifier<int>(0);
+
+  @override
+  ValueListenable<int> get foreignLocalHistory => _foreign;
+
+  void _recount() => _foreign.value = _tracked
+      .where((entry) => entry is! KaiselParentPopEntry)
+      .length;
+
+  @override
+  void addLocalHistoryEntry(LocalHistoryEntry entry) {
+    super.addLocalHistoryEntry(entry);
+    _tracked.add(entry);
+    _recount();
+  }
+
+  @override
+  void removeLocalHistoryEntry(LocalHistoryEntry entry) {
+    _tracked.remove(entry);
+    super.removeLocalHistoryEntry(entry);
+    _recount();
+  }
+
+  @override
+  bool didPop(T? result) {
+    if (!willHandlePopInternally) return super.didPop(result);
+    if (_tracked.isNotEmpty) _tracked.removeLast();
+    final popped = super.didPop(result);
+    _recount();
+    return popped;
+  }
+
+  @override
+  void dispose() {
+    _foreign.dispose();
+    super.dispose();
+  }
+}
+
 class _KaiselMaterialPage<T> extends MaterialPage<T> {
   const _KaiselMaterialPage({
     required super.child,
@@ -94,7 +152,7 @@ class _KaiselMaterialPage<T> extends MaterialPage<T> {
 }
 
 class _KaiselPageRoute<T> extends PageRoute<T>
-    with MaterialRouteTransitionMixin<T> {
+    with MaterialRouteTransitionMixin<T>, _TrackedLocalHistory<T> {
   _KaiselPageRoute({
     required MaterialPage<T> page,
     required this.androidPredictiveBack,
@@ -176,7 +234,7 @@ class _WebTransitionPage<T> extends Page<T> {
 // same-key page update (an adaptive master-detail swap keeps the key stable)
 // would keep the stale child. Reading from `settings` rebuilds it, like
 // [MaterialPage].
-class _WebTransitionRoute<T> extends PageRoute<T> {
+class _WebTransitionRoute<T> extends PageRoute<T> with _TrackedLocalHistory<T> {
   _WebTransitionRoute(_WebTransitionPage<T> page) : super(settings: page);
 
   _WebTransitionPage<T> get _page => settings as _WebTransitionPage<T>;

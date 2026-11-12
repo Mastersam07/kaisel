@@ -707,7 +707,7 @@ void main() {
       expect(shell.currentCanPop, isTrue);
 
       final popScope = tester.widget<PopScope<Object?>>(
-        find.byWidgetPredicate((w) => w is PopScope),
+        find.byWidgetPredicate((w) => w is PopScope).first,
       );
       expect(popScope.canPop, isFalse);
       final onPop = popScope.onPopInvokedWithResult;

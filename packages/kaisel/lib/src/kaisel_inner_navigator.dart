@@ -1,5 +1,7 @@
-import 'package:flutter/foundation.dart' show kDebugMode, listEquals;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, kDebugMode, listEquals;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
 import 'package:kaisel_core/framework.dart';
 
 import 'kaisel_adaptive.dart';
@@ -39,6 +41,7 @@ class KaiselInnerNavigator<R extends KaiselRoute> extends StatefulWidget {
     this.observers = const [],
     this.reportsScreen = true,
     this.rootPopsParent = false,
+    this.closesRootOverlays = false,
   }) : assert(
          (pageBuilder == null) != (adaptivePageBuilder == null),
          'Provide exactly one of pageBuilder or adaptivePageBuilder',
@@ -86,6 +89,15 @@ class KaiselInnerNavigator<R extends KaiselRoute> extends StatefulWidget {
   /// hosting page can be popped, the first page gets a back arrow, and tapping
   /// it pops the hosting page.
   final bool rootPopsParent;
+
+  /// Whether system back first closes a drawer or other local history entry
+  /// open on this navigator's first page, before the hosting page is popped.
+  ///
+  /// Shells and module mounts set this. System back reaches the hosting page,
+  /// not this navigator, so without it an open drawer on the first page is
+  /// ignored. Only kaisel's default pages report open drawers; a custom
+  /// `pageWrapper` keeps the old behaviour.
+  final bool closesRootOverlays;
 
   @override
   State<KaiselInnerNavigator<R>> createState() =>
@@ -165,6 +177,7 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
   @override
   void dispose() {
     widget.router.removeListener(_onChange);
+    _rootOverlays?.removeListener(_onRootOverlaysChanged);
     super.dispose();
   }
 
@@ -172,6 +185,47 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
 
   // The first page's route, reported by its bridge.
   ModalRoute<Object?>? _rootRoute;
+  ValueListenable<int>? _rootOverlays;
+
+  void _setRootRoute(ModalRoute<Object?>? route) {
+    _rootRoute = route;
+    final overlays = switch (route) {
+      final KaiselLocalHistoryTracker tracker => tracker.foreignLocalHistory,
+      _ => null,
+    };
+    if (identical(overlays, _rootOverlays)) return;
+    _rootOverlays?.removeListener(_onRootOverlaysChanged);
+    _rootOverlays = overlays?..addListener(_onRootOverlaysChanged);
+  }
+
+  bool get _rootOverlayOpen =>
+      !widget.router.canPop && (_rootOverlays?.value ?? 0) > 0;
+
+  bool get _canHandlePop {
+    final veto = _rootRoute?.popDisposition == RoutePopDisposition.doNotPop;
+    if (_parent?.impliesAppBarDismissal == true) {
+      return widget.router.canPop || veto || _rootOverlayOpen;
+    }
+    return (widget.navigatorKey.currentState?.canPop() ?? false) || veto;
+  }
+
+  // Opening a drawer sends no NavigationNotification, so rebuild the PopScope
+  // and tell hosts that back can now be handled here.
+  void _onRootOverlaysChanged() {
+    if (!mounted) return;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _onRootOverlaysChanged(),
+      );
+      return;
+    }
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      NavigationNotification(canHandlePop: _canHandlePop).dispatch(context);
+    });
+  }
 
   // AppBar picks a close button over a back arrow only when its own route is
   // a fullscreen dialog, so the first page mirrors a host opened as one.
@@ -183,13 +237,14 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
 
   KaiselPageWrapperContext<R> _bridgeRoot(KaiselPageWrapperContext<R> ctx) {
     final parent = _parent;
-    if (parent == null || ctx.position != 0) return ctx;
+    if (ctx.position != 0) return ctx;
+    if (parent == null && !widget.closesRootOverlays) return ctx;
     return KaiselPageWrapperContext<R>(
       route: ctx.route,
       child: _ParentPopBridge(
         parent: parent,
-        enabled: parent.impliesAppBarDismissal,
-        onRoute: (route) => _rootRoute = route,
+        enabled: parent?.impliesAppBarDismissal ?? false,
+        onRoute: _setRootRoute,
         child: ctx.child,
       ),
       key: ctx.key,
@@ -287,17 +342,28 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
     // branched shell's NavigatorPopHandler) would then swallow a back that
     // should leave the host, so report what the Navigator would without the
     // entry: the router can pop, or the first page vetoes with a PopScope.
-    return NotificationListener<NavigationNotification>(
+    final reported = NotificationListener<NavigationNotification>(
       onNotification: (notification) {
         if (_parent?.impliesAppBarDismissal != true) return false;
-        final canHandlePop =
-            widget.router.canPop ||
-            _rootRoute?.popDisposition == RoutePopDisposition.doNotPop;
+        final canHandlePop = _canHandlePop;
         if (notification.canHandlePop == canHandlePop) return false;
         NavigationNotification(canHandlePop: canHandlePop).dispatch(context);
         return true;
       },
       child: navigator,
+    );
+    if (!widget.closesRootOverlays) return reported;
+    // Registers on the hosting page's route, which is where system back lands.
+    // Only the visible branch of a shell takes part.
+    final closing = _rootOverlayOpen && TickerMode.valuesOf(context).enabled;
+    return PopScope<Object?>(
+      canPop: !closing,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || !_rootOverlayOpen) return;
+        if (!TickerMode.valuesOf(context).enabled) return;
+        widget.navigatorKey.currentState?.maybePop();
+      },
+      child: reported,
     );
   }
 }
@@ -314,7 +380,7 @@ class _ParentPopBridge extends StatefulWidget {
     required this.child,
   });
 
-  final ModalRoute<Object?> parent;
+  final ModalRoute<Object?>? parent;
   final bool enabled;
   final ValueSetter<ModalRoute<Object?>?> onRoute;
   final Widget child;
@@ -357,13 +423,13 @@ class _ParentPopBridgeState extends State<_ParentPopBridge> {
   void _attach() {
     if (_entry != null) return;
     late final LocalHistoryEntry entry;
-    entry = LocalHistoryEntry(
+    entry = KaiselParentPopEntry(
       onRemove: () {
         if (!identical(_entry, entry)) return;
         _entry = null;
         _added = false;
         final parent = widget.parent;
-        if (parent.isCurrent) parent.navigator?.maybePop();
+        if (parent != null && parent.isCurrent) parent.navigator?.maybePop();
       },
     );
     _entry = entry;

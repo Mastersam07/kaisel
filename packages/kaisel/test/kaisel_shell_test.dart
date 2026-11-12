@@ -107,7 +107,7 @@ void main() {
 
       // The shell's PopScope intercepts the back and pops within the branch.
       final popScope = tester.widget<PopScope<Object?>>(
-        find.byWidgetPredicate((w) => w is PopScope),
+        find.byWidgetPredicate((w) => w is PopScope).first,
       );
       expect(popScope.canPop, isFalse, reason: 'branch has history');
       final onPop = popScope.onPopInvokedWithResult;
