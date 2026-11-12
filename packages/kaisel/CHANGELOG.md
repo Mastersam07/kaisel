@@ -22,8 +22,15 @@
   module mount before popping anything. Before, back skipped the drawer:
   it popped the screen under it, or on the first screen popped the shell (or
   backgrounded the app). Applies to kaisel's default pages; a custom
-  `pageWrapper` keeps the old behaviour
+  `pageWrapper` relies on the back button fix below
   ([#103](https://github.com/Mastersam07/kaisel/issues/103)).
+- Fix: the back button now offers back to the shell's own navigator first
+  when its top screen holds a drawer or other local history entry, so a
+  drawer closes on any page type, including a custom `pageWrapper`
+  (`CupertinoPage`, `MaterialPage`). Other back presses still go through the
+  shell's router, so its guards still run. Android's predictive back gesture
+  on custom pages is unchanged, since kaisel can't see their drawers before
+  the gesture starts.
 
 ## 1.2.0
 
