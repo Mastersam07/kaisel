@@ -93,7 +93,9 @@ Iterable<FieldElement> declaredInstanceFields(InterfaceElement element) =>
     element.fields.where(
       (f) =>
           !f.isStatic &&
-          f.isOriginDeclaration &&
+          // A primary constructor's `final String id` declares a field
+          // through the parameter rather than a field declaration.
+          (f.isOriginDeclaration || f.isOriginDeclaringFormalParameter) &&
           (!f.isPrivate || _hasMatchingGetter(element, f)),
     );
 
