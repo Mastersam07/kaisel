@@ -10,9 +10,10 @@ import 'kaisel_route.dart';
 /// [current] (or a copy) to refuse the change.
 ///
 /// Guards can be synchronous or asynchronous — the return type is
-/// `FutureOr<List<R>>`. When all guards in the pipeline are synchronous
-/// the navigation completes synchronously; introducing one async guard
-/// makes the whole pipeline async.
+/// `FutureOr<List<R>>`. Either way the navigation itself is asynchronous:
+/// mutations queue behind each other, so the new stack lands a few
+/// microtasks after the call, even with no guards. Await the returned
+/// future when you need it applied.
 ///
 /// Guards close over whatever app state they need (an auth notifier,
 /// feature flags, etc.). The router does not know about app state — it

@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- **Behaviour change:** `KaiselShell` now reports its active branch to the
+  URL like `KaiselBranchedShell`, so a codec can deep link into it and its
+  active branch's stack survives a restart. Codecs see a `KaiselShellConfig`
+  in `nestedState` for it where they used to see `null`; ones that ignore
+  `nestedState` behave as before. A `KaiselShell` inside another shell, a
+  module or a modal flow stays out of the URL, so existing URLs there don't
+  change.
+- Docs: the state restoration guide lists what doesn't restore today:
+  inactive tabs, nested state without a codec, more than one level of
+  nesting, and custom `KaiselInnerNavigator` containers (wrap one in
+  `KaiselRestorationScope` to keep its pages' state).
+
 ## 1.3.0
 
 Two behaviour changes: open flows close when a guard redirects, and a

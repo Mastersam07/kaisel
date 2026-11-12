@@ -20,7 +20,7 @@ contents can.
 | Restore the stack in an app with a codec | Nothing more; the codec saves and rebuilds it |
 | Restore the stack in an app without a codec | `restoreRoute` on `KaiselRouterConfig` |
 | Restore scroll and text inside pages | `restorationScopeId` on `KaiselRouterConfig`, a `restorationId` on parameterized routes, and `RestorationMixin` in your widgets |
-| Restore a tab's own stack | `KaiselBranchedShell` with a codec that writes `nestedState` |
+| Restore a tab's own stack | A codec that writes `nestedState` (`KaiselShell` or `KaiselBranchedShell`) |
 
 ## 1. Turn it on
 
@@ -128,13 +128,22 @@ back but the contents of its pages start fresh.
 - **Pending results.** A screen opened with `pushForResult<T>` comes back,
   but the code that was awaiting it no longer exists, so its result goes
   nowhere. Keep anything that must survive in app state, not in a result.
-- **`KaiselShell` branch stacks.** The shell comes back on each branch's
-  first screen. `KaiselShell` doesn't report its branches to the codec.
-- **`KaiselBranchedShell` stacks, unless the codec writes them.** With a
-  codec that writes `KaiselShellConfig` into `nestedState`, the **active**
-  branch's stack comes back. Inactive branches start at their first
-  screen.
-- **Anything under `restoreRoute` alone** beyond the main stack.
+- **Shell stacks, unless the codec writes them.** With a codec that writes
+  `KaiselShellConfig` into `nestedState`, a `KaiselShell` or
+  `KaiselBranchedShell` brings back its selected tab and that tab's
+  stack.
+- **Inactive tabs.** Only the selected tab's stack is saved. The others
+  start at their first screen.
+- **Nested state in apps without a codec.** `restoreRoute` saves the main
+  stack only, so shells come back on their first tab and first screen, and
+  modules on their first screen.
+- **More than one level of nesting.** The saved URL holds one nested router.
+  For a module inside a tab, or a shell inside a shell, only one level comes
+  back; a `KaiselShell` nested in another router leaves the slot to the
+  outer one.
+- **Custom `KaiselInnerNavigator` containers.** Their stack starts over. Wrap
+  one in `KaiselRestorationScope` to keep its pages' scroll and text state
+  (see [SHELLS.md](./SHELLS.md)).
 
 ## Testing it
 
@@ -165,4 +174,4 @@ options, background the app and reopen it.
 | A `DateTime` or custom object in `props` with `restoreRoute` | Store a JSON-friendly form (an ISO string, an id) in `props`, or the whole stack isn't saved. |
 | Relying on `runtimeType` names under `--obfuscate` | Override `routeName` with a stable literal. |
 | Expecting an open flow or a pending result to survive | They don't. Reopen the flow from restored app state if it matters. |
-| Expecting a `KaiselShell` tab's stack to come back | Use `KaiselBranchedShell` with a codec that writes `nestedState`. |
+| Expecting a tab's stack to come back without a codec | `restoreRoute` covers the main stack only. Use a codec that writes `nestedState`. |
