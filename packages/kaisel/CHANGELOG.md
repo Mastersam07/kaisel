@@ -18,12 +18,11 @@
   module mount. This makes a single branch shell a clean way to share a
   provider across a group of screens; the shells guide shows how
   ([#91](https://github.com/Mastersam07/kaisel/issues/91)).
-- Fix: system back now closes a drawer open on
-  the first screen of a shell or module mount before leaving it. Before, back
-  went past it to the hosting page, popping the shell or backgrounding the app
-  with the drawer still open. Applies to kaisel's default pages; a custom
-  `pageWrapper` keeps the old behaviour. Screens pushed deeper inside the
-  shell are not covered yet
+- Fix: system back now closes a drawer open on any screen inside a shell or
+  module mount before popping anything. Before, back skipped the drawer:
+  it popped the screen under it, or on the first screen popped the shell (or
+  backgrounded the app). Applies to kaisel's default pages; a custom
+  `pageWrapper` keeps the old behaviour
   ([#103](https://github.com/Mastersam07/kaisel/issues/103)).
 
 ## 1.2.0
