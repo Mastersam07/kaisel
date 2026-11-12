@@ -1,3 +1,9 @@
+## Unreleased
+
+- Docs: `KaiselGuard` no longer claims that synchronous guards make a
+  navigation synchronous. Navigation is always asynchronous; await it when
+  you need the new stack applied.
+
 ## 1.3.0
 
 - **Behaviour change:** when a guard redirects a navigation and the main

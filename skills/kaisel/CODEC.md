@@ -190,12 +190,17 @@ each branch handles its data without dynamic casting.
 
 ## Shells and codecs
 
-When the app uses `KaiselBranchedShell`, the URL needs to address both
-the active branch and that branch's sub-stack. `KaiselConfig<R>` carries
-this in its **`nestedState`** field as a `KaiselShellConfig`, which holds
-the active branch index and **only the active branch's stack**
-(`activeBranchStack`). Inactive branches keep their in-memory state —
-they don't ride the URL.
+When the app uses `KaiselBranchedShell` or `KaiselShell`, the URL needs to
+address both the active branch and that branch's sub-stack.
+`KaiselConfig<R>` carries this in its **`nestedState`** field as a
+`KaiselShellConfig`, which holds the active branch index and **only the
+active branch's stack** (`activeBranchStack`). Inactive branches keep their
+in-memory state — they don't ride the URL.
+
+`nestedState` holds one nested router. A `KaiselShell` inside another shell,
+a module or a modal flow stays out of it, so the outer router keeps the URL.
+`KaiselShellConfig.activeBranchStack` is a `List<KaiselRoute>`; match on
+your branch route types when encoding it.
 
 ```dart
 @override

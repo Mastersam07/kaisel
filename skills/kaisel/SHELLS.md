@@ -420,6 +420,11 @@ route into the "home" tab. When tabs need **different** route types (and
 that compile-time guard), use `KaiselBranchedShell` with per-branch
 sealed types.
 
+URLs and restoration work as for `KaiselBranchedShell`: a codec reads and
+writes the active branch through `KaiselShellConfig` in `nestedState` (see
+the codec guide). A `KaiselShell` inside another shell, a module or a modal
+flow leaves the URL to the router it sits in.
+
 ## Sharing a provider across a group of screens
 
 A few screens on the main stack that share one piece of state (a checkout's
@@ -570,8 +575,12 @@ What each piece does:
   Set it `false` for stacks that are mounted but not visible, as the
   branched shell does for inactive tabs.
 
-The frame doesn't take part in URLs: deep links can't address its inner
-stack. When you need that, use a `RouteModule`, which brings its own codec.
+The frame doesn't take part in URLs or restoration: deep links can't
+address its inner stack, and after a restart it starts at its first screen.
+When you need that, use a `RouteModule`, which brings its own codec. To keep
+scroll and text state inside the frame's pages across a restart, wrap the
+`KaiselInnerNavigator` in `KaiselRestorationScope(restorationId: 'checkout',
+child: ...)`; the built-in shells and modules do this for you.
 
 ## Observers and tab switches
 
