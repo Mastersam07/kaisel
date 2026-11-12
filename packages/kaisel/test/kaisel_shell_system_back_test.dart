@@ -132,64 +132,58 @@ Future<void> _predictiveBack(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets(
-    'shell: Android system back on a pushed detail',
-    (tester) async {
-      final counter = _Counter();
-      final router = KaiselRouter<_App>(initial: const _MainShell());
-      addTearDown(router.dispose);
-      final delegate = _delegate(router, counter);
+  testWidgets('shell: Android system back on a pushed detail', (tester) async {
+    final counter = _Counter();
+    final router = KaiselRouter<_App>(initial: const _MainShell());
+    addTearDown(router.dispose);
+    final delegate = _delegate(router, counter);
 
-      await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
-      await tester.pumpAndSettle();
-      expect(find.text('home-root'), findsOneWidget);
+    await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
+    await tester.pumpAndSettle();
+    expect(find.text('home-root'), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('push')));
-      await tester.pumpAndSettle();
-      expect(find.text('home-detail'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('push')));
+    await tester.pumpAndSettle();
+    expect(find.text('home-detail'), findsOneWidget);
 
-      _detailBuilds = 0;
-      counter.pops = 0;
-      await tester.binding.handlePopRoute();
-      final frames = await tester.pumpAndSettle();
+    _detailBuilds = 0;
+    counter.pops = 0;
+    await tester.binding.handlePopRoute();
+    final frames = await tester.pumpAndSettle();
 
-      debugPrint(
-        'SHELL SYSTEM BACK → pops=${counter.pops} '
-        'detailBuildsDuringPop=$_detailBuilds settleFrames=$frames',
-      );
-      expect(find.text('home-root'), findsOneWidget);
-      expect(find.text('home-detail'), findsNothing);
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.android),
-  );
+    debugPrint(
+      'SHELL SYSTEM BACK → pops=${counter.pops} '
+      'detailBuildsDuringPop=$_detailBuilds settleFrames=$frames',
+    );
+    expect(find.text('home-root'), findsOneWidget);
+    expect(find.text('home-detail'), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
-  testWidgets(
-    'shell: Android PREDICTIVE back on a pushed detail',
-    (tester) async {
-      final counter = _Counter();
-      final router = KaiselRouter<_App>(initial: const _MainShell());
-      addTearDown(router.dispose);
-      final delegate = _delegate(router, counter);
+  testWidgets('shell: Android PREDICTIVE back on a pushed detail', (
+    tester,
+  ) async {
+    final counter = _Counter();
+    final router = KaiselRouter<_App>(initial: const _MainShell());
+    addTearDown(router.dispose);
+    final delegate = _delegate(router, counter);
 
-      await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(MaterialApp.router(routerDelegate: delegate));
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey('push')));
-      await tester.pumpAndSettle();
-      expect(find.text('home-detail'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('push')));
+    await tester.pumpAndSettle();
+    expect(find.text('home-detail'), findsOneWidget);
 
-      _detailBuilds = 0;
-      counter.pops = 0;
-      await _predictiveBack(tester);
-      final frames = await tester.pumpAndSettle();
+    _detailBuilds = 0;
+    counter.pops = 0;
+    await _predictiveBack(tester);
+    final frames = await tester.pumpAndSettle();
 
-      debugPrint(
-        'SHELL PREDICTIVE BACK → pops=${counter.pops} '
-        'detailBuildsDuringPop=$_detailBuilds settleFrames=$frames',
-      );
-      expect(find.text('home-root'), findsOneWidget);
-      expect(find.text('home-detail'), findsNothing);
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.android),
-  );
+    debugPrint(
+      'SHELL PREDICTIVE BACK → pops=${counter.pops} '
+      'detailBuildsDuringPop=$_detailBuilds settleFrames=$frames',
+    );
+    expect(find.text('home-root'), findsOneWidget);
+    expect(find.text('home-detail'), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 }

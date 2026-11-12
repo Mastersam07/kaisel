@@ -258,7 +258,7 @@ class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
     return PopScope(
       canPop: !activeRouter.canPop,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
+        if (didPop || kaiselHasOpenOverlay(activeRouter)) return;
         if (activeRouter.canPop) {
           activeRouter.pop();
         }
@@ -300,6 +300,7 @@ class _KaiselShellState<R extends KaiselRoute> extends State<KaiselShell<R>> {
       adaptivePageBuilder: widget._adaptivePageBuilder,
       pageWrapper: widget.pageWrapper,
       rootPopsParent: widget.rootBackArrow,
+      closesOverlaysOnBack: true,
     );
     final scope = widget.branchScope;
     if (scope != null) {
