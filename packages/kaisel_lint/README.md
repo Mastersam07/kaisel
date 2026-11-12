@@ -71,7 +71,7 @@ Add `kaisel_lint` to your `dev_dependencies`:
 
 ```yaml
 dev_dependencies:
-  kaisel_lint: ^0.3.0
+  kaisel_lint: ^0.5.2
 ```
 
 Then either include the recommended config (activates the plugin with the
@@ -89,7 +89,7 @@ include: package:kaisel_lint/recommended.yaml
 # analysis_options.yaml
 plugins:
   kaisel_lint:
-    version: ^0.3.0
+    version: ^0.5.2
 ```
 
 After modifying `analysis_options.yaml`, restart the Dart analysis
@@ -104,7 +104,7 @@ under the plugin's `diagnostics` section. To opt in:
 ```yaml
 plugins:
   kaisel_lint:
-    version: ^0.3.0
+    version: ^0.5.2
     diagnostics:
       avoid_modal_route_on_main_stack: true
       require_route_props: true
