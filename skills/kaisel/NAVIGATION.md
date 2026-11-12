@@ -208,6 +208,11 @@ skips:
   visible page still unwinds.
 - Coming from auto_route, this is the translation for `maybePop()` — not
   `pop()`. Guards run on the resulting stack change either way.
+- On the first screen of a shell or module mount with a page below it,
+  `maybePop` (and `Navigator.maybePop`) leaves the shell, like the `AppBar`
+  back arrow there, and `Navigator.canPop` is true. `pop` returns `false`,
+  because the shell's own stack is at its root. Pass `rootBackArrow: false`
+  to the shell to keep the old behaviour.
 
 ## back / historyGo
 
