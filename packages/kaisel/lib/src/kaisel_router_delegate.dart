@@ -506,6 +506,10 @@ class KaiselRouterDelegate<R extends KaiselRoute>
     final navState = navigatorKey.currentState;
     if (navState == null) return false;
 
+    // A drawer open inside a shell lives on the shell's navigator, which
+    // the main Navigator never asks.
+    if (await kaiselPopNestedOverlay(this)) return true;
+
     final popped = await navState.maybePop();
     if (popped) return true;
 

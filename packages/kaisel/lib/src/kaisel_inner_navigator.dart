@@ -134,9 +134,37 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
   bool _androidPredictiveBack = false;
   final _absorbedChangeReporter = KaiselAbsorbedChangeReporter();
 
+  Object? _host;
+
+  void _registerWithHost(Object? host) {
+    if (identical(host, _host)) return;
+    if (_host case final old?) _backTargets[old]?.remove(this);
+    _host = host;
+    if (host != null) (_backTargets[host] ??= {}).add(this);
+  }
+
+  // Whether back should go to this navigator before the hosting page: it's
+  // the visible branch, every route above it is on top, and its top page is
+  // holding a local history entry (a drawer, a sheet, the back arrow's).
+  bool get _takesBackFirst {
+    if (!mounted || !TickerMode.valuesOf(context).enabled) return false;
+    if (_routes[_topKey]?.willHandlePopInternally != true) return false;
+    BuildContext? level = context;
+    while (level != null) {
+      final route = ModalRoute.of(level);
+      if (route == null) break;
+      if (!route.isCurrent) return false;
+      level = route.navigator?.context;
+    }
+    return true;
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (widget.closesOverlaysOnBack) {
+      _registerWithHost(KaiselNestedHostScope.maybeOf(context));
+    }
     _webTransition = KaiselWebTransitionScope.of(context);
     _androidPredictiveBack = KaiselWebTransitionScope.androidPredictiveBackOf(
       context,
@@ -188,6 +216,7 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
     widget.router.removeListener(_onChange);
     _topOverlays?.removeListener(_onOverlaysChanged);
     if (widget.closesOverlaysOnBack) _overlayProbes[widget.router] = null;
+    _registerWithHost(null);
     super.dispose();
   }
 
@@ -392,6 +421,33 @@ class _KaiselInnerNavigatorState<R extends KaiselRoute>
       child: reported,
     );
   }
+}
+
+final Expando<Set<_KaiselInnerNavigatorState<KaiselRoute>>> _backTargets =
+    Expando<Set<_KaiselInnerNavigatorState<KaiselRoute>>>(
+      'kaisel back targets',
+    );
+
+/// Offers system back to the deepest nested navigator under [host] whose top
+/// page holds a local history entry, such as an open drawer, and reports
+/// whether it was handled.
+///
+/// Framework-facing: the delegate calls this before popping its own stack.
+/// It works for any page type, so a custom `pageWrapper` page gets its drawer
+/// closed too, which drawer tracking alone can't do.
+Future<bool> kaiselPopNestedOverlay(Object host) async {
+  _KaiselInnerNavigatorState<KaiselRoute>? deepest;
+  var depth = -1;
+  for (final target in _backTargets[host] ?? const <Never>{}) {
+    if (!target._takesBackFirst) continue;
+    final targetDepth = (target.context as Element).depth;
+    if (targetDepth <= depth) continue;
+    deepest = target;
+    depth = targetDepth;
+  }
+  final navigator = deepest?.widget.navigatorKey.currentState;
+  if (navigator == null) return false;
+  return navigator.maybePop();
 }
 
 final Expando<bool Function()> _overlayProbes = Expando<bool Function()>(
