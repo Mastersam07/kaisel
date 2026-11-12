@@ -148,6 +148,12 @@ Future<void> _predictiveBack(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+void _androidTest(String description, WidgetTesterCallback body) => testWidgets(
+  description,
+  body,
+  variant: TargetPlatformVariant.only(TargetPlatform.android),
+);
+
 void main() {
   for (final (name, host) in const [
     ('KaiselShell', _Plain()),
@@ -178,7 +184,7 @@ void main() {
         expect(await _systemBack(tester), isFalse);
       });
 
-      testWidgets('predictive back closes the drawer, then leaves', (
+      _androidTest('predictive back closes the drawer, then leaves', (
         tester,
       ) async {
         final router = await _pump(tester, [const _Home(), host]);
@@ -190,7 +196,7 @@ void main() {
 
         await _predictiveBack(tester);
         expect(router.stack, const [_Home()]);
-      }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+      });
 
       testWidgets('on a deeper screen, back closes the drawer first', (
         tester,
@@ -210,24 +216,22 @@ void main() {
         expect(router.stack, [const _Home(), host]);
       });
 
-      testWidgets(
-        'on a deeper screen, predictive back closes the drawer first',
-        (tester) async {
-          await _pump(tester, [const _Home(), host]);
-          await tester.element(find.text('feed')).push(const _Deep());
-          await tester.pumpAndSettle();
-          await _openDrawer(tester, 'deep');
+      _androidTest('on a deeper screen, predictive back closes the drawer', (
+        tester,
+      ) async {
+        await _pump(tester, [const _Home(), host]);
+        await tester.element(find.text('feed')).push(const _Deep());
+        await tester.pumpAndSettle();
+        await _openDrawer(tester, 'deep');
 
-          await _predictiveBack(tester);
-          expect(find.text('drawer'), findsNothing);
-          expect(find.text('deep'), findsOneWidget);
+        await _predictiveBack(tester);
+        expect(find.text('drawer'), findsNothing);
+        expect(find.text('deep'), findsOneWidget);
 
-          await _predictiveBack(tester);
-          expect(find.text('feed'), findsOneWidget);
-          expect(find.text('deep'), findsNothing);
-        },
-        variant: TargetPlatformVariant.only(TargetPlatform.android),
-      );
+        await _predictiveBack(tester);
+        expect(find.text('feed'), findsOneWidget);
+        expect(find.text('deep'), findsNothing);
+      });
 
       testWidgets('rootBackArrow: false still closes the drawer', (
         tester,
