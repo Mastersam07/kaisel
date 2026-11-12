@@ -91,7 +91,7 @@ feature list stops being a list and becomes corollaries:
   changes are stack-visible even when they produce no Navigator event,
   so one registered `NavigatorObserver` reports every navigation.
 - **State restoration** — the stack is a value, so it serializes;
-  process death restores it.
+  process death restores it. See [state restoration](/guides/state-restoration/).
 - **DevTools** — the extension just shows you the stack, live, with
   time-travel. There's nothing else to show.
 

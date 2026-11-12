@@ -15,6 +15,7 @@ description: >
   BranchedShellRouter, ShellRouter, RouteModule, ModuleStackCodec,
   package:kaisel, push, pushForResult, pop, back, historyGo, pushOrReplaceTop, replaceTop, set, run,
   pageWrapper, modalBuilder, chromeBuilder, rootBackArrow, KaiselInnerNavigator,
+  restorationScopeId, restoreRoute, restorationId, state restoration,
   sealed route, codec,
   route guard, modal flow, branched shell, adaptive layout,
   master-detail, route transition, deep link.
@@ -67,6 +68,7 @@ Read these only when the topic at hand demands the depth.
 | [CODEC.md](./CODEC.md) | URL ↔ stack roundtripping; deep linking; browser back |
 | [GUARDS.md](./GUARDS.md) | The guard pipeline; auth, feature flags, entitlement gating |
 | [MODULES.md](./MODULES.md) | Feature modules, `RouteModule`, modular codec composition |
+| [RESTORATION.md](./RESTORATION.md) | Surviving process death: `restorationScopeId`, `restoreRoute`, page `restorationId`, and what doesn't restore |
 | [MIGRATION.md](./MIGRATION.md) | Converting an app from go_router, auto_route, or Flutter's Navigator (1.0 / 2.0) |
 
 ## Key types
