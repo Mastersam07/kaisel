@@ -213,6 +213,22 @@ final class ProductDetail extends KaiselRoute {
 ''');
   }
 
+  Future<void> test_addPropsOverride_bodylessPrimaryConstructor() async {
+    final fixed = await _fixed(r'''
+import 'package:kaisel/kaisel.dart';
+
+final class const ^ProductDetail(final String id) extends KaiselRoute;
+''', 'Add props override');
+    expect(fixed, '''
+import 'package:kaisel/kaisel.dart';
+
+final class const ProductDetail(final String id) extends KaiselRoute {
+  @override
+  List<Object?> get props => [id];
+}
+''');
+  }
+
   Future<void> test_convertPushToRun() async {
     final fixed = await _fixed(r'''
 import 'package:kaisel/kaisel.dart';
@@ -303,6 +319,16 @@ final class ^ProductDetail extends KaiselRoute {
 }
 ''', 'Add props override');
     expect(assisted, contains('List<Object?> get props => [id];'));
+  }
+
+  Future<void> test_addPropsOverride_bodylessPrimaryConstructor() async {
+    final assisted = await _assisted(r'''
+import 'package:kaisel/kaisel.dart';
+
+final class const ^ProductDetail(final String id) extends KaiselRoute;
+''', 'Add props override');
+    expect(assisted, contains('extends KaiselRoute {\n  @override\n'));
+    expect(assisted, contains('List<Object?> get props => [id];\n}'));
   }
 
   Future<void> test_convertPushToRun() async {

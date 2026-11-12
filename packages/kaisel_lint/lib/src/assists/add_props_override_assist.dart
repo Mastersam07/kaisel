@@ -9,6 +9,7 @@ import 'package:analyzer_plugin/utilities/change_builder/change_builder_core.dar
 import 'package:analysis_server_plugin/edit/dart/correction_producer.dart';
 
 import '../utils/kaisel_types.dart';
+import '../utils/props_override.dart';
 
 class AddPropsOverrideAssist extends ResolvedCorrectionProducer {
   AddPropsOverrideAssist({required super.context});
@@ -49,14 +50,8 @@ class AddPropsOverrideAssist extends ResolvedCorrectionProducer {
         .where((name) => name.isNotEmpty)
         .toList();
 
-    final propsList = fieldNames.join(', ');
-    final insertion =
-        '\n  @override\n'
-        '  List<Object?> get props => [$propsList];\n';
-
     await builder.addDartFileEdit(file, (b) {
-      // `classDecl.end - 1` is the offset of the class's closing `}`.
-      b.addSimpleInsertion(classDecl.end - 1, insertion);
+      addPropsOverride(b, classDecl, fieldNames);
     });
   }
 }

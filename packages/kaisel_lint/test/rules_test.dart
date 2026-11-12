@@ -174,6 +174,36 @@ final class ProductDetail extends KaiselRoute {
     );
   }
 
+  Future<void> test_fires_primaryConstructorFieldButNoProps() async {
+    await assertDiagnostics(
+      r'''
+import 'package:kaisel/kaisel.dart';
+
+final class const ProductDetail(final String id) extends KaiselRoute;
+''',
+      [lint(56, 13)],
+    );
+  }
+
+  Future<void> test_noFire_primaryConstructorWithProps() async {
+    await assertNoDiagnostics(r'''
+import 'package:kaisel/kaisel.dart';
+
+final class const ProductDetail(final String id) extends KaiselRoute {
+  @override
+  List<Object?> get props => [id];
+}
+''');
+  }
+
+  Future<void> test_noFire_primaryConstructorWithoutFields() async {
+    await assertNoDiagnostics(r'''
+import 'package:kaisel/kaisel.dart';
+
+final class const Home() extends KaiselRoute;
+''');
+  }
+
   Future<void> test_noFire_whenPropsOverridden() async {
     await assertNoDiagnostics(r'''
 import 'package:kaisel/kaisel.dart';

@@ -1,7 +1,8 @@
 // Fix: add `@override List<Object?> get props => [...]` to a
 // KaiselRoute subclass that's missing it. The fix collects every
 // instance field declared by the class and builds a props list naming
-// each, inserting it just before the class's closing brace.
+// each, inserting it just before the class's closing brace (or giving a
+// bodyless primary-constructor class a body).
 
 import 'package:analysis_server_plugin/edit/dart/dart_fix_kind_priority.dart';
 import 'package:analyzer/dart/ast/ast.dart';
@@ -10,6 +11,7 @@ import 'package:analysis_server_plugin/edit/dart/correction_producer.dart';
 import 'package:analyzer_plugin/utilities/fixes/fixes.dart';
 
 import '../utils/kaisel_types.dart';
+import '../utils/props_override.dart';
 
 class AddPropsOverrideFix extends ResolvedCorrectionProducer {
   AddPropsOverrideFix({required super.context});
@@ -45,16 +47,8 @@ class AddPropsOverrideFix extends ResolvedCorrectionProducer {
 
     if (fieldNames.isEmpty) return;
 
-    final propsList = fieldNames.join(', ');
-    final insertion =
-        '\n  @override\n'
-        '  List<Object?> get props => [$propsList];\n';
-
     await builder.addDartFileEdit(file, (b) {
-      // Insert directly before the closing brace (`classDecl.end - 1` is the
-      // offset of the class's `}`). Two newlines and matching indent
-      // produce idiomatic spacing in the generated class body.
-      b.addSimpleInsertion(classDecl.end - 1, insertion);
+      addPropsOverride(b, classDecl, fieldNames);
     });
   }
 }
