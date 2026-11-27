@@ -82,8 +82,12 @@ abstract class ModuleStackCodec<R extends KaiselRoute>
   /// known route in this module.
   List<R>? decode(List<String> segments);
 
+  /// A stack holding routes of another type encodes as the root, `const []`.
+  /// The host can report one for a frame after its main stack moves from
+  /// another mount to this one, before this module registers.
   @override
-  List<String> encodeAny(List<KaiselRoute> stack) => encode(stack.cast<R>());
+  List<String> encodeAny(List<KaiselRoute> stack) =>
+      stack.every((route) => route is R) ? encode(stack.cast<R>()) : const [];
 
   @override
   List<KaiselRoute>? decodeAny(List<String> segments) {
