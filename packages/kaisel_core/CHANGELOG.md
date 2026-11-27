@@ -1,3 +1,11 @@
+## Unreleased
+
+- Fix: `ModuleStackCodec.encodeAny` encodes a stack of another route type as
+  the module's root instead of throwing. After a guard redirect or push from
+  one module mount to another, `ConfigCodecWithModules` no longer reports a
+  `TypeError`
+  ([#114](https://github.com/Mastersam07/kaisel/issues/114)).
+
 ## 1.3.1
 
 - Docs: `KaiselGuard` no longer claims that synchronous guards make a

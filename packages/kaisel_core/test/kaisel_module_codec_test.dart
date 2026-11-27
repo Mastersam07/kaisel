@@ -157,6 +157,17 @@ void main() {
       expect(uri.pathSegments, ['checkout']);
     });
 
+    test('encode of a module-top config with another module\'s stack yields '
+        'the prefix alone', () {
+      final uri = codec.encode(
+        KaiselConfig(
+          mainStack: const [_CheckoutMount()],
+          nestedState: KaiselModuleConfig(stack: const [_Home()]),
+        ),
+      );
+      expect(uri.pathSegments, ['checkout']);
+    });
+
     test('encode of a plain (non-module) top delegates to the host codec', () {
       expect(codec.encode(KaiselConfig(mainStack: const [_Home()])).path, '/');
       expect(
